@@ -1,16 +1,13 @@
-.PHONY: build generate clean run bundle
+.PHONY: build clean run bundle
 
 APP_NAME = StatusBar
 APP_BUNDLE = $(APP_NAME).app
 
-build: generate
+build:
 	swift build
 
-release: generate
+release:
 	swift build -c release
-
-generate:
-	swift Scripts/generate-plugin-loader.swift
 
 clean:
 	swift package clean
