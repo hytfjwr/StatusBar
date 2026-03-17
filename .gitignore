@@ -1,0 +1,27 @@
+# Build
+.build/
+Build/
+
+# Swift Package Manager
+.swiftpm/xcode/package.xcworkspace/
+.swiftpm/xcode/xcuserdata/
+Package.resolved
+
+# Xcode
+*.xcodeproj/
+*.xcworkspace/
+xcuserdata/
+DerivedData/
+
+# macOS
+.DS_Store
+._*
+
+# App bundle
+*.app
+
+# Compiled
+*.o
+*.d
+*.dia
+*.swp

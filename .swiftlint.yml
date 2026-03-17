@@ -1,0 +1,96 @@
+# SwiftLint Configuration
+
+included:
+  - Sources
+
+excluded:
+  - .build
+  - Package.swift
+
+# Rules
+disabled_rules:
+  - trailing_comma            # trailing commas are preferred in this project
+  - todo
+  - opening_brace             # conflicts with SwiftFormat
+
+opt_in_rules:
+  - array_init
+  - closure_end_indentation
+  - closure_spacing
+  - collection_alignment
+  - contains_over_filter_count
+  - contains_over_first_not_nil
+  - contains_over_range_nil_comparison
+  - empty_collection_literal
+  - empty_count
+  - empty_string
+  - multiple_closures_with_trailing_closure
+  - enum_case_associated_values_count
+  - fatal_error_message
+  - first_where
+  - flatmap_over_map_reduce
+  - force_unwrapping
+  - identical_operands
+  - implicit_return
+  - joined_default_parameter
+  - last_where
+  - literal_expression_end_indentation
+  - modifier_order
+  - operator_usage_whitespace
+  - overridden_super_call
+  - pattern_matching_keywords
+  - prefer_self_in_static_references
+  - prefer_self_type_over_type_of_self
+  - prefer_zero_over_explicit_init
+  - private_action
+  - redundant_nil_coalescing
+  - redundant_type_annotation
+  - sorted_first_last
+  - toggle_bool
+  - unneeded_parentheses_in_closure_argument
+  - vertical_whitespace_closing_braces
+
+# Configuration
+line_length:
+  warning: 130
+  error: 200
+
+type_body_length:
+  warning: 300
+  error: 500
+
+file_length:
+  warning: 500
+  error: 800
+
+function_body_length:
+  warning: 60
+  error: 100
+
+cyclomatic_complexity:
+  warning: 15
+  error: 25
+
+identifier_name:
+  min_length:
+    warning: 1
+  max_length:
+    warning: 60
+  excluded:
+    - x
+    - y
+    - i
+    - r
+    - g
+    - b
+
+type_name:
+  max_length:
+    warning: 60
+
+nesting:
+  type_level: 3
+  function_level: 3
+
+empty_count:
+  severity: warning

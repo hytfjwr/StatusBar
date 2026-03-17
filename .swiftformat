@@ -1,0 +1,58 @@
+# SwiftFormat Configuration
+
+# Swift version
+--swiftversion 6.0
+
+# File options
+--exclude .build,Package.swift
+
+# Format options
+--indent 4
+--indentcase false
+--trimwhitespace always
+--voidtype void
+--wraparguments before-first
+--wrapparameters before-first
+--wrapcollections before-first
+--wrapconditions after-first
+--wrapreturntype preserve
+--maxwidth 130
+--closingparen balanced
+--commas always
+--decimalgrouping 3,4
+--exponentcase lowercase
+--fractiongrouping disabled
+--header strip
+--ifdef no-indent
+--importgrouping alpha
+--lifecycle
+--linebreaks lf
+--operatorfunc spaced
+--patternlet hoist
+--ranges spaced
+--self remove
+--semicolons inline
+--stripunusedargs closure-only
+--trailingclosures
+--typeattributes prev-line
+--funcattributes prev-line
+--varattributes prev-line
+--wrapenumcases always
+--wrapternary default
+
+# Rules
+--enable blankLinesBetweenImports
+--enable isEmpty
+--enable markTypes
+--enable sortSwitchCases
+--enable wrapConditionalBodies
+--enable wrapEnumCases
+--enable wrapSwitchCases
+
+--disable acronyms
+--disable blankLinesAtStartOfScope
+--disable blankLinesAtEndOfScope
+--disable markTypes
+--disable environmentEntry
+--disable sortSwitchCases
+--disable wrapSwitchCases

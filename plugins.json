@@ -1,0 +1,7 @@
+[
+  { "module": "AeroSpacePlugin" },
+  { "module": "SpotifyPlugin" },
+  { "module": "DockerPlugin" },
+  { "module": "VPNPlugin" },
+  { "module": "QuickActionsPlugin" }
+]
