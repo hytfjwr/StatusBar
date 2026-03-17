@@ -1,6 +1,6 @@
 # StatusBar
 
-> A Swift-native custom status bar for macOS — a modern replacement for sketchybar.
+> A Swift-native custom status bar for macOS, inspired by [sketchybar](https://github.com/FelixKratz/SketchyBar).
 
 [![Swift 6.2](https://img.shields.io/badge/Swift-6.2-F05138?logo=swift&logoColor=white)](https://www.swift.org)
 [![macOS 26+](https://img.shields.io/badge/macOS-26+-000000?logo=apple&logoColor=white)](https://developer.apple.com/macos/)
