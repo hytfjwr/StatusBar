@@ -1,9 +1,14 @@
 import Foundation
 import OSLog
+import ServiceManagement
 import StatusBarKit
 import Yams
 
 private let logger = Logger(subsystem: "com.statusbar", category: "ConfigLoader")
+
+extension Notification.Name {
+    static let configParseError = Notification.Name("ConfigParseError")
+}
 
 @MainActor
 final class ConfigLoader {
@@ -44,6 +49,12 @@ final class ConfigLoader {
 
         do {
             currentConfig = try loadConfigFromDisk()
+            // Record initial modification date so the FS watcher can skip
+            // events where config.yml hasn't actually changed.
+            if let attrs = try? fm.attributesOfItem(atPath: fileURL.path),
+               let modDate = attrs[.modificationDate] as? Date {
+                lastKnownConfigModDate = modDate
+            }
             logger.info("Loaded config from \(self.fileURL.path)")
         } catch let error as NSError where error.domain == NSCocoaErrorDomain
             && error.code == NSFileReadNoSuchFileError {
@@ -102,6 +113,9 @@ final class ConfigLoader {
         prefs.applyBatch {
             currentConfig.global.apply(to: prefs)
         }
+
+        // Sync launchAtLogin YAML value with SMAppService system state
+        LaunchAtLoginService.setEnabled(prefs.launchAtLogin)
 
         // Update registry data and apply to all registered widget settings providers
         WidgetConfigRegistry.shared.setLoadedConfig(currentConfig.widgetSettings)
@@ -235,6 +249,11 @@ final class ConfigLoader {
             // File was deleted — ignore
         } catch {
             logger.error("Config hot-reload failed: \(error.localizedDescription)")
+            NotificationCenter.default.post(
+                name: .configParseError,
+                object: nil,
+                userInfo: ["message": error.localizedDescription]
+            )
         }
     }
 
