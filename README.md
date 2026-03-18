@@ -10,26 +10,21 @@
 
 ## Getting Started
 
-### Requirements
-
-- macOS 26+
-- Xcode 26 beta+ ([download](https://developer.apple.com/download/))
-- Swift 6.2
-
-### Build & Run
+### Install via Homebrew
 
 ```bash
-# Debug build & run
+brew tap hytfjwr/statusbar
+brew install statusbar
+```
+
+### Build from Source
+
+Requirements: macOS 26+, Xcode 26+ ([download](https://developer.apple.com/download/)), Swift 6.2
+
+```bash
+git clone https://github.com/hytfjwr/StatusBar.git
+cd StatusBar
 make run
-
-# Release build
-make release
-
-# Create .app bundle
-make bundle
-
-# Package for distribution
-make package
 ```
 
 ## Configuration
@@ -183,15 +178,6 @@ widgets:
 ## Plugins
 
 StatusBar supports third-party plugins distributed as `.statusplugin.zip` archives via GitHub Releases. Install and manage plugins entirely through the Preferences UI — no CLI required.
-
-## Install
-
-```bash
-brew tap hytfjwr/statusbar
-brew install statusbar
-```
-
-Alternatively, download the `.app` bundle from [GitHub Releases](https://github.com/hytfjwr/StatusBar/releases).
 
 ## License
 
