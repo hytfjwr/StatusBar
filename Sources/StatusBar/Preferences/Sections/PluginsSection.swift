@@ -1,3 +1,4 @@
+// swiftlint:disable file_length
 import StatusBarKit
 import SwiftUI
 
@@ -308,7 +309,8 @@ struct PluginsSection: View {
                     let bundleURL = FileManager.default.homeDirectoryForCurrentUser
                         .appendingPathComponent(".config/statusbar/plugins")
                         .appendingPathComponent("\(record.bundleName).statusplugin")
-                    if (try? loader.reload(pluginID: update.pluginID, bundleURL: bundleURL, into: registry)) != nil {
+                    do {
+                        try loader.reload(pluginID: update.pluginID, bundleURL: bundleURL, into: registry)
                         registry.finalizeRegistration()
                         let newWidgetIDs = Set(loader.widgetIDs(for: record.id))
                         let allWidgets = registry.leftWidgets + registry.centerWidgets + registry.rightWidgets
@@ -316,6 +318,8 @@ struct PluginsSection: View {
                             widget.start()
                         }
                         reloaded = true
+                    } catch {
+                        print("[PluginsSection] Hot-reload failed: \(error.localizedDescription)")
                     }
                 } else {
                     reloaded = hotLoadPlugin(record)
@@ -418,15 +422,15 @@ struct PluginsSection: View {
                 }
             }
             // Show and start widgets
+            let allWidgets = registry.leftWidgets + registry.centerWidgets + registry.rightWidgets
             for widgetID in loader.widgetIDs(for: plugin.id) {
                 registry.setVisible(true, for: widgetID)
-                let allWidgets = registry.leftWidgets + registry.centerWidgets + registry.rightWidgets
                 allWidgets.first { $0.id == widgetID }?.start()
             }
         } else {
             // Stop and hide widgets
+            let allWidgets = registry.leftWidgets + registry.centerWidgets + registry.rightWidgets
             for widgetID in loader.widgetIDs(for: plugin.id) {
-                let allWidgets = registry.leftWidgets + registry.centerWidgets + registry.rightWidgets
                 allWidgets.first { $0.id == widgetID }?.stop()
                 registry.setVisible(false, for: widgetID)
             }
