@@ -5,7 +5,6 @@ Build/
 # Swift Package Manager
 .swiftpm/xcode/package.xcworkspace/
 .swiftpm/xcode/xcuserdata/
-Package.resolved
 
 # Xcode
 *.xcodeproj/
@@ -19,6 +18,9 @@ DerivedData/
 
 # App bundle
 *.app
+
+# Archives
+*.zip
 
 # Compiled
 *.o

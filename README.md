@@ -13,7 +13,7 @@
 ### Requirements
 
 - macOS 26+
-- Xcode 26 beta+
+- Xcode 26 beta+ ([download](https://developer.apple.com/download/))
 - Swift 6.2
 
 ### Build & Run
@@ -188,6 +188,10 @@ StatusBar supports third-party plugins distributed as `.statusplugin.zip` archiv
 
 - **Homebrew Cask**: `brew tap hytfjwr/statusbar && brew install --cask statusbar`
 - **GitHub Releases**: `.app` bundle as ZIP
+
+## Installation Notes
+
+The app is ad-hoc signed (no Apple Developer ID), so macOS Gatekeeper will block the first launch. To allow it, go to **System Settings → Privacy & Security**, scroll to the blocked app message, and click **Open Anyway**. Alternatively, run `xattr -cr StatusBar.app` in Terminal before launching.
 
 ## License
 
