@@ -1,4 +1,4 @@
-.PHONY: build clean run bundle
+.PHONY: build clean run bundle test
 
 APP_NAME = StatusBar
 APP_BUNDLE = $(APP_NAME).app
@@ -12,6 +12,9 @@ release:
 clean:
 	swift package clean
 	rm -rf $(APP_BUNDLE)
+
+test:
+	swift test
 
 run: build
 	.build/debug/$(APP_NAME)
