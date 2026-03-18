@@ -103,6 +103,19 @@ final class DylibPluginLoader {
             do {
                 let manifest = try load(bundleURL: bundleURL, into: registry)
                 results.append(PluginLoadResult(manifest: manifest, error: nil))
+
+                // Auto-register in PluginStore if not already tracked (e.g. make dev)
+                if store.record(forBundleName: bundleName) == nil {
+                    let record = InstalledPluginRecord(
+                        id: manifest.id,
+                        name: manifest.name,
+                        version: manifest.version,
+                        githubURL: manifest.homepage,
+                        bundleName: bundleName,
+                        isLocal: true
+                    )
+                    try? store.add(record)
+                }
             } catch let error as PluginLoadError {
                 // Try to read manifest for error reporting
                 let manifestURL = bundleURL.appendingPathComponent("manifest.json")

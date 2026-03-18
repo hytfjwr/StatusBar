@@ -11,6 +11,8 @@ struct InstalledPluginRecord: Codable, Sendable {
     let bundleName: String
     let installedAt: Date
     var enabled: Bool
+    /// True when the plugin was discovered on disk without a GitHub install (e.g. `make dev`).
+    let isLocal: Bool
 
     init(
         id: String,
@@ -19,7 +21,8 @@ struct InstalledPluginRecord: Codable, Sendable {
         githubURL: String?,
         bundleName: String,
         installedAt: Date = Date(),
-        enabled: Bool = true
+        enabled: Bool = true,
+        isLocal: Bool = false
     ) {
         self.id = id
         self.name = name
@@ -28,6 +31,19 @@ struct InstalledPluginRecord: Codable, Sendable {
         self.bundleName = bundleName
         self.installedAt = installedAt
         self.enabled = enabled
+        self.isLocal = isLocal
+    }
+
+    init(from decoder: any Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        id = try container.decode(String.self, forKey: .id)
+        name = try container.decode(String.self, forKey: .name)
+        version = try container.decode(String.self, forKey: .version)
+        githubURL = try container.decodeIfPresent(String.self, forKey: .githubURL)
+        bundleName = try container.decode(String.self, forKey: .bundleName)
+        installedAt = try container.decode(Date.self, forKey: .installedAt)
+        enabled = try container.decode(Bool.self, forKey: .enabled)
+        isLocal = try container.decodeIfPresent(Bool.self, forKey: .isLocal) ?? false
     }
 }
 
