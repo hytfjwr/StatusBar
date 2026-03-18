@@ -12,6 +12,8 @@ enum GitHubPluginError: Error, LocalizedError {
     case extractionFailed(any Error)
     case manifestMissing
     case incompatibleVersion(required: String, current: String)
+    case untrustedDownloadURL(String)
+    case rateLimited
 
     var errorDescription: String? {
         switch self {
@@ -31,6 +33,10 @@ enum GitHubPluginError: Error, LocalizedError {
             "Downloaded plugin does not contain a valid manifest.json"
         case .incompatibleVersion(let required, let current):
             "Plugin requires StatusBarKit \(required), but app has \(current)"
+        case .untrustedDownloadURL(let url):
+            "Download URL is not from a trusted GitHub domain: \(url)"
+        case .rateLimited:
+            "GitHub API rate limit exceeded. Try again later or configure a personal access token."
         }
     }
 }
@@ -42,6 +48,13 @@ final class GitHubPluginInstaller {
     static let shared = GitHubPluginInstaller()
 
     private init() {}
+
+    // Trusted download hosts for SSRF prevention
+    private static let allowedDownloadHosts: Set<String> = [
+        "github.com",
+        "api.github.com",
+        "objects.githubusercontent.com",
+    ]
 
     private var pluginsDirectory: URL {
         FileManager.default.homeDirectoryForCurrentUser
@@ -79,6 +92,20 @@ final class GitHubPluginInstaller {
         // Unzip
         try await unzip(zipPath, to: tempDir)
 
+        // Validate no path traversal in extracted files
+        let extractedPaths = try FileManager.default.subpathsOfDirectory(atPath: tempDir.path)
+        let resolvedTempDir = tempDir.standardizedFileURL.path
+        for subpath in extractedPaths {
+            let fullPath = tempDir.appendingPathComponent(subpath).standardizedFileURL.path
+            guard fullPath.hasPrefix(resolvedTempDir) else {
+                throw GitHubPluginError.extractionFailed(
+                    NSError(domain: "unzip", code: -1, userInfo: [
+                        NSLocalizedDescriptionKey: "Path traversal detected in archive: \(subpath)",
+                    ])
+                )
+            }
+        }
+
         // Find the .statusplugin directory
         let contents = try FileManager.default.contentsOfDirectory(
             at: tempDir,
@@ -114,11 +141,13 @@ final class GitHubPluginInstaller {
         }
 
         // Copy to plugins directory
+        // Atomic replacement to prevent TOCTOU race
         let destURL = pluginsDirectory.appendingPathComponent(pluginBundle.lastPathComponent)
         if fm.fileExists(atPath: destURL.path) {
-            try fm.removeItem(at: destURL)
+            _ = try fm.replaceItemAt(destURL, withItemAt: pluginBundle)
+        } else {
+            try fm.copyItem(at: pluginBundle, to: destURL)
         }
-        try fm.copyItem(at: pluginBundle, to: destURL)
 
         // Create and save registry record
         let normalizedURL = "https://github.com/\(owner)/\(repo)"
@@ -223,8 +252,16 @@ final class GitHubPluginInstaller {
 
         let (data, response) = try await URLSession.shared.data(for: request)
 
-        guard let httpResponse = response as? HTTPURLResponse,
-              httpResponse.statusCode == 200 else {
+        guard let httpResponse = response as? HTTPURLResponse else {
+            throw GitHubPluginError.noReleaseFound
+        }
+
+        // Distinguish rate limiting from "no release"
+        if httpResponse.statusCode == 403 || httpResponse.statusCode == 429 {
+            throw GitHubPluginError.rateLimited
+        }
+
+        guard httpResponse.statusCode == 200 else {
             throw GitHubPluginError.noReleaseFound
         }
 
@@ -235,6 +272,14 @@ final class GitHubPluginInstaller {
         guard let downloadURL = URL(string: url) else {
             throw GitHubPluginError.downloadFailed
         }
+
+        // Validate URL host and scheme to prevent SSRF
+        guard downloadURL.scheme == "https",
+              let host = downloadURL.host,
+              Self.allowedDownloadHosts.contains(host) else {
+            throw GitHubPluginError.untrustedDownloadURL(url)
+        }
+
         let (data, response) = try await URLSession.shared.data(from: downloadURL)
         guard let httpResponse = response as? HTTPURLResponse,
               httpResponse.statusCode == 200 else {
