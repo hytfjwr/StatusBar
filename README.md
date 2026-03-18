@@ -1,5 +1,8 @@
 # StatusBar
 
+<img width="1803" height="51" alt="image" src="https://github.com/user-attachments/assets/17ff03fd-3c4f-4493-8d73-3fed147de346" />
+
+
 > A Swift-native custom status bar for macOS, inspired by [sketchybar](https://github.com/FelixKratz/SketchyBar).
 
 [![Swift 6.2](https://img.shields.io/badge/Swift-6.2-F05138?logo=swift&logoColor=white)](https://www.swift.org)
