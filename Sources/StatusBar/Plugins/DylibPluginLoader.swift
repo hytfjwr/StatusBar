@@ -178,6 +178,18 @@ final class DylibPluginLoader {
         return manifest
     }
 
+    // MARK: - Query
+
+    /// Whether a plugin is currently loaded in memory.
+    func isLoaded(_ pluginID: String) -> Bool {
+        loadedPlugins[pluginID] != nil
+    }
+
+    /// Widget IDs belonging to a loaded plugin.
+    func widgetIDs(for pluginID: String) -> [String] {
+        loadedPlugins[pluginID]?.widgets.map(\.id) ?? []
+    }
+
     // MARK: - Unload
 
     /// Mark a plugin for removal. Stops widgets immediately, but full cleanup requires restart.

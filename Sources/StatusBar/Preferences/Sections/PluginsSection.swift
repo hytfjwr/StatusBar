@@ -140,7 +140,7 @@ struct PluginsSection: View {
                 get: { plugin.enabled },
                 set: { newValue in
                     store.setEnabled(newValue, for: plugin.id)
-                    needsRestart = true
+                    togglePlugin(plugin, enabled: newValue)
                 }
             ))
             .labelsHidden()
@@ -220,6 +220,41 @@ struct PluginsSection: View {
 
         if alert.runModal() == .alertFirstButtonReturn {
             restartApp()
+        }
+    }
+
+    private func togglePlugin(_ plugin: InstalledPluginRecord, enabled: Bool) {
+        let loader = DylibPluginLoader.shared
+        let registry = WidgetRegistry.shared
+
+        if enabled {
+            // If not loaded yet, load from disk
+            if !loader.isLoaded(plugin.id) {
+                let bundleURL = FileManager.default.homeDirectoryForCurrentUser
+                    .appendingPathComponent(".config/statusbar/plugins")
+                    .appendingPathComponent("\(plugin.bundleName).statusplugin")
+                do {
+                    try loader.load(bundleURL: bundleURL, into: registry)
+                    registry.finalizeRegistration()
+                } catch {
+                    print("[PluginsSection] Failed to load plugin: \(error.localizedDescription)")
+                    needsRestart = true
+                    return
+                }
+            }
+            // Show and start widgets
+            for widgetID in loader.widgetIDs(for: plugin.id) {
+                registry.setVisible(true, for: widgetID)
+                let allWidgets = registry.leftWidgets + registry.centerWidgets + registry.rightWidgets
+                allWidgets.first { $0.id == widgetID }?.start()
+            }
+        } else {
+            // Stop and hide widgets
+            for widgetID in loader.widgetIDs(for: plugin.id) {
+                let allWidgets = registry.leftWidgets + registry.centerWidgets + registry.rightWidgets
+                allWidgets.first { $0.id == widgetID }?.stop()
+                registry.setVisible(false, for: widgetID)
+            }
         }
     }
 
