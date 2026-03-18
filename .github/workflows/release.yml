@@ -14,6 +14,7 @@ on:
 
 permissions:
   contents: write
+  pull-requests: write
 
 jobs:
   test:
@@ -66,6 +67,9 @@ jobs:
           echo "tag=v${VERSION}" >> "$GITHUB_OUTPUT"
           echo "Releasing v${VERSION}"
 
+      - name: Create release branch
+        run: git checkout -b release/${{ steps.version.outputs.tag }}
+
       - name: Update Info.plist version
         run: make set-version VERSION=${{ steps.version.outputs.version }}
 
@@ -82,22 +86,37 @@ jobs:
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git add Resources/Info.plist CHANGELOG.md
           git commit -m "chore: release ${TAG}"
-          git push origin HEAD:main
 
       - name: Build & Package
         run: make package
 
-      - name: Create tag and release
+      - name: Push branch and tag
+        run: |
+          TAG="${{ steps.version.outputs.tag }}"
+          BRANCH="release/${TAG}"
+          git tag "$TAG"
+          git push origin "$BRANCH" "$TAG"
+
+      - name: Create GitHub release
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
           TAG="${{ steps.version.outputs.tag }}"
-          git tag "$TAG"
-          git push origin "$TAG"
           gh release create "$TAG" \
             StatusBar.zip \
             --title "$TAG" \
             --generate-notes
+
+      - name: Create version bump PR
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          TAG="${{ steps.version.outputs.tag }}"
+          gh pr create \
+            --title "chore: release ${TAG}" \
+            --body "Update Info.plist and CHANGELOG for ${TAG}." \
+            --head "release/${TAG}" \
+            --base main
 
   update-homebrew:
     needs: release
