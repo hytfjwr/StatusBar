@@ -191,7 +191,6 @@ StatusBar supports third-party plugins distributed as `.statusplugin.zip` archiv
 |--------|-------------|--------|
 | [AeroSpace](https://github.com/hytfjwr/statusbar-plugin-aerospace) | Tiling window manager workspace indicator | Event |
 | [Spotify](https://github.com/hytfjwr/statusbar-plugin-spotify) | Now playing track title & artist | Event |
-| [Quick Actions](https://github.com/hytfjwr/statusbar-plugin-quickactions) | Configurable action buttons | Event |
 | [Docker](https://github.com/hytfjwr/statusbar-plugin-docker) | Running container count | 10s |
 | [VPN](https://github.com/hytfjwr/statusbar-plugin-vpn) | VPN connection status | 5s |
 
