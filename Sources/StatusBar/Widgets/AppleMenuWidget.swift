@@ -95,9 +95,16 @@ struct AppleMenuPopupContent: View {
 
             VStack(spacing: 2) {
                 PopupRow(icon: "arrow.clockwise", label: "Reload") {
-                    if let path = Bundle.main.executablePath {
-                        NSWorkspace.shared.open(URL(fileURLWithPath: path))
+                    let relaunchCmd: String
+                    if Bundle.main.bundleURL.pathExtension == "app" {
+                        relaunchCmd = "open \"\(Bundle.main.bundleURL.path)\""
+                    } else {
+                        relaunchCmd = "\"\(Bundle.main.executablePath ?? "")\" &"
                     }
+                    let task = Process()
+                    task.executableURL = URL(fileURLWithPath: "/bin/sh")
+                    task.arguments = ["-c", "sleep 0.5 && \(relaunchCmd)"]
+                    try? task.run()
                     NSApp.terminate(nil)
                 }
             }
