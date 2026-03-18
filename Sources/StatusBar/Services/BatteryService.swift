@@ -3,42 +3,54 @@ import IOKit.ps
 
 @MainActor
 final class BatteryService {
-    private let onChange: @Sendable (Int, Bool) -> Void
-    private var runLoopSource: CFRunLoopSource?
-    private var retainedSelf: Unmanaged<BatteryService>?
+    static let shared = BatteryService()
 
-    init(onChange: @escaping @Sendable (Int, Bool) -> Void) {
-        self.onChange = onChange
+    private var runLoopSource: CFRunLoopSource?
+    private var observers: [(Int, Bool) -> Void] = []
+    private var started = false
+
+    private init() {}
+
+    func addObserver(_ handler: @escaping (Int, Bool) -> Void) {
+        observers.append(handler)
+    }
+
+    func removeAllObservers() {
+        observers.removeAll()
     }
 
     func start() {
-        guard retainedSelf == nil else { return }
+        guard !started else {
+            // Already running - just poll once for the new observer
+            poll()
+            return
+        }
+        started = true
         poll()
 
-        // IOPSNotificationCreateRunLoopSource for real-time updates
-        // Use passRetained to prevent use-after-free if service is released before stop()
-        let retained = Unmanaged.passRetained(self)
-        retainedSelf = retained
+        // IOPSNotificationCreateRunLoopSource for real-time updates.
+        // Use Unmanaged.passUnretained since `shared` singleton is never deallocated.
+        let pointer = Unmanaged.passUnretained(self).toOpaque()
         runLoopSource = IOPSNotificationCreateRunLoopSource({ context in
-            guard let context else {
-                return
-            }
+            guard let context else { return }
             let service = Unmanaged<BatteryService>.fromOpaque(context).takeUnretainedValue()
-            MainActor.assumeIsolated {
+            // Safely dispatch to MainActor instead of assumeIsolated,
+            // since IOKit does not guarantee callback thread.
+            Task { @MainActor in
                 service.poll()
             }
-        }, retained.toOpaque()).takeRetainedValue()
+        }, pointer).takeRetainedValue()
 
         CFRunLoopAddSource(CFRunLoopGetMain(), runLoopSource, .commonModes)
     }
 
     func stop() {
+        guard started else { return }
         if let source = runLoopSource {
             CFRunLoopRemoveSource(CFRunLoopGetMain(), source, .commonModes)
             runLoopSource = nil
         }
-        retainedSelf?.release()
-        retainedSelf = nil
+        started = false
     }
 
     func poll() {
@@ -48,12 +60,18 @@ final class BatteryService {
         guard let source = sources.first,
               let info = IOPSGetPowerSourceDescription(snapshot, source).takeUnretainedValue() as? [String: Any]
         else {
-            onChange(0, false)
+            notifyObservers(0, false)
             return
         }
 
         let capacity = info[kIOPSCurrentCapacityKey] as? Int ?? 0
         let isCharging = (info[kIOPSPowerSourceStateKey] as? String) == kIOPSACPowerValue
-        onChange(capacity, isCharging)
+        notifyObservers(capacity, isCharging)
+    }
+
+    private func notifyObservers(_ capacity: Int, _ isCharging: Bool) {
+        for observer in observers {
+            observer(capacity, isCharging)
+        }
     }
 }
