@@ -19,7 +19,7 @@ final class NetworkService {
             Self.formatSpeed(upload)
         }
 
-        private static func formatSpeed(_ bytesPerSec: Double) -> String {
+        static func formatSpeed(_ bytesPerSec: Double) -> String {
             let kbps = bytesPerSec / 1_024
             if kbps > 999 {
                 return String(format: "%.1f MB/s", kbps / 1_024)

@@ -344,7 +344,7 @@ final class DylibPluginLoader {
     }
 
     /// Validate manifest fields contain only safe characters.
-    private func validateManifestFields(_ manifest: DylibPluginManifest) throws {
+    func validateManifestFields(_ manifest: DylibPluginManifest) throws {
         let idPattern = /^[a-zA-Z0-9._-]+$/
         let symbolPattern = /^[a-zA-Z_][a-zA-Z0-9_]*$/
         let versionPattern = /^[a-zA-Z0-9._-]+$/

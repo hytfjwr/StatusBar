@@ -168,7 +168,7 @@ final class ConfigLoader {
     // MARK: - YAML Number Formatting
 
     /// Replace scientific notation (e.g. `4e+1`, `5.5e-1`) with human-readable decimals.
-    private static func fixScientificNotation(_ yaml: String) -> String {
+    nonisolated static func fixScientificNotation(_ yaml: String) -> String {
         let pattern = /(-?\d+\.?\d*)[eE]([+-]?\d+)/
         return yaml.replacing(pattern) { match in
             let baseStr = String(match.output.1)
