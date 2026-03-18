@@ -185,6 +185,22 @@ widgets:
 
 StatusBar supports third-party plugins distributed as `.statusplugin.zip` archives via GitHub Releases. Install and manage plugins entirely through the Preferences UI — no CLI required.
 
+### Official Plugins
+
+| Plugin | Description | Update |
+|--------|-------------|--------|
+| [AeroSpace](https://github.com/hytfjwr/statusbar-plugin-aerospace) | Tiling window manager workspace indicator | Event |
+| [Spotify](https://github.com/hytfjwr/statusbar-plugin-spotify) | Now playing track title & artist | Event |
+| [Quick Actions](https://github.com/hytfjwr/statusbar-plugin-quickactions) | Configurable action buttons | Event |
+| [Docker](https://github.com/hytfjwr/statusbar-plugin-docker) | Running container count | 10s |
+| [VPN](https://github.com/hytfjwr/statusbar-plugin-vpn) | VPN connection status | 5s |
+
+Install from Preferences > Plugins > Add Plugin using `hytfjwr/<plugin-name>`.
+
+### Create Your Own
+
+Use the [plugin template](https://github.com/hytfjwr/statusbar-plugin-template) to get started.
+
 ## License
 
 [MIT](LICENSE)
