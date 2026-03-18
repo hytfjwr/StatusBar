@@ -169,13 +169,57 @@ struct PluginsSection: View {
         Task {
             do {
                 let record = try await GitHubPluginInstaller.shared.install(from: githubURL)
-                installSuccess = "\(record.name) v\(record.version) installed successfully."
                 githubURL = ""
-                needsRestart = true
+
+                // Try hot-loading the plugin immediately
+                if hotLoadPlugin(record) {
+                    installSuccess = "\(record.name) v\(record.version) installed and loaded."
+                } else {
+                    installSuccess = "\(record.name) v\(record.version) installed."
+                    showRestartDialog(pluginName: record.name)
+                }
             } catch {
                 installError = error.localizedDescription
             }
             isInstalling = false
+        }
+    }
+
+    /// Attempt to load the plugin without restart. Returns true on success.
+    private func hotLoadPlugin(_ record: InstalledPluginRecord) -> Bool {
+        let bundleURL = FileManager.default.homeDirectoryForCurrentUser
+            .appendingPathComponent(".config/statusbar/plugins")
+            .appendingPathComponent("\(record.bundleName).statusplugin")
+
+        let registry = WidgetRegistry.shared
+        let existingIDs = Set(registry.layout.map(\.id))
+
+        do {
+            try DylibPluginLoader.shared.load(bundleURL: bundleURL, into: registry)
+            registry.finalizeRegistration()
+
+            // Start only the newly added widgets
+            let allWidgets = registry.leftWidgets + registry.centerWidgets + registry.rightWidgets
+            for widget in allWidgets where !existingIDs.contains(widget.id) {
+                widget.start()
+            }
+            return true
+        } catch {
+            print("[PluginsSection] Hot-load failed: \(error.localizedDescription)")
+            return false
+        }
+    }
+
+    private func showRestartDialog(pluginName: String) {
+        let alert = NSAlert()
+        alert.messageText = "Restart Required"
+        alert.informativeText = "\(pluginName) was installed but could not be loaded at runtime. Restart to activate the plugin."
+        alert.alertStyle = .informational
+        alert.addButton(withTitle: "Restart Now")
+        alert.addButton(withTitle: "Later")
+
+        if alert.runModal() == .alertFirstButtonReturn {
+            restartApp()
         }
     }
 
