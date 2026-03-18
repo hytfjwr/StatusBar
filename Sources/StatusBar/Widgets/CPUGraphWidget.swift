@@ -66,10 +66,9 @@ final class CPUGraphWidget: StatusBarWidget {
     private func restartTimer() {
         timer?.cancel()
         let interval = CPUGraphSettings.shared.updateInterval
-        let t = Timer.publish(every: interval, tolerance: interval * 0.1, on: .main, in: .common)
+        timer = Timer.publish(every: interval, tolerance: interval * 0.1, on: .main, in: .common)
             .autoconnect()
             .sink { [weak self] _ in self?.update() }
-        timer = t
     }
 
     private func observeSettings() {

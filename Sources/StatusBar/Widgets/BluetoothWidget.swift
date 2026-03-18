@@ -26,11 +26,9 @@ final class BluetoothWidget: StatusBarWidget {
             .autoconnect()
             .sink { [weak self] _ in
                 guard let self else { return }
-                Task { @MainActor in
-                    self.devices = self.service.poll()
-                    if self.popupPanel?.isVisible == true {
-                        self.refreshPopup()
-                    }
+                self.devices = self.service.poll()
+                if self.popupPanel?.isVisible == true {
+                    self.refreshPopup()
                 }
             }
     }

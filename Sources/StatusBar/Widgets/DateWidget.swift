@@ -115,13 +115,15 @@ final class DateWidget: StatusBarWidget {
         if popupPanel == nil {
             popupPanel = PopupPanel(contentRect: NSRect(x: 0, y: 0, width: 300, height: 400))
         }
-        if calendarService == nil {
-            calendarService = CalendarService()
-        }
+        let service = calendarService ?? {
+            let s = CalendarService()
+            calendarService = s
+            return s
+        }()
 
         guard let (barFrame, screen) = PopupPanel.barTriggerFrame(width: 120) else { return }
 
-        let content = CalendarPopupContent(calendarService: calendarService!)
+        let content = CalendarPopupContent(calendarService: service)
         popupPanel?.showPopup(relativeTo: barFrame, on: screen, content: content)
     }
 }
