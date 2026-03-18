@@ -67,6 +67,20 @@ final class WidgetRegistry: WidgetRegistryProtocol {
         plugin.register(to: self)
     }
 
+    /// Remove widgets by ID and their owning plugin from the registry.
+    /// Call BEFORE dlclose so widget destructors can run safely.
+    func unregisterWidgets(ids widgetIDs: Set<String>) {
+        for id in widgetIDs {
+            allWidgets[id]?.stop()
+            allWidgets.removeValue(forKey: id)
+        }
+        layout.removeAll { widgetIDs.contains($0.id) }
+        defaultLayout.removeAll { widgetIDs.contains($0.id) }
+        plugins.removeAll { plugin in
+            plugin.widgets.contains { widgetIDs.contains($0.id) }
+        }
+    }
+
     /// Remove orphaned entries and persist after all widgets are registered.
     func finalizeRegistration() {
         let knownIDs = Set(allWidgets.keys)

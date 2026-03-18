@@ -126,8 +126,23 @@ final class DylibPluginLoader {
                 let manifest = try load(bundleURL: bundleURL, into: registry)
                 results.append(PluginLoadResult(manifest: manifest, error: nil))
 
-                // Auto-register in PluginStore if not already tracked (e.g. make dev)
-                if store.record(forBundleName: bundleName) == nil {
+                if let existing = store.record(forBundleName: bundleName) {
+                    // Sync name from disk manifest; sync version only for local plugins
+                    // (GitHub-installed plugins use tag-based versions which may differ from manifest)
+                    let newName = existing.name != manifest.name ? manifest.name : nil
+                    let newVersion = existing.isLocal && existing.version != manifest.version
+                        ? manifest.version : nil
+                    if newName != nil || newVersion != nil {
+                        let synced = existing.updating(name: newName, version: newVersion)
+                        do {
+                            try store.add(synced)
+                            logger.info("Synced registry for \(bundleName): \(existing.version) → \(synced.version)")
+                        } catch {
+                            logger.warning("Failed to sync registry for \(bundleName): \(error.localizedDescription)")
+                        }
+                    }
+                } else {
+                    // Auto-register in PluginStore if not already tracked (e.g. make dev)
                     let record = InstalledPluginRecord(
                         id: manifest.id,
                         name: manifest.name,
@@ -305,9 +320,28 @@ final class DylibPluginLoader {
                 widget.stop()
             }
         }
-        // Remove plugin reference first (ARC dealloc runs plugin code in the dylib)
+        teardown(pluginID: pluginID)
+    }
+
+    // MARK: - Hot Reload
+
+    /// Unload an existing plugin and load the updated version from disk.
+    @discardableResult
+    func reload(pluginID: String, bundleURL: URL, into registry: WidgetRegistry) throws -> DylibPluginManifest {
+        // Remove widgets from registry (releases AnyStatusBarWidget closure captures)
+        let oldWidgetIDs = Set(widgetIDs(for: pluginID))
+        registry.unregisterWidgets(ids: oldWidgetIDs)
+
+        // Tear down old plugin and dylib, then load the new version
+        teardown(pluginID: pluginID)
+        let manifest = try load(bundleURL: bundleURL, into: registry)
+        logger.info("Hot-reloaded plugin: \(manifest.name) v\(manifest.version)")
+        return manifest
+    }
+
+    /// Release plugin instance and close dylib handle.
+    private func teardown(pluginID: String) {
         loadedPlugins.removeValue(forKey: pluginID)
-        // Then close the dylib
         if let handle = loadedHandles.removeValue(forKey: pluginID) {
             dlclose(handle)
         }
