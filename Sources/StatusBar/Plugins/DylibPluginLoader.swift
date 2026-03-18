@@ -1,5 +1,9 @@
+import CryptoKit
 import Foundation
+import OSLog
 import StatusBarKit
+
+private let logger = Logger(subsystem: "com.statusbar", category: "DylibPluginLoader")
 
 // MARK: - PluginLoadError
 
@@ -12,6 +16,7 @@ enum PluginLoadError: Error, LocalizedError {
     case symbolNotFound(String)
     case pluginBoxCastFailed
     case pluginFactoryFailed
+    case sha256Mismatch(expected: String, actual: String)
 
     var errorDescription: String? {
         switch self {
@@ -31,6 +36,8 @@ enum PluginLoadError: Error, LocalizedError {
             "Failed to cast plugin factory result to PluginBox"
         case .pluginFactoryFailed:
             "Plugin factory returned nil"
+        case .sha256Mismatch(let expected, let actual):
+            "SHA-256 mismatch: expected \(expected), got \(actual)"
         }
     }
 }
@@ -83,7 +90,7 @@ final class DylibPluginLoader {
         do {
             try store.load()
         } catch {
-            print("[DylibPluginLoader] Failed to load plugin store: \(error)")
+            logger.error("Failed to load plugin store: \(error.localizedDescription)")
         }
 
         guard let contents = try? fm.contentsOfDirectory(
@@ -128,9 +135,9 @@ final class DylibPluginLoader {
                     swiftVersion: "unknown"
                 )
                 results.append(PluginLoadResult(manifest: fallback, error: error))
-                print("[DylibPluginLoader] Failed to load \(bundleName): \(error.localizedDescription)")
+                logger.error("Failed to load \(bundleName): \(error.localizedDescription)")
             } catch {
-                print("[DylibPluginLoader] Unexpected error loading \(bundleURL.lastPathComponent): \(error)")
+                logger.error("Unexpected error loading \(bundleURL.lastPathComponent): \(error.localizedDescription)")
             }
         }
 
@@ -154,6 +161,9 @@ final class DylibPluginLoader {
         guard let dylibURL, FileManager.default.fileExists(atPath: dylibURL.path) else {
             throw PluginLoadError.dylibNotFound(bundleURL)
         }
+
+        // SHA-256 integrity verification
+        try verifyDylibIntegrity(at: dylibURL, manifest: manifest)
 
         // dlopen
         guard let handle = dlopen(dylibURL.path, RTLD_NOW | RTLD_LOCAL) else {
@@ -190,7 +200,7 @@ final class DylibPluginLoader {
         loadedHandles[manifest.id] = handle
         loadedPlugins[manifest.id] = plugin
 
-        print("[DylibPluginLoader] Loaded plugin: \(manifest.name) v\(manifest.version)")
+        logger.info("Loaded plugin: \(manifest.name) v\(manifest.version)")
         return manifest
     }
 
@@ -242,7 +252,7 @@ final class DylibPluginLoader {
         loadedPlugins[manifest.id] = plugin
         devPluginIDs.insert(manifest.id)
 
-        print("[DylibPluginLoader] Dev-loaded plugin: \(manifest.name) v\(manifest.version)")
+        logger.info("Dev-loaded plugin: \(manifest.name) v\(manifest.version)")
         return manifest
     }
 
@@ -317,5 +327,25 @@ final class DylibPluginLoader {
             return contents.first { $0.pathExtension == "dylib" }
         }
         return nil
+    }
+
+    /// Verify dylib SHA-256 hash against manifest if the manifest specifies one.
+    private func verifyDylibIntegrity(at dylibURL: URL, manifest: DylibPluginManifest) throws {
+        guard let expectedHash = manifest.sha256 else {
+            logger.warning("Plugin \(manifest.name) has no sha256 in manifest — skipping integrity check")
+            return
+        }
+
+        let dylibData = try Data(contentsOf: dylibURL)
+        let actualHash = SHA256.hash(data: dylibData)
+            .map { String(format: "%02x", $0) }
+            .joined()
+
+        guard actualHash == expectedHash.lowercased() else {
+            logger.error("SHA-256 mismatch for \(manifest.name): expected \(expectedHash), got \(actualHash)")
+            throw PluginLoadError.sha256Mismatch(expected: expectedHash, actual: actualHash)
+        }
+
+        logger.debug("SHA-256 verified for \(manifest.name)")
     }
 }

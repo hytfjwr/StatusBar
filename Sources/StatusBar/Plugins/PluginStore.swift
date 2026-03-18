@@ -1,5 +1,8 @@
 import Foundation
+import OSLog
 import StatusBarKit
+
+private let logger = Logger(subsystem: "com.statusbar", category: "PluginStore")
 
 // MARK: - InstalledPluginRecord
 
@@ -85,7 +88,11 @@ final class PluginStore {
     func setEnabled(_ enabled: Bool, for id: String) {
         guard let index = plugins.firstIndex(where: { $0.id == id }) else { return }
         plugins[index].enabled = enabled
-        try? save()
+        do {
+            try save()
+        } catch {
+            logger.error("Failed to save plugin store after setEnabled(\(enabled)) for \(id): \(error.localizedDescription)")
+        }
     }
 
     func record(forBundleName name: String) -> InstalledPluginRecord? {
