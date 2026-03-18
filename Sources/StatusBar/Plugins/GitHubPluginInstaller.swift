@@ -149,7 +149,7 @@ final class GitHubPluginInstaller {
         // checkForUpdates() compares against tag versions, so the registry must
         // store tag-based versions to avoid perpetual "update available" mismatches
         // (manifest version may lag behind the tag if the plugin author forgets to bump it).
-        let releaseVersion = release.tagName.trimmingCharacters(in: CharacterSet(charactersIn: "vV"))
+        let releaseVersion = Self.normalizeVersion(release.tagName)
 
         let normalizedURL = "https://github.com/\(owner)/\(repo)"
         let bundleName = destURL.deletingPathExtension().lastPathComponent
@@ -207,9 +207,9 @@ final class GitHubPluginInstaller {
             do {
                 let (owner, repo) = try parseGitHubURL(url)
                 let release = try await fetchLatestRelease(owner: owner, repo: repo)
-                let latestVersion = release.tagName.trimmingCharacters(in: CharacterSet(charactersIn: "vV"))
-                let currentVersion = plugin.version.trimmingCharacters(in: CharacterSet(charactersIn: "vV"))
-                if latestVersion != currentVersion {
+                let latestVersion = Self.normalizeVersion(release.tagName)
+                let currentVersion = Self.normalizeVersion(plugin.version)
+                if Self.needsUpdate(installed: plugin.version, latestTag: release.tagName) {
                     updates.append(UpdateInfo(
                         pluginID: plugin.id,
                         currentVersion: currentVersion,
@@ -223,6 +223,19 @@ final class GitHubPluginInstaller {
         }
 
         return updates
+    }
+
+    // MARK: - Version Helpers
+
+    /// Strip leading "v"/"V" prefix from version strings for consistent comparison.
+    /// Both release tags ("v1.0.0") and manifest versions ("1.0.0" or "v1.0.0") are normalized.
+    static func normalizeVersion(_ version: String) -> String {
+        version.trimmingCharacters(in: CharacterSet(charactersIn: "vV"))
+    }
+
+    /// Whether an update is available by comparing normalized version strings.
+    static func needsUpdate(installed: String, latestTag: String) -> Bool {
+        normalizeVersion(latestTag) != normalizeVersion(installed)
     }
 
     // MARK: - Private

@@ -78,4 +78,28 @@ struct GitHubPluginInstallerTests {
             try installer.parseGitHubURL("")
         }
     }
+
+    // MARK: - needsUpdate — version comparison
+
+    @Test("Detects update regardless of v prefix format", arguments: [
+        // (installed, latestTag, expectedNeedsUpdate)
+        ("0.1.0", "v1.0.0", true),    // typical: manifest no-v, tag v-prefixed
+        ("v0.1.0", "v1.0.0", true),   // both v-prefixed
+        ("0.1.0", "1.0.0", true),     // neither prefixed
+    ])
+    func detectsUpdate(installed: String, latestTag: String, expected: Bool) {
+        #expect(GitHubPluginInstaller.needsUpdate(installed: installed, latestTag: latestTag) == expected)
+    }
+
+    @Test("No false update when versions match despite format difference", arguments: [
+        // The root cause bug: manifest "v1.0.0" vs tag "v1.0.0" → tag trimmed to "1.0.0"
+        // but installed wasn't trimmed, so "v1.0.0" != "1.0.0" showed a phantom update.
+        ("1.0.0", "v1.0.0", false),   // registry stores tag-normalized, tag v-prefixed
+        ("v1.0.0", "1.0.0", false),   // legacy record with v, tag without
+        ("1.0.0", "1.0.0", false),    // identical
+        ("V1.0.0", "v1.0.0", false),  // uppercase V
+    ])
+    func noFalseUpdate(installed: String, latestTag: String, expected: Bool) {
+        #expect(GitHubPluginInstaller.needsUpdate(installed: installed, latestTag: latestTag) == expected)
+    }
 }
