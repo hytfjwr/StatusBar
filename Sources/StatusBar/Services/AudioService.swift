@@ -18,10 +18,11 @@ final class AudioService: @unchecked Sendable {
     }
 
     func start() {
-        queue.sync {
+        queue.async { [self] in
             setupListeners()
+            let vol = getVolume()
+            onChange(vol)
         }
-        notifyCurrent()
     }
 
     func stop() {
@@ -41,11 +42,16 @@ final class AudioService: @unchecked Sendable {
         )
 
         let deviceChangeBlock: AudioObjectPropertyListenerBlock = { [weak self] _, _ in
-            self?.handleDeviceChange()
+            // Callback dispatched on our serial queue, so direct access is safe
+            guard let self else { return }
+            self.removeDeviceListeners()
+            self.setupDeviceListeners()
+            let vol = self.getVolume()
+            self.onChange(vol)
         }
         deviceChangeListenerBlock = deviceChangeBlock
         AudioObjectAddPropertyListenerBlock(
-            AudioObjectID(kAudioObjectSystemObject), &deviceChangeAddress, nil, deviceChangeBlock
+            AudioObjectID(kAudioObjectSystemObject), &deviceChangeAddress, queue, deviceChangeBlock
         )
 
         setupDeviceListeners()
@@ -67,10 +73,13 @@ final class AudioService: @unchecked Sendable {
         )
 
         let volumeBlock: AudioObjectPropertyListenerBlock = { [weak self] _, _ in
-            self?.notifyCurrent()
+            // Callback dispatched on our serial queue
+            guard let self else { return }
+            let vol = self.getVolume()
+            self.onChange(vol)
         }
         volumeListenerBlock = volumeBlock
-        AudioObjectAddPropertyListenerBlock(defaultDeviceID, &volumeAddress, nil, volumeBlock)
+        AudioObjectAddPropertyListenerBlock(defaultDeviceID, &volumeAddress, queue, volumeBlock)
 
         // Listen for mute changes
         var muteAddress = AudioObjectPropertyAddress(
@@ -80,10 +89,13 @@ final class AudioService: @unchecked Sendable {
         )
 
         let muteBlock: AudioObjectPropertyListenerBlock = { [weak self] _, _ in
-            self?.notifyCurrent()
+            // Callback dispatched on our serial queue
+            guard let self else { return }
+            let vol = self.getVolume()
+            self.onChange(vol)
         }
         muteListenerBlock = muteBlock
-        AudioObjectAddPropertyListenerBlock(defaultDeviceID, &muteAddress, nil, muteBlock)
+        AudioObjectAddPropertyListenerBlock(defaultDeviceID, &muteAddress, queue, muteBlock)
 
         listening = true
     }
@@ -98,7 +110,7 @@ final class AudioService: @unchecked Sendable {
                 mElement: kAudioObjectPropertyElementMain
             )
             AudioObjectRemovePropertyListenerBlock(
-                AudioObjectID(kAudioObjectSystemObject), &address, nil, block
+                AudioObjectID(kAudioObjectSystemObject), &address, queue, block
             )
             deviceChangeListenerBlock = nil
         }
@@ -115,7 +127,7 @@ final class AudioService: @unchecked Sendable {
                 mScope: kAudioObjectPropertyScopeOutput,
                 mElement: volumeElement
             )
-            AudioObjectRemovePropertyListenerBlock(defaultDeviceID, &address, nil, block)
+            AudioObjectRemovePropertyListenerBlock(defaultDeviceID, &address, queue, block)
         }
 
         if let block = muteListenerBlock {
@@ -124,32 +136,12 @@ final class AudioService: @unchecked Sendable {
                 mScope: kAudioObjectPropertyScopeOutput,
                 mElement: kAudioObjectPropertyElementMain
             )
-            AudioObjectRemovePropertyListenerBlock(defaultDeviceID, &address, nil, block)
+            AudioObjectRemovePropertyListenerBlock(defaultDeviceID, &address, queue, block)
         }
 
         volumeListenerBlock = nil
         muteListenerBlock = nil
         listening = false
-    }
-
-    private func handleDeviceChange() {
-        queue.async { [weak self] in
-            guard let self else { return }
-            self.removeDeviceListeners()
-            self.setupDeviceListeners()
-            let vol = self.getVolume()
-            self.onChange(vol)
-        }
-    }
-
-    // MARK: - Notification
-
-    private func notifyCurrent() {
-        queue.async { [weak self] in
-            guard let self else { return }
-            let vol = self.getVolume()
-            self.onChange(vol)
-        }
     }
 
     // MARK: - Volume / Mute Control
@@ -184,7 +176,10 @@ final class AudioService: @unchecked Sendable {
     }
 
     func isMuted() -> Bool {
-        queue.sync {
+        // Use dispatchPrecondition to guard against deadlock if already on queue.
+        // Since callbacks now fire on our queue, public callers must not be on queue.
+        dispatchPrecondition(condition: .notOnQueue(queue))
+        return queue.sync {
             guard defaultDeviceID != kAudioObjectUnknown else { return false }
             var muted: UInt32 = 0
             var size = UInt32(MemoryLayout<UInt32>.size)
@@ -202,7 +197,8 @@ final class AudioService: @unchecked Sendable {
 
     /// Raw volume (0–100) ignoring mute state.
     func rawVolume() -> Int {
-        queue.sync {
+        dispatchPrecondition(condition: .notOnQueue(queue))
+        return queue.sync {
             guard defaultDeviceID != kAudioObjectUnknown else { return 0 }
             var volume: Float32 = 0
             var size = UInt32(MemoryLayout<Float32>.size)

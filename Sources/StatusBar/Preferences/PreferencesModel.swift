@@ -12,18 +12,21 @@ final class PreferencesModel: ThemeProvider {
     /// Monotonically increasing counter; any preference change bumps this so
     /// SwiftUI views that read `revision` re-evaluate their bodies.
     var revision: Int = 0
-    private var suppressBump = false
+    private var suppressDepth = 0
     func bump() {
-        guard !suppressBump else { return }
+        guard suppressDepth == 0 else { return }
         revision += 1
     }
 
     /// Batch-assign multiple properties with a single `bump()` at the end.
+    /// Safe to nest: only the outermost call triggers a `bump()`.
     func applyBatch(_ block: () -> Void) {
-        suppressBump = true
+        suppressDepth += 1
         defer {
-            suppressBump = false
-            bump()
+            suppressDepth -= 1
+            if suppressDepth == 0 {
+                revision += 1
+            }
         }
         block()
     }

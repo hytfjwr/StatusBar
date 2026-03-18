@@ -21,7 +21,7 @@ final class BluetoothWidget: StatusBarWidget {
 
     func start() {
         Task { devices = await service.poll() }
-        timer = Timer.publish(every: 10, on: .main, in: .common)
+        timer = Timer.publish(every: updateInterval ?? 10, on: .main, in: .common)
             .autoconnect()
             .sink { [weak self] _ in
                 guard let self else { return }

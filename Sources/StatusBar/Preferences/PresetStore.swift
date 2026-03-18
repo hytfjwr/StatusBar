@@ -152,6 +152,14 @@ struct Preset: Codable, Identifiable, Sendable {
     }
 }
 
+// MARK: - Built-in Preset UUIDs
+
+extension UUID {
+    static let presetDefault  = UUID(uuidString: "00000000-0000-0000-0000-000000000001")!
+    static let presetMinimal  = UUID(uuidString: "00000000-0000-0000-0000-000000000002")!
+    static let presetColorful = UUID(uuidString: "00000000-0000-0000-0000-000000000003")!
+}
+
 // MARK: - PresetStore
 
 @MainActor
@@ -179,21 +187,21 @@ final class PresetStore {
 
     static let builtInPresets: [Preset] = [
         Preset(
-            id: UUID(uuidString: "00000000-0000-0000-0000-000000000001")!,
+            id: .presetDefault,
             name: "Default",
             isBuiltIn: true,
             createdAt: .distantPast,
             snapshot: .default
         ),
         Preset(
-            id: UUID(uuidString: "00000000-0000-0000-0000-000000000002")!,
+            id: .presetMinimal,
             name: "Minimal",
             isBuiltIn: true,
             createdAt: .distantPast,
             snapshot: .minimal
         ),
         Preset(
-            id: UUID(uuidString: "00000000-0000-0000-0000-000000000003")!,
+            id: .presetColorful,
             name: "Colorful",
             isBuiltIn: true,
             createdAt: .distantPast,

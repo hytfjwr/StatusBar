@@ -16,8 +16,14 @@ final class ConfigLoader {
     private var fsSource: DispatchSourceFileSystemObject?
     private var writeTask: Task<Void, Never>?
 
-    /// Guards against reloading a file we just wrote ourselves.
-    private var isWriting = false
+    /// Timestamp of our last write; FS events within the grace period are ignored.
+    private var lastWriteTime: Date?
+
+    /// Grace period after a write during which FS events are ignored.
+    private let writeGracePeriod: TimeInterval = 0.5
+
+    /// Last known modification date of config.yml, used to skip redundant reloads.
+    private var lastKnownConfigModDate: Date?
 
     /// Guards against write-back during apply (hot-reload or bootstrap).
     private var isApplying = false
@@ -64,7 +70,9 @@ final class ConfigLoader {
 
     // MARK: - YAML I/O
 
-    private nonisolated func loadConfigFromDisk() throws -> StatusBarConfig {
+    /// Synchronous file I/O. Called during bootstrap (before run loop) and hot-reload
+    /// (small YAML file, sub-millisecond). Kept synchronous intentionally.
+    private func loadConfigFromDisk() throws -> StatusBarConfig {
         let data = try Data(contentsOf: fileURL)
         let yaml = String(data: data, encoding: .utf8) ?? ""
         return try YAMLDecoder().decode(StatusBarConfig.self, from: yaml)
@@ -112,13 +120,7 @@ final class ConfigLoader {
     }
 
     private func writeCurrentStateToDisk() {
-        isWriting = true
-        defer {
-            Task { @MainActor [weak self] in
-                try? await Task.sleep(for: .milliseconds(200))
-                self?.isWriting = false
-            }
-        }
+        lastWriteTime = Date()
 
         do {
             let encoder = YAMLEncoder()
@@ -186,10 +188,25 @@ final class ConfigLoader {
     }
 
     private func handleFileSystemEvent() {
-        guard !isWriting else { return }
+        // Ignore FS events that arrive shortly after our own writes
+        if let lastWrite = lastWriteTime,
+           Date().timeIntervalSince(lastWrite) < writeGracePeriod {
+            return
+        }
+
+        // Check if config.yml itself actually changed (ignore temp/plugin file changes)
+        let fm = FileManager.default
+        guard let attrs = try? fm.attributesOfItem(atPath: fileURL.path),
+              let modDate = attrs[.modificationDate] as? Date else {
+            return
+        }
+        if let lastMod = lastKnownConfigModDate, modDate <= lastMod {
+            return  // config.yml unchanged
+        }
 
         do {
             let newConfig = try loadConfigFromDisk()
+            lastKnownConfigModDate = modDate
             currentConfig = newConfig
             applyToLiveModels()
 

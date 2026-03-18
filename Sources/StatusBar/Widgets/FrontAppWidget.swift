@@ -33,6 +33,7 @@ final class FrontAppWidget: StatusBarWidget {
         if let observer {
             NSWorkspace.shared.notificationCenter.removeObserver(observer)
         }
+        observer = nil
     }
 
     func body() -> some View {

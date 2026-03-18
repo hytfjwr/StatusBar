@@ -164,7 +164,7 @@ final class FocusTimerWidget: StatusBarWidget {
 // MARK: - FocusTimerPopupContent
 
 struct FocusTimerPopupContent: View {
-    let widget: FocusTimerWidget
+    weak var widget: FocusTimerWidget?
     let showCustomSlider: Bool
     let customMinutes: Double
 
@@ -188,21 +188,21 @@ struct FocusTimerPopupContent: View {
                         .font(.system(size: 11, weight: .regular, design: .rounded).monospacedDigit())
                         .foregroundStyle(.tertiary)
                 } action: {
-                    widget.startTimer(mode: "Coding", duration: 3_000)
+                    widget?.startTimer(mode: "Coding", duration: 3_000)
                 }
                 PopupRow(icon: "eye", iconColor: .cyan, label: "Review") {
                     Text("20 min")
                         .font(.system(size: 11, weight: .regular, design: .rounded).monospacedDigit())
                         .foregroundStyle(.tertiary)
                 } action: {
-                    widget.startTimer(mode: "Review", duration: 1_200)
+                    widget?.startTimer(mode: "Review", duration: 1_200)
                 }
                 PopupRow(icon: "cup.and.saucer.fill", iconColor: .green, label: "Break") {
                     Text("10 min")
                         .font(.system(size: 11, weight: .regular, design: .rounded).monospacedDigit())
                         .foregroundStyle(.tertiary)
                 } action: {
-                    widget.startTimer(mode: "Break", duration: 600)
+                    widget?.startTimer(mode: "Break", duration: 600)
                 }
                 PopupRow(
                     icon: "slider.horizontal.3",
@@ -213,7 +213,7 @@ struct FocusTimerPopupContent: View {
                         .font(.system(size: 10, weight: .semibold))
                         .foregroundStyle(.tertiary)
                 } action: {
-                    widget.toggleCustomSlider()
+                    widget?.toggleCustomSlider()
                 }
 
                 // Custom slider
@@ -229,7 +229,7 @@ struct FocusTimerPopupContent: View {
                         Slider(value: $sliderValue, in: 1...120, step: 1)
                             .tint(.purple)
                             .onChange(of: sliderValue) { _, newValue in
-                                widget.setCustomMinutes(newValue)
+                                widget?.setCustomMinutes(newValue)
                             }
 
                         HStack {
@@ -244,7 +244,7 @@ struct FocusTimerPopupContent: View {
 
                         Button {
                             rippleTrigger += 1
-                            widget.startTimer(mode: "Custom", duration: sliderValue * 60)
+                            widget?.startTimer(mode: "Custom", duration: sliderValue * 60)
                         } label: {
                             Text("Start")
                                 .font(.system(size: 12, weight: .semibold, design: .rounded))
@@ -266,7 +266,7 @@ struct FocusTimerPopupContent: View {
 
             VStack(spacing: 2) {
                 PopupRow(icon: "stop.fill", iconColor: Theme.red, label: "Stop Timer") {
-                    widget.stopTimer()
+                    widget?.stopTimer()
                 }
             }
             .padding(.horizontal, 6)

@@ -46,22 +46,18 @@ final class BatteryWidget: StatusBarWidget {
     private var percentage: Int = 0
     private var isCharging = false
     private var showPercentage = true
-    private var service: BatteryService?
-
     func start() {
         showPercentage = BatterySettings.shared.showPercentage
-        service = BatteryService { [weak self] pct, charging in
-            Task { @MainActor in
-                self?.percentage = pct
-                self?.isCharging = charging
-            }
+        BatteryService.shared.addObserver { [weak self] pct, charging in
+            self?.percentage = pct
+            self?.isCharging = charging
         }
-        service?.start()
+        BatteryService.shared.start()
         observeSettings()
     }
 
     func stop() {
-        service?.stop()
+        // Singleton is shared; stop is managed centrally
     }
 
     var hasSettings: Bool { true }

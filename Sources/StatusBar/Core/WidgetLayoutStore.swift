@@ -11,7 +11,7 @@ final class WidgetLayoutStore {
         ConfigLoader.shared.currentConfig.widgets.map(\.asEntry)
     }
 
-    func save(_ entries: [WidgetLayoutEntry]) {
+    func save() {
         ConfigLoader.shared.scheduleWrite()
     }
 }

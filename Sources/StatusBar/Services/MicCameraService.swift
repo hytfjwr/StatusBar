@@ -16,10 +16,11 @@ final class MicCameraService: @unchecked Sendable {
     }
 
     func start() {
-        queue.sync {
+        queue.async { [self] in
             setupMicListeners()
+            let state = computeState()
+            onChange(state)
         }
-        notifyCurrent()
     }
 
     func stop() {
@@ -39,10 +40,13 @@ final class MicCameraService: @unchecked Sendable {
                 mElement: kAudioObjectPropertyElementMain
             )
             let block: AudioObjectPropertyListenerBlock = { [weak self] _, _ in
-                self?.notifyCurrent()
+                // Callback dispatched on our serial queue, so direct access is safe
+                guard let self else { return }
+                let state = self.computeState()
+                self.onChange(state)
             }
             listenerBlocks[deviceID] = block
-            AudioObjectAddPropertyListenerBlock(deviceID, &address, nil, block)
+            AudioObjectAddPropertyListenerBlock(deviceID, &address, queue, block)
         }
     }
 
@@ -54,7 +58,7 @@ final class MicCameraService: @unchecked Sendable {
                 mScope: kAudioObjectPropertyScopeGlobal,
                 mElement: kAudioObjectPropertyElementMain
             )
-            AudioObjectRemovePropertyListenerBlock(deviceID, &address, nil, block)
+            AudioObjectRemovePropertyListenerBlock(deviceID, &address, queue, block)
         }
         listenerBlocks = [:]
         inputDeviceIDs = []
@@ -99,11 +103,11 @@ final class MicCameraService: @unchecked Sendable {
         return bufferList.pointee.mNumberBuffers > 0
     }
 
-    // MARK: - Notification
+    // MARK: - State computation (called on queue)
 
-    private func notifyCurrent() {
-        let deviceIDs = queue.sync { inputDeviceIDs }
-        let micActive = deviceIDs.contains { deviceID in
+    /// Compute current mic state. Must be called on the serial queue.
+    private func computeState() -> State {
+        let micActive = inputDeviceIDs.contains { deviceID in
             var running: UInt32 = 0
             var size = UInt32(MemoryLayout<UInt32>.size)
             var address = AudioObjectPropertyAddress(
@@ -114,7 +118,6 @@ final class MicCameraService: @unchecked Sendable {
             let status = AudioObjectGetPropertyData(deviceID, &address, 0, nil, &size, &running)
             return status == noErr && running != 0
         }
-
-        onChange(State(micActive: micActive))
+        return State(micActive: micActive)
     }
 }

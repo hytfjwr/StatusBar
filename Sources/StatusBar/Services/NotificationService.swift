@@ -16,7 +16,6 @@ final class NotificationService {
     private let monitorService = SystemMonitorService()
 
     // Battery state
-    private var batteryService: BatteryService?
     private var currentBatteryPct: Int = 100
     private var currentBatteryCharging = false
     private var lastBatteryNotifPct: Int = 101 // sentinel: haven't notified yet
@@ -40,13 +39,11 @@ final class NotificationService {
     func start() {
         stop()
 
-        batteryService = BatteryService { [weak self] pct, charging in
-            Task { @MainActor in
-                self?.currentBatteryPct = pct
-                self?.currentBatteryCharging = charging
-            }
+        BatteryService.shared.addObserver { [weak self] pct, charging in
+            self?.currentBatteryPct = pct
+            self?.currentBatteryCharging = charging
         }
-        batteryService?.start()
+        BatteryService.shared.start()
 
         timer = Timer.publish(every: 1, on: .main, in: .common)
             .autoconnect()
@@ -55,7 +52,6 @@ final class NotificationService {
 
     func stop() {
         timer?.cancel()
-        batteryService?.stop()
     }
 
     func requestPermission() {
