@@ -1,4 +1,4 @@
-.PHONY: build clean run bundle test
+.PHONY: build clean run bundle test set-version package
 
 APP_NAME = StatusBar
 APP_BUNDLE = $(APP_NAME).app
@@ -33,11 +33,13 @@ bundle: release
 	fi
 	@echo "Done: $(APP_BUNDLE)"
 
-sign: bundle
-	codesign --force --deep -s - $(APP_BUNDLE)
-
-package: sign
+package: bundle
 	zip -r $(APP_NAME).zip $(APP_BUNDLE)
+
+set-version:
+	@if [ -z "$(VERSION)" ]; then echo "Usage: make set-version VERSION=x.y.z"; exit 1; fi
+	/usr/libexec/PlistBuddy -c "Set :CFBundleShortVersionString $(VERSION)" Resources/Info.plist
+	/usr/libexec/PlistBuddy -c "Set :CFBundleVersion $(VERSION)" Resources/Info.plist
 
 run-app: bundle
 	open $(APP_BUNDLE)

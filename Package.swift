@@ -22,7 +22,7 @@ let package = Package(
                 .product(name: "Yams", package: "Yams"),
             ],
             path: "Sources/StatusBar",
-            exclude: ["../../Resources/Info.plist"],
+
             linkerSettings: [
                 .linkedFramework("AppKit"),
                 .linkedFramework("IOKit"),

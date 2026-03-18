@@ -1,0 +1,33 @@
+{
+  "originHash" : "30f3c5872316f372826ee69ec9355606dcde805deab7327ca254232c6a2d099e",
+  "pins" : [
+    {
+      "identity" : "statusbarkit",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/hytfjwr/StatusBarKit",
+      "state" : {
+        "revision" : "e175d28dea28bd41d179a0393f13c9cbd44b9f30",
+        "version" : "1.0.0"
+      }
+    },
+    {
+      "identity" : "swiftlintplugins",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/SimplyDanny/SwiftLintPlugins",
+      "state" : {
+        "revision" : "8a4640d14777685ba8f14e832373160498fbab92",
+        "version" : "0.63.2"
+      }
+    },
+    {
+      "identity" : "yams",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/jpsim/Yams",
+      "state" : {
+        "revision" : "3d6871d5b4a5cd519adf233fbb576e0a2af71c17",
+        "version" : "5.4.0"
+      }
+    }
+  ],
+  "version" : 3
+}
