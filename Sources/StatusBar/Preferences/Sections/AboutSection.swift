@@ -1,12 +1,12 @@
+import AppKit
 import StatusBarKit
 import SwiftUI
 
 struct AboutSection: View {
     @State private var showingResetConfirm = false
+    private let updateService = AppUpdateService.shared
 
-    private var appVersion: String {
-        Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "1.0"
-    }
+    private var appVersion: String { AppUpdateService.appVersion }
 
     private var buildNumber: String {
         Bundle.main.infoDictionary?["CFBundleVersion"] as? String ?? "1"
@@ -33,6 +33,43 @@ struct AboutSection: View {
                 }
             }
             .padding(.bottom, 8)
+
+            GroupBox("Updates") {
+                VStack(spacing: 10) {
+                    HStack {
+                        updateStatusView
+                        Spacer()
+                        Button {
+                            Task { await updateService.checkForUpdates() }
+                        } label: {
+                            if case .checking = updateService.state {
+                                ProgressView()
+                                    .controlSize(.small)
+                            } else {
+                                Text("Check for Updates")
+                            }
+                        }
+                        .controlSize(.small)
+                        .disabled(isChecking)
+                    }
+                }
+                .padding(8)
+            }
+
+            GroupBox("Help") {
+                VStack(spacing: 10) {
+                    HStack {
+                        Text("Welcome Guide")
+                            .frame(width: 120, alignment: .leading)
+                        Spacer()
+                        Button("Show Welcome") {
+                            OnboardingWindow.shared.show()
+                        }
+                        .controlSize(.small)
+                    }
+                }
+                .padding(8)
+            }
 
             GroupBox("Data") {
                 VStack(spacing: 10) {
@@ -85,11 +122,47 @@ struct AboutSection: View {
     }
 
     private func openSettingsFolder() {
-        let appSupport = FileManager.default
-            .urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
-            .appendingPathComponent("StatusBar", isDirectory: true)
-        try? FileManager.default.createDirectory(at: appSupport, withIntermediateDirectories: true)
-        NSWorkspace.shared.activateFileViewerSelecting([appSupport])
+        let configDir = FileManager.default.homeDirectoryForCurrentUser
+            .appendingPathComponent(".config/statusbar", isDirectory: true)
+        try? FileManager.default.createDirectory(at: configDir, withIntermediateDirectories: true)
+        NSWorkspace.shared.activateFileViewerSelecting([configDir])
+    }
+
+    private var isChecking: Bool {
+        if case .checking = updateService.state { return true }
+        return false
+    }
+
+    @ViewBuilder
+    private var updateStatusView: some View {
+        switch updateService.state {
+        case .idle:
+            Text("Not checked yet")
+                .font(.system(size: 12))
+                .foregroundStyle(.secondary)
+        case .checking:
+            Text("Checking...")
+                .font(.system(size: 12))
+                .foregroundStyle(.secondary)
+        case .upToDate:
+            Label("Up to date", systemImage: "checkmark.circle.fill")
+                .font(.system(size: 12))
+                .foregroundStyle(.green)
+        case let .available(version, url):
+            HStack(spacing: 6) {
+                Label("v\(version) available", systemImage: "arrow.down.circle.fill")
+                    .font(.system(size: 12, weight: .medium))
+                    .foregroundStyle(.orange)
+                Button("Download") {
+                    NSWorkspace.shared.open(url)
+                }
+                .controlSize(.small)
+            }
+        case let .error(message):
+            Label(message, systemImage: "exclamationmark.triangle.fill")
+                .font(.system(size: 12))
+                .foregroundStyle(.red)
+        }
     }
 
     private func resetAllSettings() {

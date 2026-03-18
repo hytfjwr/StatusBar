@@ -112,5 +112,8 @@ final class NetworkWidget: StatusBarWidget {
             }
         }
         .padding(.horizontal, 4)
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel("Network")
+        .accessibilityValue("Upload \(uploadSpeed) Download \(downloadSpeed)")
     }
 }

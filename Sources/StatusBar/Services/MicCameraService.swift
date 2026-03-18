@@ -1,9 +1,11 @@
 import CoreAudio
+import CoreMediaIO
 import Foundation
 
 final class MicCameraService: @unchecked Sendable {
     struct State: Sendable {
         var micActive: Bool
+        var cameraActive: Bool
     }
 
     private let onChange: @Sendable (State) -> Void
@@ -11,6 +13,11 @@ final class MicCameraService: @unchecked Sendable {
     private var inputDeviceIDs: [AudioDeviceID] = []
     private var listenerBlocks: [AudioDeviceID: AudioObjectPropertyListenerBlock] = [:]
     private var deviceListBlock: AudioObjectPropertyListenerBlock?
+
+    // Camera
+    private var cameraDeviceIDs: [CMIOObjectID] = []
+    private var cameraListenerBlocks: [CMIOObjectID: CMIOObjectPropertyListenerBlock] = [:]
+    private var cameraDeviceListBlock: CMIOObjectPropertyListenerBlock?
 
     init(onChange: @escaping @Sendable (State) -> Void) {
         self.onChange = onChange
@@ -20,6 +27,8 @@ final class MicCameraService: @unchecked Sendable {
         queue.async { [self] in
             setupMicListeners()
             installDeviceListListener()
+            setupCameraListeners()
+            installCameraDeviceListListener()
             let state = computeState()
             onChange(state)
         }
@@ -29,6 +38,8 @@ final class MicCameraService: @unchecked Sendable {
         queue.sync {
             removeDeviceListListener()
             removeMicListeners()
+            removeCameraDeviceListListener()
+            removeCameraListeners()
         }
     }
 
@@ -43,7 +54,6 @@ final class MicCameraService: @unchecked Sendable {
                 mElement: kAudioObjectPropertyElementMain
             )
             let block: AudioObjectPropertyListenerBlock = { [weak self] _, _ in
-                // Callback dispatched on our serial queue, so direct access is safe
                 guard let self else { return }
                 let state = self.computeState()
                 self.onChange(state)
@@ -140,9 +150,110 @@ final class MicCameraService: @unchecked Sendable {
         return bufferList.pointee.mNumberBuffers > 0
     }
 
+    // MARK: - Camera (CoreMediaIO)
+
+    private func setupCameraListeners() {
+        cameraDeviceIDs = allCameraDeviceIDs()
+        for deviceID in cameraDeviceIDs {
+            var address = CMIOObjectPropertyAddress(
+                mSelector: CMIOObjectPropertySelector(kCMIODevicePropertyDeviceIsRunningSomewhere),
+                mScope: CMIOObjectPropertyScope(kCMIOObjectPropertyScopeGlobal),
+                mElement: CMIOObjectPropertyElement(kCMIOObjectPropertyElementMain)
+            )
+            let block: CMIOObjectPropertyListenerBlock = { [weak self] _, _ in
+                guard let self else { return }
+                let state = self.computeState()
+                self.onChange(state)
+            }
+            cameraListenerBlocks[deviceID] = block
+            CMIOObjectAddPropertyListenerBlock(deviceID, &address, queue, block)
+        }
+    }
+
+    private func removeCameraListeners() {
+        for deviceID in cameraDeviceIDs {
+            guard let block = cameraListenerBlocks[deviceID] else { continue }
+            var address = CMIOObjectPropertyAddress(
+                mSelector: CMIOObjectPropertySelector(kCMIODevicePropertyDeviceIsRunningSomewhere),
+                mScope: CMIOObjectPropertyScope(kCMIOObjectPropertyScopeGlobal),
+                mElement: CMIOObjectPropertyElement(kCMIOObjectPropertyElementMain)
+            )
+            CMIOObjectRemovePropertyListenerBlock(deviceID, &address, queue, block)
+        }
+        cameraListenerBlocks = [:]
+        cameraDeviceIDs = []
+    }
+
+    private func installCameraDeviceListListener() {
+        var address = CMIOObjectPropertyAddress(
+            mSelector: CMIOObjectPropertySelector(kCMIOHardwarePropertyDevices),
+            mScope: CMIOObjectPropertyScope(kCMIOObjectPropertyScopeGlobal),
+            mElement: CMIOObjectPropertyElement(kCMIOObjectPropertyElementMain)
+        )
+        let block: CMIOObjectPropertyListenerBlock = { [weak self] _, _ in
+            guard let self else { return }
+            self.removeCameraListeners()
+            self.setupCameraListeners()
+            let state = self.computeState()
+            self.onChange(state)
+        }
+        cameraDeviceListBlock = block
+        CMIOObjectAddPropertyListenerBlock(
+            CMIOObjectID(kCMIOObjectSystemObject), &address, queue, block
+        )
+    }
+
+    private func removeCameraDeviceListListener() {
+        guard let block = cameraDeviceListBlock else { return }
+        var address = CMIOObjectPropertyAddress(
+            mSelector: CMIOObjectPropertySelector(kCMIOHardwarePropertyDevices),
+            mScope: CMIOObjectPropertyScope(kCMIOObjectPropertyScopeGlobal),
+            mElement: CMIOObjectPropertyElement(kCMIOObjectPropertyElementMain)
+        )
+        CMIOObjectRemovePropertyListenerBlock(
+            CMIOObjectID(kCMIOObjectSystemObject), &address, queue, block
+        )
+        cameraDeviceListBlock = nil
+    }
+
+    private func allCameraDeviceIDs() -> [CMIOObjectID] {
+        var size: UInt32 = 0
+        var address = CMIOObjectPropertyAddress(
+            mSelector: CMIOObjectPropertySelector(kCMIOHardwarePropertyDevices),
+            mScope: CMIOObjectPropertyScope(kCMIOObjectPropertyScopeGlobal),
+            mElement: CMIOObjectPropertyElement(kCMIOObjectPropertyElementMain)
+        )
+        guard CMIOObjectGetPropertyDataSize(
+            CMIOObjectID(kCMIOObjectSystemObject), &address, 0, nil, &size
+        ) == noErr else { return [] }
+
+        let count = Int(size) / MemoryLayout<CMIOObjectID>.size
+        guard count > 0 else { return [] }
+        var deviceIDs = [CMIOObjectID](repeating: 0, count: count)
+        var dataUsed: UInt32 = 0
+        guard CMIOObjectGetPropertyData(
+            CMIOObjectID(kCMIOObjectSystemObject), &address, 0, nil, size, &dataUsed, &deviceIDs
+        ) == noErr else { return [] }
+
+        return deviceIDs
+    }
+
+    private func isCameraRunning(_ deviceID: CMIOObjectID) -> Bool {
+        var running: UInt32 = 0
+        var dataUsed: UInt32 = 0
+        let size = UInt32(MemoryLayout<UInt32>.size)
+        var address = CMIOObjectPropertyAddress(
+            mSelector: CMIOObjectPropertySelector(kCMIODevicePropertyDeviceIsRunningSomewhere),
+            mScope: CMIOObjectPropertyScope(kCMIOObjectPropertyScopeGlobal),
+            mElement: CMIOObjectPropertyElement(kCMIOObjectPropertyElementMain)
+        )
+        let status = CMIOObjectGetPropertyData(deviceID, &address, 0, nil, size, &dataUsed, &running)
+        return status == noErr && running != 0
+    }
+
     // MARK: - State computation (called on queue)
 
-    /// Compute current mic state. Must be called on the serial queue.
+    /// Compute current mic and camera state. Must be called on the serial queue.
     private func computeState() -> State {
         let micActive = inputDeviceIDs.contains { deviceID in
             var running: UInt32 = 0
@@ -155,6 +266,9 @@ final class MicCameraService: @unchecked Sendable {
             let status = AudioObjectGetPropertyData(deviceID, &address, 0, nil, &size, &running)
             return status == noErr && running != 0
         }
-        return State(micActive: micActive)
+
+        let cameraActive = cameraDeviceIDs.contains { isCameraRunning($0) }
+
+        return State(micActive: micActive, cameraActive: cameraActive)
     }
 }

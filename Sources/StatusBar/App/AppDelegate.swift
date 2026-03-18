@@ -4,6 +4,7 @@ import StatusBarKit
 @MainActor
 final class AppDelegate: NSObject, NSApplicationDelegate {
     private var controller: StatusBarController?
+    private var configErrorObserver: NSObjectProtocol?
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         setupMainMenu()
@@ -48,6 +49,34 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         controller?.setup()
 
         NotificationService.shared.start()
+
+        // Show onboarding on first launch
+        if ConfigLoader.shared.isFirstLaunch
+            || !UserDefaults.standard.bool(forKey: OnboardingKeys.hasCompleted) {
+            OnboardingWindow.shared.show()
+        }
+
+        // Background update check (throttled to once per hour)
+        Task {
+            await AppUpdateService.shared.checkIfNeeded()
+        }
+
+        configErrorObserver = NotificationCenter.default.addObserver(
+            forName: .configParseError,
+            object: nil,
+            queue: .main
+        ) { notification in
+            let message = notification.userInfo?["message"] as? String
+                ?? "Unknown error"
+            Task { @MainActor in
+                let alert = NSAlert()
+                alert.alertStyle = .warning
+                alert.messageText = "Config Reload Failed"
+                alert.informativeText = "config.yml could not be parsed. The previous working configuration will continue to be used.\n\n\(message)"
+                alert.addButton(withTitle: "OK")
+                alert.runModal()
+            }
+        }
     }
 
     /// Set up a minimal main menu so standard text editing shortcuts (Cmd+C/V/X/A) work.
@@ -69,8 +98,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         NSApp.mainMenu = mainMenu
     }
 
-
     func applicationWillTerminate(_ notification: Notification) {
+        if let observer = configErrorObserver {
+            NotificationCenter.default.removeObserver(observer)
+            configErrorObserver = nil
+        }
         NotificationService.shared.stop()
         controller?.teardown()
         ConfigLoader.shared.teardown()

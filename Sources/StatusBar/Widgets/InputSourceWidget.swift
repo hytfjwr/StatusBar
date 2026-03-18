@@ -40,5 +40,8 @@ final class InputSourceWidget: StatusBarWidget {
             .onTapGesture { [weak self] in
                 self?.service?.cycleToNextSource()
             }
+            .accessibilityElement(children: .combine)
+            .accessibilityLabel("Input Source")
+            .accessibilityValue(abbreviation)
     }
 }

@@ -270,7 +270,10 @@ final class PreferencesModel: ThemeProvider {
 
     // MARK: - Preset Snapshot
 
-    func snapshot(layout: [WidgetLayoutEntry]) -> PresetSnapshot {
+    func snapshot(
+        layout: [WidgetLayoutEntry],
+        widgetSettings: [String: [String: ConfigValue]] = [:]
+    ) -> PresetSnapshot {
         PresetSnapshot(
             barHeight: Double(barHeight),
             barCornerRadius: Double(barCornerRadius),
@@ -301,7 +304,16 @@ final class PreferencesModel: ThemeProvider {
             graphDataPoints: graphDataPoints,
             cpuGraphHex: cpuGraphHex,
             memoryGraphHex: memoryGraphHex,
-            widgetLayout: layout
+            notifyBatteryLow: notifyBatteryLow,
+            batteryThreshold: batteryThreshold,
+            notifyCPUHigh: notifyCPUHigh,
+            cpuThreshold: cpuThreshold,
+            cpuSustainedDuration: cpuSustainedDuration,
+            notifyMemoryHigh: notifyMemoryHigh,
+            memoryThreshold: memoryThreshold,
+            memorySustainedDuration: memorySustainedDuration,
+            widgetLayout: layout,
+            widgetSettings: widgetSettings
         )
     }
 
@@ -336,6 +348,14 @@ final class PreferencesModel: ThemeProvider {
             graphDataPoints = s.graphDataPoints
             cpuGraphHex = s.cpuGraphHex
             memoryGraphHex = s.memoryGraphHex
+            notifyBatteryLow = s.notifyBatteryLow
+            batteryThreshold = s.batteryThreshold
+            notifyCPUHigh = s.notifyCPUHigh
+            cpuThreshold = s.cpuThreshold
+            cpuSustainedDuration = s.cpuSustainedDuration
+            notifyMemoryHigh = s.notifyMemoryHigh
+            memoryThreshold = s.memoryThreshold
+            memorySustainedDuration = s.memorySustainedDuration
         }
     }
 

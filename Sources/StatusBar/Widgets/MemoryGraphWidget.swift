@@ -88,6 +88,10 @@ final class MemoryGraphWidget: StatusBarWidget {
         graphValues = buffer.values()
     }
 
+    private var latestUsagePercent: Int {
+        Int((graphValues.last ?? 0) * 100)
+    }
+
     func body() -> some View {
         MiniGraphView(
             values: graphValues,
@@ -97,5 +101,8 @@ final class MemoryGraphWidget: StatusBarWidget {
         .onTapGesture {
             NSWorkspace.shared.open(URL(fileURLWithPath: "/System/Applications/Utilities/Activity Monitor.app"))
         }
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel("Memory Usage")
+        .accessibilityValue("\(latestUsagePercent)%")
     }
 }

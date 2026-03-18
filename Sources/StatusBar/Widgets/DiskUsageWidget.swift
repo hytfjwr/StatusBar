@@ -43,6 +43,11 @@ final class DiskUsageWidget: StatusBarWidget {
         return AnyShapeStyle(.primary)
     }
 
+    private var accessibilityDiskValue: String {
+        guard let snap = snapshot else { return "Unknown" }
+        return "\(snap.usedFormatted) of \(snap.totalFormatted)"
+    }
+
     func body() -> some View {
         HStack(spacing: 4) {
             Image(systemName: "internaldrive.fill")
@@ -53,5 +58,8 @@ final class DiskUsageWidget: StatusBarWidget {
                 .foregroundStyle(.primary)
         }
         .padding(.horizontal, 4)
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel("Disk Usage")
+        .accessibilityValue(accessibilityDiskValue)
     }
 }

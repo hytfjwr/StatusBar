@@ -6,12 +6,15 @@ final class BatteryService {
     static let shared = BatteryService()
 
     private var runLoopSource: CFRunLoopSource?
-    private var observers: [(Int, Bool) -> Void] = []
+    private var observers: [(Int, Bool, Bool) -> Void] = []
     private var started = false
+
+    /// Whether the machine has a battery. False on desktop Macs (Mac Mini, Mac Pro, etc.).
+    private(set) var hasBattery = true
 
     private init() {}
 
-    func addObserver(_ handler: @escaping (Int, Bool) -> Void) {
+    func addObserver(_ handler: @escaping (_ capacity: Int, _ isCharging: Bool, _ hasBattery: Bool) -> Void) {
         observers.append(handler)
     }
 
@@ -60,18 +63,20 @@ final class BatteryService {
         guard let source = sources.first,
               let info = IOPSGetPowerSourceDescription(snapshot, source).takeUnretainedValue() as? [String: Any]
         else {
-            notifyObservers(0, false)
+            hasBattery = false
+            notifyObservers(0, false, false)
             return
         }
 
+        hasBattery = true
         let capacity = info[kIOPSCurrentCapacityKey] as? Int ?? 0
         let isCharging = (info[kIOPSPowerSourceStateKey] as? String) == kIOPSACPowerValue
-        notifyObservers(capacity, isCharging)
+        notifyObservers(capacity, isCharging, true)
     }
 
-    private func notifyObservers(_ capacity: Int, _ isCharging: Bool) {
+    private func notifyObservers(_ capacity: Int, _ isCharging: Bool, _ hasBattery: Bool) {
         for observer in observers {
-            observer(capacity, isCharging)
+            observer(capacity, isCharging, hasBattery)
         }
     }
 }

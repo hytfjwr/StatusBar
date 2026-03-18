@@ -28,8 +28,16 @@ final class FocusTimerWidget: StatusBarWidget {
     private var showCustomSlider = false
     private var customMinutes: Double = 25
 
+    // MARK: - UserDefaults Keys
+
+    private enum Keys {
+        static let mode = "focusTimer.mode"
+        static let endTime = "focusTimer.endTime"
+        static let customMinutes = "focusTimer.customMinutes"
+    }
+
     func start() {
-        // Timer only runs when a focus session is active
+        restoreState()
     }
 
     private func startTickTimer() {
@@ -45,12 +53,14 @@ final class FocusTimerWidget: StatusBarWidget {
     }
 
     func startTimer(mode: String, duration: TimeInterval) {
-        state = .running(mode: mode, endTime: Date().addingTimeInterval(duration))
+        let endTime = Date().addingTimeInterval(duration)
+        state = .running(mode: mode, endTime: endTime)
         bounceCounter += 1
         NSSound(named: "Tink")?.play()
         startTickTimer()
         update()
         refreshPopup()
+        saveState(mode: mode, endTime: endTime)
     }
 
     func stopTimer() {
@@ -61,6 +71,7 @@ final class FocusTimerWidget: StatusBarWidget {
         displayColor = Theme.secondary
         NSSound(named: "Purr")?.play()
         refreshPopup()
+        clearSavedState()
     }
 
     func toggleCustomSlider() {
@@ -71,6 +82,52 @@ final class FocusTimerWidget: StatusBarWidget {
 
     func setCustomMinutes(_ value: Double) {
         customMinutes = value
+        UserDefaults.standard.set(value, forKey: Keys.customMinutes)
+    }
+
+    // MARK: - State Persistence
+
+    private func saveState(mode: String, endTime: Date) {
+        let defaults = UserDefaults.standard
+        defaults.set(mode, forKey: Keys.mode)
+        defaults.set(endTime.timeIntervalSince1970, forKey: Keys.endTime)
+    }
+
+    private func clearSavedState() {
+        let defaults = UserDefaults.standard
+        defaults.removeObject(forKey: Keys.mode)
+        defaults.removeObject(forKey: Keys.endTime)
+    }
+
+    private func restoreState() {
+        let defaults = UserDefaults.standard
+
+        // Always restore custom minutes preference
+        if defaults.object(forKey: Keys.customMinutes) != nil {
+            customMinutes = defaults.double(forKey: Keys.customMinutes)
+        }
+
+        // Restore running timer if present
+        guard let mode = defaults.string(forKey: Keys.mode) else { return }
+        let endTimeInterval = defaults.double(forKey: Keys.endTime)
+        guard endTimeInterval > 0 else { return }
+
+        let endTime = Date(timeIntervalSince1970: endTimeInterval)
+        let remaining = endTime.timeIntervalSinceNow
+
+        if remaining > 0 {
+            // Timer still running — resume countdown
+            state = .running(mode: mode, endTime: endTime)
+            startTickTimer()
+            update()
+        } else {
+            // Timer already expired — show completion briefly
+            state = .completed(at: Date())
+            displayText = "Done"
+            displayColor = Theme.green
+            startTickTimer()
+            clearSavedState()
+        }
     }
 
     private func refreshPopup() {
@@ -99,6 +156,7 @@ final class FocusTimerWidget: StatusBarWidget {
                 displayText = "Done"
                 displayColor = Theme.green
                 NSSound(named: "Glass")?.play()
+                clearSavedState()
                 return
             }
 
@@ -123,6 +181,14 @@ final class FocusTimerWidget: StatusBarWidget {
         }
     }
 
+    private var accessibilityTimerValue: String {
+        switch state {
+        case .idle: "Idle"
+        case .running: displayText
+        case .completed: "Done"
+        }
+    }
+
     func body() -> some View {
         HStack(spacing: 5) {
             Image(systemName: timerSFSymbol)
@@ -140,6 +206,9 @@ final class FocusTimerWidget: StatusBarWidget {
         .onTapGesture { [weak self] in
             self?.togglePopup()
         }
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel("Focus Timer")
+        .accessibilityValue(accessibilityTimerValue)
     }
 
     private var timerSFSymbol: String {
