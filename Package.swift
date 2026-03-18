@@ -27,7 +27,6 @@ let package = Package(
                 .linkedFramework("AppKit"),
                 .linkedFramework("IOKit"),
                 .linkedFramework("CoreAudio"),
-                .linkedFramework("IOBluetooth"),
                 .linkedFramework("EventKit"),
                 .linkedFramework("Carbon"),
                 .linkedFramework("UserNotifications"),
