@@ -287,8 +287,29 @@ struct PluginsSection: View {
             do {
                 let record = try await GitHubPluginInstaller.shared.install(from: update.githubURL)
                 availableUpdates.removeAll { $0.pluginID == update.pluginID }
+
+                // Attempt hot-reload if the old plugin is loaded, otherwise cold-load
+                let loader = DylibPluginLoader.shared
+                let registry = WidgetRegistry.shared
+                var reloaded = false
+                if loader.isLoaded(update.pluginID) {
+                    let bundleURL = FileManager.default.homeDirectoryForCurrentUser
+                        .appendingPathComponent(".config/statusbar/plugins")
+                        .appendingPathComponent("\(record.bundleName).statusplugin")
+                    if let _ = try? loader.reload(pluginID: update.pluginID, bundleURL: bundleURL, into: registry) {
+                        registry.finalizeRegistration()
+                        let newWidgetIDs = Set(loader.widgetIDs(for: record.id))
+                        let allWidgets = registry.leftWidgets + registry.centerWidgets + registry.rightWidgets
+                        for widget in allWidgets where newWidgetIDs.contains(widget.id) {
+                            widget.start()
+                        }
+                        reloaded = true
+                    }
+                } else {
+                    reloaded = hotLoadPlugin(record)
+                }
                 installSuccess = "\(record.name) updated to v\(record.version)."
-                needsRestart = true
+                if !reloaded { needsRestart = true }
             } catch {
                 installError = "Update failed: \(error.localizedDescription)"
             }
