@@ -214,7 +214,7 @@ final class GitHubPluginInstaller {
 
     // MARK: - Private
 
-    private func parseGitHubURL(_ urlString: String) throws -> (owner: String, repo: String) {
+    func parseGitHubURL(_ urlString: String) throws -> (owner: String, repo: String) {
         // Handle formats:
         //   https://github.com/owner/repo
         //   https://github.com/owner/repo.git
