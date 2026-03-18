@@ -50,7 +50,7 @@ struct OnboardingView: View {
 
                 if page == .tips {
                     Button("Get Started") {
-                        UserDefaults.standard.set(true, forKey: "hasCompletedOnboarding")
+                        UserDefaults.standard.set(true, forKey: OnboardingKeys.hasCompleted)
                         onDismiss()
                     }
                     .keyboardShortcut(.defaultAction)

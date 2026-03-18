@@ -52,7 +52,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
         // Show onboarding on first launch
         if ConfigLoader.shared.isFirstLaunch
-            || !UserDefaults.standard.bool(forKey: "hasCompletedOnboarding") {
+            || !UserDefaults.standard.bool(forKey: OnboardingKeys.hasCompleted) {
             OnboardingWindow.shared.show()
         }
 
@@ -97,7 +97,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         mainMenu.addItem(editItem)
         NSApp.mainMenu = mainMenu
     }
-
 
     func applicationWillTerminate(_ notification: Notification) {
         if let observer = configErrorObserver {

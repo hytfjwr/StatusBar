@@ -6,9 +6,7 @@ struct AboutSection: View {
     @State private var showingResetConfirm = false
     private let updateService = AppUpdateService.shared
 
-    private var appVersion: String {
-        Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "1.0"
-    }
+    private var appVersion: String { AppUpdateService.appVersion }
 
     private var buildNumber: String {
         Bundle.main.infoDictionary?["CFBundleVersion"] as? String ?? "1"

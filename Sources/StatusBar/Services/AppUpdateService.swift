@@ -93,8 +93,9 @@ final class AppUpdateService {
     // MARK: - Private
 
     private func recordCheck() {
-        lastCheckDate = Date()
-        UserDefaults.standard.set(Date().timeIntervalSince1970, forKey: "appUpdate.lastCheckTimestamp")
+        let now = Date()
+        lastCheckDate = now
+        UserDefaults.standard.set(now.timeIntervalSince1970, forKey: "appUpdate.lastCheckTimestamp")
     }
 
     private func fetchLatestRelease() async throws -> GitHubRelease {

@@ -1,6 +1,10 @@
 import AppKit
 import SwiftUI
 
+enum OnboardingKeys {
+    static let hasCompleted = "hasCompletedOnboarding"
+}
+
 @MainActor
 final class OnboardingWindow {
     static let shared = OnboardingWindow()
