@@ -20,13 +20,14 @@ final class BluetoothWidget: StatusBarWidget {
     private var connectedCount: Int { devices.count }
 
     func start() {
-        Task { devices = await service.poll() }
-        timer = Timer.publish(every: updateInterval ?? 10, on: .main, in: .common)
+        devices = service.poll()
+        let interval = updateInterval ?? 10
+        timer = Timer.publish(every: interval, tolerance: interval * 0.1, on: .main, in: .common)
             .autoconnect()
             .sink { [weak self] _ in
                 guard let self else { return }
                 Task { @MainActor in
-                    self.devices = await self.service.poll()
+                    self.devices = self.service.poll()
                     if self.popupPanel?.isVisible == true {
                         self.refreshPopup()
                     }
