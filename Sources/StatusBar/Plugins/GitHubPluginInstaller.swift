@@ -121,11 +121,12 @@ final class GitHubPluginInstaller {
         try fm.copyItem(at: pluginBundle, to: destURL)
 
         // Create and save registry record
+        let normalizedURL = "https://github.com/\(owner)/\(repo)"
         let record = InstalledPluginRecord(
             id: manifest.id,
             name: manifest.name,
             version: manifest.version,
-            githubURL: urlString,
+            githubURL: normalizedURL,
             bundleName: pluginBundle.deletingPathExtension().lastPathComponent
         )
         try PluginStore.shared.add(record)

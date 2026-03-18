@@ -198,8 +198,19 @@ struct PluginsSection: View {
 
         HStack {
             VStack(alignment: .leading, spacing: 2) {
-                Text(plugin.name)
-                    .fontWeight(.medium)
+                HStack(spacing: 6) {
+                    Text(plugin.name)
+                        .fontWeight(.medium)
+                    if plugin.isLocal {
+                        Text("Local")
+                            .font(.caption2)
+                            .fontWeight(.semibold)
+                            .padding(.horizontal, 5)
+                            .padding(.vertical, 1)
+                            .background(.purple.opacity(0.15), in: Capsule())
+                            .foregroundStyle(.purple)
+                    }
+                }
                 HStack(spacing: 8) {
                     Text("v\(plugin.version)")
                         .font(.caption)
@@ -209,12 +220,14 @@ struct PluginsSection: View {
                             .font(.caption)
                             .foregroundStyle(.orange)
                     }
-                    if let url = plugin.githubURL {
-                        Text(url)
-                            .font(.caption)
-                            .foregroundStyle(.tertiary)
-                            .lineLimit(1)
-                            .truncationMode(.middle)
+                    if let url = plugin.githubURL, let link = URL(string: url) {
+                        Link(destination: link) {
+                            Text(url)
+                                .font(.caption)
+                                .foregroundStyle(.link)
+                                .lineLimit(1)
+                                .truncationMode(.middle)
+                        }
                     }
                 }
             }
