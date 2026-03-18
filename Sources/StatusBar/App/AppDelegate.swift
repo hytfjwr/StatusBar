@@ -1,5 +1,4 @@
 import AppKit
-import ApplicationServices
 import StatusBarKit
 
 @MainActor
@@ -8,7 +7,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         setupMainMenu()
-        checkAccessibilityPermission()
 
         // Load YAML config before anything else accesses PreferencesModel
         ConfigLoader.shared.bootstrap()
@@ -71,13 +69,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         NSApp.mainMenu = mainMenu
     }
 
-    /// Accessibility 権限を確認し、未付与の場合はシステムダイアログを表示する。
-    /// グローバルイベントモニター（自動非表示、ポップアップ外部クリック閉じ）に必要。
-    private func checkAccessibilityPermission() {
-        // kAXTrustedCheckOptionPrompt の値は "AXTrustedCheckOptionPrompt"
-        let options = ["AXTrustedCheckOptionPrompt": true] as CFDictionary
-        AXIsProcessTrustedWithOptions(options)
-    }
 
     func applicationWillTerminate(_ notification: Notification) {
         NotificationService.shared.stop()
