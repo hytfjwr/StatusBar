@@ -43,12 +43,20 @@ final class BluetoothWidget: StatusBarWidget {
             Image(systemName: "dot.radiowaves.left.and.right")
                 .font(Theme.sfIconFont)
                 .foregroundStyle(.white)
+            if connectedCount > 0 {
+                Text("\(connectedCount)")
+                    .font(Theme.labelFont)
+                    .foregroundStyle(.primary)
+            }
         }
         .padding(.horizontal, 4)
         .contentShape(Rectangle())
         .onTapGesture { [weak self] in
             self?.togglePopup()
         }
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel("Bluetooth")
+        .accessibilityValue(connectedCount > 0 ? "\(connectedCount) devices connected" : "No devices")
     }
 
     private func togglePopup() {
