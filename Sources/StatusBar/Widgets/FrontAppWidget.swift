@@ -44,5 +44,8 @@ final class FrontAppWidget: StatusBarWidget {
                 .foregroundStyle(.primary)
         }
         .padding(.horizontal, 4)
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel("Active App")
+        .accessibilityValue(appName)
     }
 }

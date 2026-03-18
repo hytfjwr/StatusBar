@@ -61,6 +61,9 @@ final class VolumeWidget: StatusBarWidget {
         .onTapGesture { [weak self] in
             self?.togglePopup()
         }
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel("Volume")
+        .accessibilityValue(muted ? "Muted" : "\(volume)%")
     }
 
     // MARK: - Popup

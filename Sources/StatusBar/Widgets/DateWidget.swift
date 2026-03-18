@@ -101,6 +101,9 @@ final class DateWidget: StatusBarWidget {
             .onTapGesture { [weak self] in
                 self?.togglePopup()
             }
+            .accessibilityElement(children: .combine)
+            .accessibilityLabel("Date")
+            .accessibilityValue(currentDate)
     }
 
     private func togglePopup() {

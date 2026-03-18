@@ -14,6 +14,8 @@ final class DiskService: @unchecked Sendable {
 
         var usedPercent: Int { Int(usedFraction * 100) }
 
+        var usedFormatted: String { Self.formatBytes(usedBytes) }
+        var totalFormatted: String { Self.formatBytes(totalBytes) }
         var freeFormatted: String { Self.formatBytes(freeBytes) }
 
         private static func formatBytes(_ bytes: Int64) -> String {

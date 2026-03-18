@@ -91,5 +91,8 @@ final class TimeWidget: StatusBarWidget {
             .font(Theme.labelFont)
             .foregroundStyle(.primary)
             .padding(.horizontal, 4)
+            .accessibilityElement(children: .combine)
+            .accessibilityLabel("Time")
+            .accessibilityValue(currentTime)
     }
 }
