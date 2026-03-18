@@ -64,7 +64,7 @@ final class BluetoothService: @unchecked Sendable {
             guard let connected = props["Connected"] as? Bool, connected else { continue }
 
             let name = props["Name"] as? String ?? "Unknown"
-            let address = (props["DeviceAddress"] as? String) ?? UUID().uuidString
+            let address = (props["DeviceAddress"] as? String) ?? "unknown-\(name.lowercased())"
             let classOfDevice = props["ClassOfDevice"] as? UInt32 ?? 0
             let category = classify(classOfDevice: classOfDevice, name: name)
             let battery = lookupBattery(address: address, name: name, batteryMap: batteryMap)
@@ -140,23 +140,15 @@ final class BluetoothService: @unchecked Sendable {
                 service = IOIteratorNext(iterator)
             }
 
-            guard let batteryRaw = IORegistryEntryCreateCFProperty(
-                service, "BatteryPercent" as CFString, kCFAllocatorDefault, 0
-            )?.takeRetainedValue(),
-                  let battery = batteryRaw as? Int
+            guard let props = serviceProperties(service),
+                  let battery = props["BatteryPercent"] as? Int
             else { continue }
 
-            if let addrRaw = IORegistryEntryCreateCFProperty(
-                service, "DeviceAddress" as CFString, kCFAllocatorDefault, 0
-            )?.takeRetainedValue(),
-               let addr = addrRaw as? String {
+            if let addr = props["DeviceAddress"] as? String {
                 result[normalizeAddress(addr)] = battery
             }
 
-            if let prodRaw = IORegistryEntryCreateCFProperty(
-                service, "Product" as CFString, kCFAllocatorDefault, 0
-            )?.takeRetainedValue(),
-               let product = prodRaw as? String {
+            if let product = props["Product"] as? String {
                 result[product.lowercased()] = battery
             }
         }

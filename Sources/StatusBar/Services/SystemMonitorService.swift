@@ -12,10 +12,25 @@ final class SystemMonitorService {
     }
 
     private var previousCPUTicks = CPUTicks()
+    private var cachedCPU: Double = 0
+    private var cachedMemory: Double = 0
+    private var lastCPUUpdate: Date = .distantPast
+    private var lastMemoryUpdate: Date = .distantPast
+
+    /// Minimum interval between actual kernel calls. Callers within this
+    /// window receive the cached value, avoiding stale-delta problems when
+    /// multiple consumers poll at different rates.
+    private let cacheWindow: TimeInterval = 0.5
 
     private init() {}
 
     func cpuUsage() -> Double {
+        let now = Date()
+        if now.timeIntervalSince(lastCPUUpdate) < cacheWindow {
+            return cachedCPU
+        }
+        lastCPUUpdate = now
+
         var loadInfo = host_cpu_load_info()
         var count = mach_msg_type_number_t(
             MemoryLayout<host_cpu_load_info>.size / MemoryLayout<integer_t>.size
@@ -48,10 +63,17 @@ final class SystemMonitorService {
             return 0
         }
 
-        return Double(deltaUser + deltaSystem + deltaNice) / Double(totalDelta)
+        cachedCPU = Double(deltaUser + deltaSystem + deltaNice) / Double(totalDelta)
+        return cachedCPU
     }
 
     func memoryUsage() -> Double {
+        let now = Date()
+        if now.timeIntervalSince(lastMemoryUpdate) < cacheWindow {
+            return cachedMemory
+        }
+        lastMemoryUpdate = now
+
         var stats = vm_statistics64()
         var count = mach_msg_type_number_t(
             MemoryLayout<vm_statistics64>.size / MemoryLayout<integer_t>.size
@@ -77,6 +99,7 @@ final class SystemMonitorService {
             return 0
         }
 
-        return Double(active + wired + compressed) / Double(totalMemory)
+        cachedMemory = Double(active + wired + compressed) / Double(totalMemory)
+        return cachedMemory
     }
 }

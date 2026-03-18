@@ -33,7 +33,7 @@ final class FocusTimerWidget: StatusBarWidget {
     }
 
     private func startTickTimer() {
-        timer?.cancel()
+        guard timer == nil else { return }
         timer = Timer.publish(every: 1, tolerance: 0.1, on: .main, in: .common)
             .autoconnect()
             .sink { [weak self] _ in self?.update() }
