@@ -17,27 +17,39 @@ enum PluginLoadError: Error, LocalizedError {
     case pluginBoxCastFailed
     case pluginFactoryFailed
     case sha256Mismatch(expected: String, actual: String)
+    case invalidManifestField(String, String)
+    case duplicatePluginID(String)
 
     var errorDescription: String? {
+        func redact(_ url: URL) -> String {
+            url.path.replacingOccurrences(
+                of: FileManager.default.homeDirectoryForCurrentUser.path,
+                with: "~"
+            )
+        }
         switch self {
         case .manifestNotFound(let url):
-            "manifest.json not found at \(url.path)"
+            return "manifest.json not found at \(redact(url))"
         case .manifestDecodingFailed(let url, let error):
-            "Failed to decode manifest at \(url.path): \(error.localizedDescription)"
+            return "Failed to decode manifest at \(redact(url)): \(error.localizedDescription)"
         case .incompatibleStatusBarKitVersion(let required, let current):
-            "Incompatible StatusBarKit version: plugin requires \(required), app has \(current)"
+            return "Incompatible StatusBarKit version: plugin requires \(required), app has \(current)"
         case .dylibNotFound(let url):
-            "Plugin dylib not found at \(url.path)"
+            return "Plugin dylib not found at \(redact(url))"
         case .dlopenFailed(let message):
-            "dlopen failed: \(message)"
+            return "dlopen failed: \(message)"
         case .symbolNotFound(let symbol):
-            "Entry symbol '\(symbol)' not found in plugin"
+            return "Entry symbol '\(symbol)' not found in plugin"
         case .pluginBoxCastFailed:
-            "Failed to cast plugin factory result to PluginBox"
+            return "Failed to cast plugin factory result to PluginBox"
         case .pluginFactoryFailed:
-            "Plugin factory returned nil"
+            return "Plugin factory returned nil"
         case .sha256Mismatch(let expected, let actual):
-            "SHA-256 mismatch: expected \(expected), got \(actual)"
+            return "SHA-256 mismatch: expected \(expected), got \(actual)"
+        case .invalidManifestField(let field, _):
+            return "Invalid manifest field '\(field)': contains disallowed characters"
+        case .duplicatePluginID(let id):
+            return "Duplicate plugin ID: '\(id)' is already loaded"
         }
     }
 }
@@ -90,7 +102,10 @@ final class DylibPluginLoader {
         do {
             try store.load()
         } catch {
-            logger.error("Failed to load plugin store: \(error.localizedDescription)")
+            // If store is corrupted, skip all plugin loading to prevent
+            // re-enabling user-disabled plugins
+            logger.error("Plugin store corrupted — skipping all plugin loading: \(error.localizedDescription)")
+            return
         }
 
         guard let contents = try? fm.contentsOfDirectory(
@@ -153,8 +168,16 @@ final class DylibPluginLoader {
         let manifestURL = bundleURL.appendingPathComponent("manifest.json")
         let manifest = try readManifest(at: manifestURL)
 
+        // Validate manifest fields
+        try validateManifestFields(manifest)
+
         // Version compatibility check
         try validateCompatibility(manifest)
+
+        // Reject duplicate plugin IDs
+        guard loadedHandles[manifest.id] == nil else {
+            throw PluginLoadError.duplicatePluginID(manifest.id)
+        }
 
         // Find the dylib
         let dylibURL = findDylib(in: bundleURL, manifest: manifest)
@@ -317,6 +340,27 @@ final class DylibPluginLoader {
                 required: manifest.statusBarKitVersion,
                 current: statusBarKitVersion
             )
+        }
+    }
+
+    /// Validate manifest fields contain only safe characters.
+    private func validateManifestFields(_ manifest: DylibPluginManifest) throws {
+        let idPattern = /^[a-zA-Z0-9._-]+$/
+        let symbolPattern = /^[a-zA-Z_][a-zA-Z0-9_]*$/
+        let versionPattern = /^[a-zA-Z0-9._-]+$/
+        let namePattern = /^[a-zA-Z0-9._\- ]+$/
+
+        if manifest.id.wholeMatch(of: idPattern) == nil {
+            throw PluginLoadError.invalidManifestField("id", manifest.id)
+        }
+        if manifest.entrySymbol.wholeMatch(of: symbolPattern) == nil {
+            throw PluginLoadError.invalidManifestField("entrySymbol", manifest.entrySymbol)
+        }
+        if manifest.version.wholeMatch(of: versionPattern) == nil {
+            throw PluginLoadError.invalidManifestField("version", manifest.version)
+        }
+        if manifest.name.wholeMatch(of: namePattern) == nil {
+            throw PluginLoadError.invalidManifestField("name", manifest.name)
         }
     }
 
