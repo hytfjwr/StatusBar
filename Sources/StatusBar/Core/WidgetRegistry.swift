@@ -71,7 +71,7 @@ final class WidgetRegistry: WidgetRegistryProtocol {
     func finalizeRegistration() {
         let knownIDs = Set(allWidgets.keys)
         layout.removeAll { !knownIDs.contains($0.id) }
-        store.save(layout)
+        store.save()
     }
 
     // MARK: - Lifecycle
@@ -226,6 +226,10 @@ final class WidgetRegistry: WidgetRegistryProtocol {
     }
 
     func displayName(for widgetID: String) -> String {
+        Self.displayName(for: widgetID)
+    }
+
+    static func displayName(for widgetID: String) -> String {
         widgetID
             .split(separator: "-")
             .map { $0.prefix(1).uppercased() + $0.dropFirst() }
@@ -258,7 +262,7 @@ final class WidgetRegistry: WidgetRegistryProtocol {
     }
 
     private func persist() {
-        store.save(layout)
+        store.save()
         onLayoutDidChange?()
     }
 }

@@ -250,10 +250,17 @@ final class GitHubPluginInstaller {
         process.standardOutput = FileHandle.nullDevice
         process.standardError = FileHandle.nullDevice
         try process.run()
-        process.waitUntilExit()
-        guard process.terminationStatus == 0 else {
+
+        // Wait asynchronously via terminationHandler to avoid blocking the main thread
+        let status = await withCheckedContinuation { (continuation: CheckedContinuation<Int32, Never>) in
+            process.terminationHandler = { proc in
+                continuation.resume(returning: proc.terminationStatus)
+            }
+        }
+
+        guard status == 0 else {
             throw GitHubPluginError.extractionFailed(
-                NSError(domain: "unzip", code: Int(process.terminationStatus))
+                NSError(domain: "unzip", code: Int(status))
             )
         }
     }
