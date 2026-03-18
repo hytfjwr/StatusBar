@@ -9,16 +9,16 @@ final class WidgetRegistry: WidgetRegistryProtocol {
     /// Called after layout is persisted. Used to decouple from PreferencesModel.
     var onLayoutDidChange: (@MainActor () -> Void)?
 
-    // All widget instances keyed by id (type-erased)
+    /// All widget instances keyed by id (type-erased)
     private var allWidgets: [String: AnyStatusBarWidget] = [:]
 
-    // Observable layout — drives BarContentView
+    /// Observable layout — drives BarContentView
     private(set) var layout: [WidgetLayoutEntry] = []
 
-    // Default layout captured during registration, used by resetLayout()
+    /// Default layout captured during registration, used by resetLayout()
     private var defaultLayout: [WidgetLayoutEntry] = []
 
-    // Retain plugin instances to prevent deallocation after registration
+    /// Retain plugin instances to prevent deallocation after registration
     private var plugins: [any StatusBarPlugin] = []
 
     private let store = WidgetLayoutStore()
@@ -35,7 +35,9 @@ final class WidgetRegistry: WidgetRegistryProtocol {
     }
 
     func register(_ widget: any StatusBarWidget) {
-        func open<W: StatusBarWidget>(_ w: W) { registerImpl(AnyStatusBarWidget(w)) }
+        func open(_ w: some StatusBarWidget) {
+            registerImpl(AnyStatusBarWidget(w))
+        }
         open(widget)
     }
 
@@ -92,10 +94,8 @@ final class WidgetRegistry: WidgetRegistryProtocol {
 
     func startAll() {
         let visibleIDs = Set(layout.filter(\.isVisible).map(\.id))
-        for (id, widget) in allWidgets {
-            if visibleIDs.contains(id) {
-                widget.start()
-            }
+        for (id, widget) in allWidgets where visibleIDs.contains(id) {
+            widget.start()
         }
     }
 
@@ -152,7 +152,9 @@ final class WidgetRegistry: WidgetRegistryProtocol {
     }
 
     func move(widgetID: String, to newSection: WidgetPosition) {
-        guard let index = layout.firstIndex(where: { $0.id == widgetID }) else { return }
+        guard let index = layout.firstIndex(where: { $0.id == widgetID }) else {
+            return
+        }
         let oldSection = layout[index].section
 
         // Append at the end of the new section
@@ -171,7 +173,9 @@ final class WidgetRegistry: WidgetRegistryProtocol {
     }
 
     func insertWidget(_ widgetID: String, inSection section: WidgetPosition, at insertIndex: Int) {
-        guard let layoutIndex = layout.firstIndex(where: { $0.id == widgetID }) else { return }
+        guard let layoutIndex = layout.firstIndex(where: { $0.id == widgetID }) else {
+            return
+        }
         let oldSection = layout[layoutIndex].section
 
         // Get current entries in the target section, sorted
@@ -207,7 +211,9 @@ final class WidgetRegistry: WidgetRegistryProtocol {
     }
 
     func setVisible(_ visible: Bool, for widgetID: String) {
-        guard let index = layout.firstIndex(where: { $0.id == widgetID }) else { return }
+        guard let index = layout.firstIndex(where: { $0.id == widgetID }) else {
+            return
+        }
         layout[index].isVisible = visible
 
         if visible {

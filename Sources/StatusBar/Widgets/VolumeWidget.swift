@@ -1,5 +1,7 @@
-import SwiftUI
 import StatusBarKit
+import SwiftUI
+
+// MARK: - VolumeWidget
 
 @MainActor
 @Observable
@@ -7,7 +9,9 @@ final class VolumeWidget: StatusBarWidget {
     let id = "volume"
     let position: WidgetPosition = .right
     let updateInterval: TimeInterval? = nil
-    var sfSymbolName: String { "speaker.wave.2" }
+    var sfSymbolName: String {
+        "speaker.wave.2"
+    }
 
     private var volume: Int = 0
     private var muted: Bool = false
@@ -17,7 +21,9 @@ final class VolumeWidget: StatusBarWidget {
     func start() {
         service = AudioService { [weak self] vol in
             Task { @MainActor in
-                guard let self else { return }
+                guard let self else {
+                    return
+                }
                 self.volume = vol
                 self.muted = self.service?.isMuted() ?? false
                 if self.popupPanel?.isVisible == true {
@@ -34,7 +40,9 @@ final class VolumeWidget: StatusBarWidget {
     }
 
     private var iconName: String {
-        if muted { return "speaker.slash.fill" }
+        if muted {
+            return "speaker.slash.fill"
+        }
         switch volume {
         case 60 ... 100: return "speaker.wave.3.fill"
         case 30 ..< 60: return "speaker.wave.2.fill"
@@ -81,7 +89,9 @@ final class VolumeWidget: StatusBarWidget {
             popupPanel = PopupPanel(contentRect: NSRect(x: 0, y: 0, width: 280, height: 100))
         }
 
-        guard let (barFrame, screen) = PopupPanel.barTriggerFrame() else { return }
+        guard let (barFrame, screen) = PopupPanel.barTriggerFrame() else {
+            return
+        }
 
         let sliderVolume = muted ? service?.rawVolume() ?? volume : volume
         let content = VolumePopupContent(
@@ -91,16 +101,20 @@ final class VolumeWidget: StatusBarWidget {
                 self?.service?.setVolume(newVol)
             },
             onMuteToggle: { [weak self] in
-                guard let self else { return }
-                let newMute = !self.muted
-                self.service?.setMute(newMute)
+                guard let self else {
+                    return
+                }
+                let newMute = !muted
+                service?.setMute(newMute)
             }
         )
         popupPanel?.showPopup(relativeTo: barFrame, on: screen, content: content)
     }
 
     private func refreshPopup() {
-        guard let panel = popupPanel, panel.isVisible else { return }
+        guard let panel = popupPanel, panel.isVisible else {
+            return
+        }
 
         let sliderVolume = muted ? service?.rawVolume() ?? volume : volume
         let content = VolumePopupContent(
@@ -110,9 +124,11 @@ final class VolumeWidget: StatusBarWidget {
                 self?.service?.setVolume(newVol)
             },
             onMuteToggle: { [weak self] in
-                guard let self else { return }
-                let newMute = !self.muted
-                self.service?.setMute(newMute)
+                guard let self else {
+                    return
+                }
+                let newMute = !muted
+                service?.setMute(newMute)
             }
         )
         panel.updateContent(content)
@@ -134,11 +150,13 @@ private struct VolumePopupContent: View {
         self.muted = muted
         self.onVolumeChange = onVolumeChange
         self.onMuteToggle = onMuteToggle
-        self._sliderValue = State(initialValue: Double(volume))
+        _sliderValue = State(initialValue: Double(volume))
     }
 
     private var iconName: String {
-        if muted { return "speaker.slash.fill" }
+        if muted {
+            return "speaker.slash.fill"
+        }
         switch Int(sliderValue) {
         case 60 ... 100: return "speaker.wave.3.fill"
         case 30 ..< 60: return "speaker.wave.2.fill"
@@ -163,7 +181,7 @@ private struct VolumePopupContent: View {
                 .buttonStyle(.plain)
 
                 // Horizontal slider
-                Slider(value: $sliderValue, in: 0...100, step: 1)
+                Slider(value: $sliderValue, in: 0 ... 100, step: 1)
                     .tint(.blue)
                     .focusable(false)
                     .onChange(of: sliderValue) { _, newValue in

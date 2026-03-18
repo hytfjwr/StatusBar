@@ -13,7 +13,9 @@ final class NetworkSettings: WidgetConfigProvider {
     private var suppressWrite = false
 
     var updateInterval: Double {
-        didSet { if !suppressWrite { WidgetConfigRegistry.shared.notifySettingsChanged() } }
+        didSet { if !suppressWrite {
+            WidgetConfigRegistry.shared.notifySettingsChanged()
+        } }
     }
 
     private init() {
@@ -29,7 +31,9 @@ final class NetworkSettings: WidgetConfigProvider {
     func applyConfig(_ values: [String: ConfigValue]) {
         suppressWrite = true
         defer { suppressWrite = false }
-        if let v = values["updateInterval"]?.doubleValue { updateInterval = v }
+        if let v = values["updateInterval"]?.doubleValue {
+            updateInterval = v
+        }
     }
 }
 
@@ -41,7 +45,9 @@ final class NetworkWidget: StatusBarWidget {
     let id = "network"
     let position: WidgetPosition = .right
     let updateInterval: TimeInterval? = 2
-    var sfSymbolName: String { "network" }
+    var sfSymbolName: String {
+        "network"
+    }
 
     private var timer: AnyCancellable?
     private let service = NetworkService()
@@ -57,7 +63,9 @@ final class NetworkWidget: StatusBarWidget {
         timer?.cancel()
     }
 
-    var hasSettings: Bool { true }
+    var hasSettings: Bool {
+        true
+    }
 
     func settingsBody() -> some View {
         NetworkWidgetSettings()

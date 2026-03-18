@@ -3,7 +3,7 @@ import CoreMediaIO
 import Foundation
 
 final class MicCameraService: @unchecked Sendable {
-    struct State: Sendable {
+    struct State {
         var micActive: Bool
         var cameraActive: Bool
     }
@@ -54,9 +54,11 @@ final class MicCameraService: @unchecked Sendable {
                 mElement: kAudioObjectPropertyElementMain
             )
             let block: AudioObjectPropertyListenerBlock = { [weak self] _, _ in
-                guard let self else { return }
-                let state = self.computeState()
-                self.onChange(state)
+                guard let self else {
+                    return
+                }
+                let state = computeState()
+                onChange(state)
             }
             listenerBlocks[deviceID] = block
             AudioObjectAddPropertyListenerBlock(deviceID, &address, queue, block)
@@ -65,7 +67,9 @@ final class MicCameraService: @unchecked Sendable {
 
     private func removeMicListeners() {
         for deviceID in inputDeviceIDs {
-            guard let block = listenerBlocks[deviceID] else { continue }
+            guard let block = listenerBlocks[deviceID] else {
+                continue
+            }
             var address = AudioObjectPropertyAddress(
                 mSelector: kAudioDevicePropertyDeviceIsRunningSomewhere,
                 mScope: kAudioObjectPropertyScopeGlobal,
@@ -86,11 +90,13 @@ final class MicCameraService: @unchecked Sendable {
             mElement: kAudioObjectPropertyElementMain
         )
         let block: AudioObjectPropertyListenerBlock = { [weak self] _, _ in
-            guard let self else { return }
-            self.removeMicListeners()
-            self.setupMicListeners()
-            let state = self.computeState()
-            self.onChange(state)
+            guard let self else {
+                return
+            }
+            removeMicListeners()
+            setupMicListeners()
+            let state = computeState()
+            onChange(state)
         }
         deviceListBlock = block
         AudioObjectAddPropertyListenerBlock(
@@ -99,7 +105,9 @@ final class MicCameraService: @unchecked Sendable {
     }
 
     private func removeDeviceListListener() {
-        guard let block = deviceListBlock else { return }
+        guard let block = deviceListBlock else {
+            return
+        }
         var devicesAddress = AudioObjectPropertyAddress(
             mSelector: kAudioHardwarePropertyDevices,
             mScope: kAudioObjectPropertyScopeGlobal,
@@ -120,13 +128,17 @@ final class MicCameraService: @unchecked Sendable {
         )
         guard AudioObjectGetPropertyDataSize(
             AudioObjectID(kAudioObjectSystemObject), &address, 0, nil, &size
-        ) == noErr else { return [] }
+        ) == noErr else {
+            return []
+        }
 
         let count = Int(size) / MemoryLayout<AudioDeviceID>.size
         var deviceIDs = [AudioDeviceID](repeating: kAudioObjectUnknown, count: count)
         guard AudioObjectGetPropertyData(
             AudioObjectID(kAudioObjectSystemObject), &address, 0, nil, &size, &deviceIDs
-        ) == noErr else { return [] }
+        ) == noErr else {
+            return []
+        }
 
         return deviceIDs.filter { isInputDevice($0) }
     }
@@ -139,12 +151,17 @@ final class MicCameraService: @unchecked Sendable {
             mElement: kAudioObjectPropertyElementMain
         )
         guard AudioObjectGetPropertyDataSize(deviceID, &address, 0, nil, &size) == noErr,
-              size > 0 else { return false }
+              size > 0
+        else {
+            return false
+        }
 
         let bufferListPtr = UnsafeMutableRawPointer.allocate(byteCount: Int(size), alignment: 4)
         defer { bufferListPtr.deallocate() }
         guard AudioObjectGetPropertyData(deviceID, &address, 0, nil, &size, bufferListPtr) == noErr
-        else { return false }
+        else {
+            return false
+        }
 
         let bufferList = bufferListPtr.bindMemory(to: AudioBufferList.self, capacity: 1)
         return bufferList.pointee.mNumberBuffers > 0
@@ -161,9 +178,11 @@ final class MicCameraService: @unchecked Sendable {
                 mElement: CMIOObjectPropertyElement(kCMIOObjectPropertyElementMain)
             )
             let block: CMIOObjectPropertyListenerBlock = { [weak self] _, _ in
-                guard let self else { return }
-                let state = self.computeState()
-                self.onChange(state)
+                guard let self else {
+                    return
+                }
+                let state = computeState()
+                onChange(state)
             }
             cameraListenerBlocks[deviceID] = block
             CMIOObjectAddPropertyListenerBlock(deviceID, &address, queue, block)
@@ -172,7 +191,9 @@ final class MicCameraService: @unchecked Sendable {
 
     private func removeCameraListeners() {
         for deviceID in cameraDeviceIDs {
-            guard let block = cameraListenerBlocks[deviceID] else { continue }
+            guard let block = cameraListenerBlocks[deviceID] else {
+                continue
+            }
             var address = CMIOObjectPropertyAddress(
                 mSelector: CMIOObjectPropertySelector(kCMIODevicePropertyDeviceIsRunningSomewhere),
                 mScope: CMIOObjectPropertyScope(kCMIOObjectPropertyScopeGlobal),
@@ -191,11 +212,13 @@ final class MicCameraService: @unchecked Sendable {
             mElement: CMIOObjectPropertyElement(kCMIOObjectPropertyElementMain)
         )
         let block: CMIOObjectPropertyListenerBlock = { [weak self] _, _ in
-            guard let self else { return }
-            self.removeCameraListeners()
-            self.setupCameraListeners()
-            let state = self.computeState()
-            self.onChange(state)
+            guard let self else {
+                return
+            }
+            removeCameraListeners()
+            setupCameraListeners()
+            let state = computeState()
+            onChange(state)
         }
         cameraDeviceListBlock = block
         CMIOObjectAddPropertyListenerBlock(
@@ -204,7 +227,9 @@ final class MicCameraService: @unchecked Sendable {
     }
 
     private func removeCameraDeviceListListener() {
-        guard let block = cameraDeviceListBlock else { return }
+        guard let block = cameraDeviceListBlock else {
+            return
+        }
         var address = CMIOObjectPropertyAddress(
             mSelector: CMIOObjectPropertySelector(kCMIOHardwarePropertyDevices),
             mScope: CMIOObjectPropertyScope(kCMIOObjectPropertyScopeGlobal),
@@ -225,15 +250,21 @@ final class MicCameraService: @unchecked Sendable {
         )
         guard CMIOObjectGetPropertyDataSize(
             CMIOObjectID(kCMIOObjectSystemObject), &address, 0, nil, &size
-        ) == noErr else { return [] }
+        ) == noErr else {
+            return []
+        }
 
         let count = Int(size) / MemoryLayout<CMIOObjectID>.size
-        guard count > 0 else { return [] }
+        guard count > 0 else {
+            return []
+        }
         var deviceIDs = [CMIOObjectID](repeating: 0, count: count)
         var dataUsed: UInt32 = 0
         guard CMIOObjectGetPropertyData(
             CMIOObjectID(kCMIOObjectSystemObject), &address, 0, nil, size, &dataUsed, &deviceIDs
-        ) == noErr else { return [] }
+        ) == noErr else {
+            return []
+        }
 
         return deviceIDs
     }

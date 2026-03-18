@@ -10,14 +10,18 @@ final class BluetoothWidget: StatusBarWidget {
     let id = "bluetooth"
     let position: WidgetPosition = .right
     let updateInterval: TimeInterval? = 10
-    var sfSymbolName: String { "dot.radiowaves.right" }
+    var sfSymbolName: String {
+        "dot.radiowaves.right"
+    }
 
     private var devices: [BluetoothService.BluetoothDevice] = []
     private var timer: AnyCancellable?
     private let service = BluetoothService()
     private var popupPanel: PopupPanel?
 
-    private var connectedCount: Int { devices.count }
+    private var connectedCount: Int {
+        devices.count
+    }
 
     func start() {
         devices = service.poll()
@@ -25,10 +29,12 @@ final class BluetoothWidget: StatusBarWidget {
         timer = Timer.publish(every: interval, tolerance: interval * 0.1, on: .main, in: .common)
             .autoconnect()
             .sink { [weak self] _ in
-                guard let self else { return }
-                self.devices = self.service.poll()
-                if self.popupPanel?.isVisible == true {
-                    self.refreshPopup()
+                guard let self else {
+                    return
+                }
+                devices = service.poll()
+                if popupPanel?.isVisible == true {
+                    refreshPopup()
                 }
             }
     }
@@ -72,7 +78,9 @@ final class BluetoothWidget: StatusBarWidget {
             popupPanel = PopupPanel(contentRect: NSRect(x: 0, y: 0, width: 280, height: 200))
         }
 
-        guard let (barFrame, screen) = PopupPanel.barTriggerFrame() else { return }
+        guard let (barFrame, screen) = PopupPanel.barTriggerFrame() else {
+            return
+        }
 
         let content = BluetoothPopupContent(devices: devices)
         popupPanel?.showPopup(relativeTo: barFrame, on: screen, content: content)
@@ -81,7 +89,9 @@ final class BluetoothWidget: StatusBarWidget {
     private func refreshPopup() {
         guard let panel = popupPanel, panel.isVisible,
               let (barFrame, screen) = PopupPanel.barTriggerFrame()
-        else { return }
+        else {
+            return
+        }
 
         let content = BluetoothPopupContent(devices: devices)
         panel.showPopup(relativeTo: barFrame, on: screen, content: content)
@@ -135,8 +145,12 @@ private struct BluetoothPopupContent: View {
     }
 
     private func batteryColor(_ level: Int) -> Color {
-        if level > 50 { return Theme.green }
-        if level > 20 { return Theme.yellow }
+        if level > 50 {
+            return Theme.green
+        }
+        if level > 20 {
+            return Theme.yellow
+        }
         return Theme.red
     }
 }

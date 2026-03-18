@@ -70,7 +70,10 @@ final class InputSourceService {
 
     func cycleToNextSource() {
         guard let sources = TISCreateInputSourceList(nil, false)?
-            .takeRetainedValue() as? [TISInputSource] else { return }
+            .takeRetainedValue() as? [TISInputSource]
+        else {
+            return
+        }
 
         let selectable = sources.filter { source in
             guard let ptr = TISGetInputSourceProperty(source, kTISPropertyInputSourceIsSelectCapable) else {
@@ -78,9 +81,13 @@ final class InputSourceService {
             }
             return CFBooleanGetValue(Unmanaged<CFBoolean>.fromOpaque(ptr).takeUnretainedValue())
         }
-        guard !selectable.isEmpty else { return }
+        guard !selectable.isEmpty else {
+            return
+        }
 
-        guard let current = TISCopyCurrentKeyboardInputSource()?.takeRetainedValue() else { return }
+        guard let current = TISCopyCurrentKeyboardInputSource()?.takeRetainedValue() else {
+            return
+        }
         let currentID = sourceID(current)
 
         let idx = selectable.firstIndex { source in
@@ -94,7 +101,9 @@ final class InputSourceService {
     // MARK: - Private
 
     private func sourceID(_ source: TISInputSource) -> String? {
-        guard let ptr = TISGetInputSourceProperty(source, kTISPropertyInputSourceID) else { return nil }
+        guard let ptr = TISGetInputSourceProperty(source, kTISPropertyInputSourceID) else {
+            return nil
+        }
         return Unmanaged<CFString>.fromOpaque(ptr).takeUnretainedValue() as String
     }
 
@@ -110,19 +119,25 @@ final class InputSourceService {
 
         // Chinese Simplified (Pinyin, Wubi, etc.)
         if id.contains("scim") || id.contains("simplifiedchinese") || id.contains("pinyin") || id.contains("wubi") {
-            if id.contains("base") || id.contains("ascii") || id.contains("english") { return "A" }
+            if id.contains("base") || id.contains("ascii") || id.contains("english") {
+                return "A"
+            }
             return "拼"
         }
 
         // Chinese Traditional (Zhuyin, Cangjie, etc.)
         if id.contains("tcim") || id.contains("traditionalchinese") || id.contains("zhuyin") || id.contains("cangjie") {
-            if id.contains("base") || id.contains("ascii") || id.contains("english") { return "A" }
+            if id.contains("base") || id.contains("ascii") || id.contains("english") {
+                return "A"
+            }
             return "注"
         }
 
         // Korean
         if id.contains("korean") {
-            if id.contains("base") || id.contains("ascii") || id.contains("english") { return "A" }
+            if id.contains("base") || id.contains("ascii") || id.contains("english") {
+                return "A"
+            }
             return "한"
         }
 
@@ -140,10 +155,18 @@ final class InputSourceService {
     }
 
     private func japaneseMode(_ id: String) -> String {
-        if id.contains("hiragana") || id.hasSuffix(".japanese") { return "あ" }
-        if id.contains("halfwidthkatakana") || id.contains("halfwidthkana") { return "ｱ" }
-        if id.contains("katakana") { return "ア" }
-        if id.contains("fullwidthroman") { return "Ａ" }
+        if id.contains("hiragana") || id.hasSuffix(".japanese") {
+            return "あ"
+        }
+        if id.contains("halfwidthkatakana") || id.contains("halfwidthkana") {
+            return "ｱ"
+        }
+        if id.contains("katakana") {
+            return "ア"
+        }
+        if id.contains("fullwidthroman") {
+            return "Ａ"
+        }
         if id.contains("base") || id.contains("roman") || id.contains("ascii") || id.contains("english") {
             return "A"
         }
@@ -164,7 +187,9 @@ final class InputSourceService {
             "com.apple.keylayout.Dvorak": "DV",
         ]
 
-        if let known = table[sourceID] { return known }
+        if let known = table[sourceID] {
+            return known
+        }
 
         // Keyboard layouts (com.apple.keylayout.*) — use last component
         if sourceID.contains("keylayout") {

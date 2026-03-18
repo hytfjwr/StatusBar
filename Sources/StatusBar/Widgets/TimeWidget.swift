@@ -13,7 +13,9 @@ final class TimeSettings: WidgetConfigProvider {
     private var suppressWrite = false
 
     var format: String {
-        didSet { if !suppressWrite { WidgetConfigRegistry.shared.notifySettingsChanged() } }
+        didSet { if !suppressWrite {
+            WidgetConfigRegistry.shared.notifySettingsChanged()
+        } }
     }
 
     private init() {
@@ -29,7 +31,9 @@ final class TimeSettings: WidgetConfigProvider {
     func applyConfig(_ values: [String: ConfigValue]) {
         suppressWrite = true
         defer { suppressWrite = false }
-        if let v = values["format"]?.stringValue { format = v }
+        if let v = values["format"]?.stringValue {
+            format = v
+        }
     }
 }
 
@@ -41,7 +45,9 @@ final class TimeWidget: StatusBarWidget {
     let id = "time"
     let position: WidgetPosition = .right
     let updateInterval: TimeInterval? = 2
-    var sfSymbolName: String { "clock" }
+    var sfSymbolName: String {
+        "clock"
+    }
 
     private var currentTime = ""
     private var timer: AnyCancellable?
@@ -60,7 +66,9 @@ final class TimeWidget: StatusBarWidget {
         timer?.cancel()
     }
 
-    var hasSettings: Bool { true }
+    var hasSettings: Bool {
+        true
+    }
 
     func settingsBody() -> some View {
         TimeWidgetSettings()

@@ -28,27 +28,27 @@ enum PluginLoadError: Error, LocalizedError {
             )
         }
         switch self {
-        case .manifestNotFound(let url):
+        case let .manifestNotFound(url):
             return "manifest.json not found at \(redact(url))"
-        case .manifestDecodingFailed(let url, let error):
+        case let .manifestDecodingFailed(url, error):
             return "Failed to decode manifest at \(redact(url)): \(error.localizedDescription)"
-        case .incompatibleStatusBarKitVersion(let required, let current):
+        case let .incompatibleStatusBarKitVersion(required, current):
             return "Incompatible StatusBarKit version: plugin requires \(required), app has \(current)"
-        case .dylibNotFound(let url):
+        case let .dylibNotFound(url):
             return "Plugin dylib not found at \(redact(url))"
-        case .dlopenFailed(let message):
+        case let .dlopenFailed(message):
             return "dlopen failed: \(message)"
-        case .symbolNotFound(let symbol):
+        case let .symbolNotFound(symbol):
             return "Entry symbol '\(symbol)' not found in plugin"
         case .pluginBoxCastFailed:
             return "Failed to cast plugin factory result to PluginBox"
         case .pluginFactoryFailed:
             return "Plugin factory returned nil"
-        case .sha256Mismatch(let expected, let actual):
+        case let .sha256Mismatch(expected, actual):
             return "SHA-256 mismatch: expected \(expected), got \(actual)"
-        case .invalidManifestField(let field, _):
+        case let .invalidManifestField(field, _):
             return "Invalid manifest field '\(field)': contains disallowed characters"
-        case .duplicatePluginID(let id):
+        case let .duplicatePluginID(id):
             return "Duplicate plugin ID: '\(id)' is already loaded"
         }
     }
@@ -56,11 +56,13 @@ enum PluginLoadError: Error, LocalizedError {
 
 // MARK: - PluginLoadResult
 
-struct PluginLoadResult: Sendable {
+struct PluginLoadResult {
     let manifest: DylibPluginManifest
     let error: PluginLoadError?
 
-    var isSuccess: Bool { error == nil }
+    var isSuccess: Bool {
+        error == nil
+    }
 }
 
 // MARK: - DylibPluginLoader
@@ -92,11 +94,13 @@ final class DylibPluginLoader {
     // MARK: - Load All
 
     /// Scan the plugins directory and load all valid .statusplugin bundles.
-    func loadAll(into registry: WidgetRegistry) {
+    func loadAll(into registry: WidgetRegistry) { // swiftlint:disable:this function_body_length
         let fm = FileManager.default
         let dir = pluginsDirectory
 
-        guard fm.fileExists(atPath: dir.path) else { return }
+        guard fm.fileExists(atPath: dir.path) else {
+            return
+        }
 
         let store = PluginStore.shared
         do {
@@ -111,7 +115,9 @@ final class DylibPluginLoader {
         guard let contents = try? fm.contentsOfDirectory(
             at: dir,
             includingPropertiesForKeys: nil
-        ) else { return }
+        ) else {
+            return
+        }
 
         var results: [PluginLoadResult] = []
 
@@ -363,7 +369,8 @@ final class DylibPluginLoader {
 
     private func validateCompatibility(_ manifest: DylibPluginManifest) throws {
         guard let pluginVersion = SemanticVersion(manifest.statusBarKitVersion),
-              let hostVersion = SemanticVersion(statusBarKitVersion) else {
+              let hostVersion = SemanticVersion(statusBarKitVersion)
+        else {
             throw PluginLoadError.incompatibleStatusBarKitVersion(
                 required: manifest.statusBarKitVersion,
                 current: statusBarKitVersion

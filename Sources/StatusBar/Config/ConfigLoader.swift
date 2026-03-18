@@ -10,6 +10,8 @@ extension Notification.Name {
     static let configParseError = Notification.Name("ConfigParseError")
 }
 
+// MARK: - ConfigLoader
+
 @MainActor
 final class ConfigLoader {
     static let shared = ConfigLoader()
@@ -54,16 +56,21 @@ final class ConfigLoader {
             currentConfig = try loadConfigFromDisk()
             // Record initial modification date so the FS watcher can skip
             // events where config.yml hasn't actually changed.
-            if let attrs = try? fm.attributesOfItem(atPath: fileURL.path),
-               let modDate = attrs[.modificationDate] as? Date {
+            // swiftformat:disable:next redundantSelf
+            if let attrs = try? fm.attributesOfItem(atPath: self.fileURL.path),
+               let modDate = attrs[.modificationDate] as? Date
+            {
                 lastKnownConfigModDate = modDate
             }
+            // swiftformat:disable:next redundantSelf
             logger.info("Loaded config from \(self.fileURL.path)")
         } catch let error as NSError where error.domain == NSCocoaErrorDomain
-            && error.code == NSFileReadNoSuchFileError {
+            && error.code == NSFileReadNoSuchFileError
+        {
             isFirstLaunch = true
             currentConfig = StatusBarConfig()
             writeCurrentStateToDisk()
+            // swiftformat:disable:next redundantSelf
             logger.info("Generated default config at \(self.fileURL.path)")
         } catch {
             logger.error("Failed to load config, using defaults: \(error.localizedDescription)")
@@ -128,7 +135,9 @@ final class ConfigLoader {
 
     /// Apply layout from config. Called after all widgets are registered.
     func applyLayoutIfNeeded() {
-        guard !currentConfig.widgets.isEmpty else { return }
+        guard !currentConfig.widgets.isEmpty else {
+            return
+        }
         let entries = currentConfig.widgets.map(\.asEntry)
         WidgetRegistry.shared.applyLayout(entries)
     }
@@ -137,11 +146,15 @@ final class ConfigLoader {
 
     /// Debounced write — called by PreferencesModel/WidgetRegistry/Settings on change.
     func scheduleWrite() {
-        guard !isApplying else { return }
+        guard !isApplying else {
+            return
+        }
         writeTask?.cancel()
         writeTask = Task { @MainActor [weak self] in
             try? await Task.sleep(for: .milliseconds(300))
-            guard !Task.isCancelled else { return }
+            guard !Task.isCancelled else {
+                return
+            }
             self?.captureAndWrite()
         }
     }
@@ -177,11 +190,11 @@ final class ConfigLoader {
                 return "\(match.output.0)"[...]
             }
             let value = base * pow(10.0, Double(exp))
-            if value == value.rounded(.towardZero) && value.magnitude < 1e15 {
+            if value == value.rounded(.towardZero), value.magnitude < 1e15 {
                 return Substring(String(format: "%.0f", value))
             }
             var str = String(format: "%.10f", value)
-            while str.hasSuffix("0") && !str.hasSuffix(".0") {
+            while str.hasSuffix("0"), !str.hasSuffix(".0") {
                 str.removeLast()
             }
             return Substring(str)
@@ -222,18 +235,20 @@ final class ConfigLoader {
     private func handleFileSystemEvent() {
         // Ignore FS events that arrive shortly after our own writes
         if let lastWrite = lastWriteTime,
-           Date().timeIntervalSince(lastWrite) < writeGracePeriod {
+           Date().timeIntervalSince(lastWrite) < writeGracePeriod
+        {
             return
         }
 
         // Check if config.yml itself actually changed (ignore temp/plugin file changes)
         let fm = FileManager.default
         guard let attrs = try? fm.attributesOfItem(atPath: fileURL.path),
-              let modDate = attrs[.modificationDate] as? Date else {
+              let modDate = attrs[.modificationDate] as? Date
+        else {
             return
         }
         if let lastMod = lastKnownConfigModDate, modDate <= lastMod {
-            return  // config.yml unchanged
+            return // config.yml unchanged
         }
 
         do {
@@ -249,7 +264,8 @@ final class ConfigLoader {
 
             logger.info("Config hot-reloaded")
         } catch let error as NSError where error.domain == NSCocoaErrorDomain
-            && error.code == NSFileReadNoSuchFileError {
+            && error.code == NSFileReadNoSuchFileError
+        {
             // File was deleted — ignore
         } catch {
             logger.error("Config hot-reload failed: \(error.localizedDescription)")

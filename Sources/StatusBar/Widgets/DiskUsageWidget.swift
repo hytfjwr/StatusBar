@@ -8,7 +8,9 @@ final class DiskUsageWidget: StatusBarWidget {
     let id = "disk-usage"
     let position: WidgetPosition = .right
     let updateInterval: TimeInterval? = 60
-    var sfSymbolName: String { "internaldrive" }
+    var sfSymbolName: String {
+        "internaldrive"
+    }
 
     private var snapshot: DiskService.DiskSnapshot?
     private var timer: AnyCancellable?
@@ -37,14 +39,22 @@ final class DiskUsageWidget: StatusBarWidget {
     }
 
     private var iconStyle: AnyShapeStyle {
-        guard let pct = snapshot?.usedPercent else { return AnyShapeStyle(.primary) }
-        if pct >= 90 { return AnyShapeStyle(Theme.red) }
-        if pct >= 80 { return AnyShapeStyle(Theme.yellow) }
+        guard let pct = snapshot?.usedPercent else {
+            return AnyShapeStyle(.primary)
+        }
+        if pct >= 90 {
+            return AnyShapeStyle(Theme.red)
+        }
+        if pct >= 80 {
+            return AnyShapeStyle(Theme.yellow)
+        }
         return AnyShapeStyle(.primary)
     }
 
     private var accessibilityDiskValue: String {
-        guard let snap = snapshot else { return "Unknown" }
+        guard let snap = snapshot else {
+            return "Unknown"
+        }
         return "\(snap.usedFormatted) of \(snap.totalFormatted)"
     }
 

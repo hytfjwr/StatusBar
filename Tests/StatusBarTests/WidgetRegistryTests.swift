@@ -1,11 +1,10 @@
 import Foundation
+@testable import StatusBar
 import Testing
 
-@testable import StatusBar
-
-@Suite("WidgetRegistry")
 @MainActor
 struct WidgetRegistryTests {
+
     // MARK: - displayName
 
     @Test("Converts kebab-case to Title Case", arguments: [

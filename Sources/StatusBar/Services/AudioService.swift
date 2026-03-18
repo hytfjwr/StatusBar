@@ -43,11 +43,13 @@ final class AudioService: @unchecked Sendable {
 
         let deviceChangeBlock: AudioObjectPropertyListenerBlock = { [weak self] _, _ in
             // Callback dispatched on our serial queue, so direct access is safe
-            guard let self else { return }
-            self.removeDeviceListeners()
-            self.setupDeviceListeners()
-            let vol = self.getVolume()
-            self.onChange(vol)
+            guard let self else {
+                return
+            }
+            removeDeviceListeners()
+            setupDeviceListeners()
+            let vol = getVolume()
+            onChange(vol)
         }
         deviceChangeListenerBlock = deviceChangeBlock
         AudioObjectAddPropertyListenerBlock(
@@ -74,9 +76,11 @@ final class AudioService: @unchecked Sendable {
 
         let volumeBlock: AudioObjectPropertyListenerBlock = { [weak self] _, _ in
             // Callback dispatched on our serial queue
-            guard let self else { return }
-            let vol = self.getVolume()
-            self.onChange(vol)
+            guard let self else {
+                return
+            }
+            let vol = getVolume()
+            onChange(vol)
         }
         volumeListenerBlock = volumeBlock
         AudioObjectAddPropertyListenerBlock(defaultDeviceID, &volumeAddress, queue, volumeBlock)
@@ -90,9 +94,11 @@ final class AudioService: @unchecked Sendable {
 
         let muteBlock: AudioObjectPropertyListenerBlock = { [weak self] _, _ in
             // Callback dispatched on our serial queue
-            guard let self else { return }
-            let vol = self.getVolume()
-            self.onChange(vol)
+            guard let self else {
+                return
+            }
+            let vol = getVolume()
+            onChange(vol)
         }
         muteListenerBlock = muteBlock
         AudioObjectAddPropertyListenerBlock(defaultDeviceID, &muteAddress, queue, muteBlock)
@@ -148,7 +154,9 @@ final class AudioService: @unchecked Sendable {
 
     func setVolume(_ percent: Int) {
         queue.async { [weak self] in
-            guard let self, defaultDeviceID != kAudioObjectUnknown else { return }
+            guard let self, defaultDeviceID != kAudioObjectUnknown else {
+                return
+            }
 
             var volume = Float32(max(0, min(100, percent))) / 100.0
             var address = AudioObjectPropertyAddress(
@@ -163,15 +171,17 @@ final class AudioService: @unchecked Sendable {
 
             // Unmute when user explicitly sets volume > 0
             if percent > 0 {
-                self.setMuteInternal(false)
+                setMuteInternal(false)
             }
         }
     }
 
     func setMute(_ muted: Bool) {
         queue.async { [weak self] in
-            guard let self, defaultDeviceID != kAudioObjectUnknown else { return }
-            self.setMuteInternal(muted)
+            guard let self, defaultDeviceID != kAudioObjectUnknown else {
+                return
+            }
+            setMuteInternal(muted)
         }
     }
 
@@ -180,7 +190,9 @@ final class AudioService: @unchecked Sendable {
         // Since callbacks now fire on our queue, public callers must not be on queue.
         dispatchPrecondition(condition: .notOnQueue(queue))
         return queue.sync {
-            guard defaultDeviceID != kAudioObjectUnknown else { return false }
+            guard defaultDeviceID != kAudioObjectUnknown else {
+                return false
+            }
             var muted: UInt32 = 0
             var size = UInt32(MemoryLayout<UInt32>.size)
             var address = AudioObjectPropertyAddress(
@@ -199,7 +211,9 @@ final class AudioService: @unchecked Sendable {
     func rawVolume() -> Int {
         dispatchPrecondition(condition: .notOnQueue(queue))
         return queue.sync {
-            guard defaultDeviceID != kAudioObjectUnknown else { return 0 }
+            guard defaultDeviceID != kAudioObjectUnknown else {
+                return 0
+            }
             var volume: Float32 = 0
             var size = UInt32(MemoryLayout<Float32>.size)
             var address = AudioObjectPropertyAddress(

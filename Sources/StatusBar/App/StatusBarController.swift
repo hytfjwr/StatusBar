@@ -63,7 +63,9 @@ final class StatusBarController {
                 self?.rebuildTask?.cancel()
                 self?.rebuildTask = Task { @MainActor [weak self] in
                     try? await Task.sleep(for: .milliseconds(50))
-                    guard !Task.isCancelled else { return }
+                    guard !Task.isCancelled else {
+                        return
+                    }
                     self?.createBarWindows()
                 }
                 self?.observeBarDimensions()
@@ -113,7 +115,7 @@ final class StatusBarController {
 
     private func applyAutoHideState() {
         let enabled = PreferencesModel.shared.autoHideEnabled
-        if enabled && mouseMonitor == nil {
+        if enabled, mouseMonitor == nil {
             installMouseMonitor()
         } else if !enabled {
             removeMouseMonitor()
@@ -147,14 +149,18 @@ final class StatusBarController {
 
     private func handleMouseMove() {
         let mouseLocation = NSEvent.mouseLocation
-        guard let screen = NSScreen.screens.first(where: { $0.frame.insetBy(dx: -1, dy: -1).contains(mouseLocation) }) else { return }
+        guard let screen = NSScreen.screens.first(where: {
+            $0.frame.insetBy(dx: -1, dy: -1).contains(mouseLocation)
+        }) else {
+            return
+        }
         let mouseY = mouseLocation.y
         let screenTop = screen.frame.maxY
         let distanceFromTop = screenTop - mouseY
 
         if distanceFromTop <= 2 {
             // Cursor at the very top edge — start dwell timer to hide
-            if !isBarHidden && dwellTimer == nil {
+            if !isBarHidden, dwellTimer == nil {
                 let dwellTime = PreferencesModel.shared.autoHideDwellTime
                 dwellTimer = Timer.scheduledTimer(withTimeInterval: dwellTime, repeats: false) { [weak self] _ in
                     Task { @MainActor in
@@ -165,7 +171,7 @@ final class StatusBarController {
             }
         } else {
             let barBottom = screenTop - Theme.barHeight - Theme.barYOffset
-            if isBarHidden && mouseY < barBottom {
+            if isBarHidden, mouseY < barBottom {
                 // Cursor moved below bar area — show bar
                 isBarHidden = false
                 fadeBarWindows(hide: false)

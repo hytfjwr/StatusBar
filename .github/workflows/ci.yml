@@ -6,6 +6,20 @@ on:
   pull_request:
 
 jobs:
+  lint-and-format:
+    runs-on: macos-26
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install tools
+        run: brew install swiftlint swiftformat
+
+      - name: SwiftLint
+        run: swiftlint lint --strict
+
+      - name: SwiftFormat check
+        run: swiftformat --lint .
+
   build-and-test:
     runs-on: macos-26
     steps:

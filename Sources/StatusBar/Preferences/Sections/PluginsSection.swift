@@ -1,6 +1,18 @@
+// swiftlint:disable file_length
 import StatusBarKit
 import SwiftUI
 
+// MARK: - DevPluginInfo
+
+private struct DevPluginInfo: Identifiable {
+    let id: String
+    let name: String
+    let path: String
+}
+
+// MARK: - PluginsSection
+
+// swiftlint:disable type_body_length
 struct PluginsSection: View {
     @State private var githubURL: String = ""
     @State private var isInstalling = false
@@ -11,7 +23,7 @@ struct PluginsSection: View {
     @State private var availableUpdates: [GitHubPluginInstaller.UpdateInfo] = []
     @State private var updateCheckDone = false
     @State private var devPath: String = ""
-    @State private var devPlugins: [(id: String, name: String, path: String)] = []
+    @State private var devPlugins: [DevPluginInfo] = []
     @State private var devError: String?
 
     var store: PluginStore = .shared
@@ -143,7 +155,8 @@ struct PluginsSection: View {
                     }
 
                     Label(
-                        "Load plugins directly from a build directory for development. Use `make bundle` then point to the .statusplugin output.",
+                        "Load plugins directly from a build directory for development."
+                            + " Use `make bundle` then point to the .statusplugin output.",
                         systemImage: "hammer"
                     )
                     .font(.caption)
@@ -193,7 +206,7 @@ struct PluginsSection: View {
     // MARK: - Plugin Row
 
     @ViewBuilder
-    private func pluginRow(_ plugin: InstalledPluginRecord) -> some View {
+    private func pluginRow(_ plugin: InstalledPluginRecord) -> some View { // swiftlint:disable:this function_body_length
         let update = availableUpdates.first { $0.pluginID == plugin.id }
 
         HStack {
@@ -296,7 +309,8 @@ struct PluginsSection: View {
                     let bundleURL = FileManager.default.homeDirectoryForCurrentUser
                         .appendingPathComponent(".config/statusbar/plugins")
                         .appendingPathComponent("\(record.bundleName).statusplugin")
-                    if let _ = try? loader.reload(pluginID: update.pluginID, bundleURL: bundleURL, into: registry) {
+                    do {
+                        try loader.reload(pluginID: update.pluginID, bundleURL: bundleURL, into: registry)
                         registry.finalizeRegistration()
                         let newWidgetIDs = Set(loader.widgetIDs(for: record.id))
                         let allWidgets = registry.leftWidgets + registry.centerWidgets + registry.rightWidgets
@@ -304,12 +318,16 @@ struct PluginsSection: View {
                             widget.start()
                         }
                         reloaded = true
+                    } catch {
+                        print("[PluginsSection] Hot-reload failed: \(error.localizedDescription)")
                     }
                 } else {
                     reloaded = hotLoadPlugin(record)
                 }
                 installSuccess = "\(record.name) updated to v\(record.version)."
-                if !reloaded { needsRestart = true }
+                if !reloaded {
+                    needsRestart = true
+                }
             } catch {
                 installError = "Update failed: \(error.localizedDescription)"
             }
@@ -320,7 +338,9 @@ struct PluginsSection: View {
     // MARK: - Actions
 
     private func installPlugin() {
-        guard !githubURL.isEmpty else { return }
+        guard !githubURL.isEmpty else {
+            return
+        }
         isInstalling = true
         installError = nil
         installSuccess = nil
@@ -402,15 +422,15 @@ struct PluginsSection: View {
                 }
             }
             // Show and start widgets
+            let allWidgets = registry.leftWidgets + registry.centerWidgets + registry.rightWidgets
             for widgetID in loader.widgetIDs(for: plugin.id) {
                 registry.setVisible(true, for: widgetID)
-                let allWidgets = registry.leftWidgets + registry.centerWidgets + registry.rightWidgets
                 allWidgets.first { $0.id == widgetID }?.start()
             }
         } else {
             // Stop and hide widgets
+            let allWidgets = registry.leftWidgets + registry.centerWidgets + registry.rightWidgets
             for widgetID in loader.widgetIDs(for: plugin.id) {
-                let allWidgets = registry.leftWidgets + registry.centerWidgets + registry.rightWidgets
                 allWidgets.first { $0.id == widgetID }?.stop()
                 registry.setVisible(false, for: widgetID)
             }
@@ -442,7 +462,9 @@ struct PluginsSection: View {
     }
 
     private func loadDevPlugin() {
-        guard !devPath.isEmpty else { return }
+        guard !devPath.isEmpty else {
+            return
+        }
         devError = nil
 
         let bundleURL = URL(fileURLWithPath: devPath)
@@ -461,7 +483,7 @@ struct PluginsSection: View {
                 widget.start()
             }
 
-            devPlugins.append((id: manifest.id, name: manifest.name, path: devPath))
+            devPlugins.append(DevPluginInfo(id: manifest.id, name: manifest.name, path: devPath))
             devPath = ""
         } catch {
             devError = error.localizedDescription
@@ -477,3 +499,5 @@ struct PluginsSection: View {
         NSApplication.shared.terminate(nil)
     }
 }
+
+// swiftlint:enable type_body_length

@@ -4,6 +4,7 @@ import SwiftUI
 
 // MARK: - PreferencesModel
 
+// swiftlint:disable type_body_length file_length
 @MainActor
 @Observable
 final class PreferencesModel: ThemeProvider {
@@ -14,7 +15,9 @@ final class PreferencesModel: ThemeProvider {
     var revision: Int = 0
     private var suppressDepth = 0
     func bump() {
-        guard suppressDepth == 0 else { return }
+        guard suppressDepth == 0 else {
+            return
+        }
         revision += 1
     }
 
@@ -33,93 +36,253 @@ final class PreferencesModel: ThemeProvider {
 
     // MARK: - General (Bar Dimensions)
 
-    var barHeight: CGFloat { didSet { scheduleFlush(); bump() } }
-    var barCornerRadius: CGFloat { didSet { scheduleFlush(); bump() } }
-    var barMargin: CGFloat { didSet { scheduleFlush(); bump() } }
-    var barYOffset: CGFloat { didSet { scheduleFlush(); bump() } }
-    var widgetSpacing: CGFloat { didSet { scheduleFlush(); bump() } }
-    var widgetPaddingH: CGFloat { didSet { scheduleFlush(); bump() } }
+    var barHeight: CGFloat {
+        didSet { scheduleFlush(); bump() }
+    }
+
+    var barCornerRadius: CGFloat {
+        didSet { scheduleFlush(); bump() }
+    }
+
+    var barMargin: CGFloat {
+        didSet { scheduleFlush(); bump() }
+    }
+
+    var barYOffset: CGFloat {
+        didSet { scheduleFlush(); bump() }
+    }
+
+    var widgetSpacing: CGFloat {
+        didSet { scheduleFlush(); bump() }
+    }
+
+    var widgetPaddingH: CGFloat {
+        didSet { scheduleFlush(); bump() }
+    }
 
     // MARK: - Appearance (Colors & Opacity)
 
-    var accentHex: UInt32 { didSet { scheduleFlush(); bump() } }
-    var textPrimaryOpacity: Double { didSet { scheduleFlush(); bump() } }
-    var textSecondaryOpacity: Double { didSet { scheduleFlush(); bump() } }
-    var textTertiaryOpacity: Double { didSet { scheduleFlush(); bump() } }
-    var greenHex: UInt32 { didSet { scheduleFlush(); bump() } }
-    var yellowHex: UInt32 { didSet { scheduleFlush(); bump() } }
-    var redHex: UInt32 { didSet { scheduleFlush(); bump() } }
-    var cyanHex: UInt32 { didSet { scheduleFlush(); bump() } }
-    var purpleHex: UInt32 { didSet { scheduleFlush(); bump() } }
+    var accentHex: UInt32 {
+        didSet { scheduleFlush(); bump() }
+    }
+
+    var textPrimaryOpacity: Double {
+        didSet { scheduleFlush(); bump() }
+    }
+
+    var textSecondaryOpacity: Double {
+        didSet { scheduleFlush(); bump() }
+    }
+
+    var textTertiaryOpacity: Double {
+        didSet { scheduleFlush(); bump() }
+    }
+
+    var greenHex: UInt32 {
+        didSet { scheduleFlush(); bump() }
+    }
+
+    var yellowHex: UInt32 {
+        didSet { scheduleFlush(); bump() }
+    }
+
+    var redHex: UInt32 {
+        didSet { scheduleFlush(); bump() }
+    }
+
+    var cyanHex: UInt32 {
+        didSet { scheduleFlush(); bump() }
+    }
+
+    var purpleHex: UInt32 {
+        didSet { scheduleFlush(); bump() }
+    }
 
     // MARK: - Typography
 
-    var iconFontSize: CGFloat { didSet { scheduleFlush(); bump() } }
-    var labelFontSize: CGFloat { didSet { scheduleFlush(); bump() } }
-    var smallFontSize: CGFloat { didSet { scheduleFlush(); bump() } }
-    var monoFontSize: CGFloat { didSet { scheduleFlush(); bump() } }
+    var iconFontSize: CGFloat {
+        didSet { scheduleFlush(); bump() }
+    }
+
+    var labelFontSize: CGFloat {
+        didSet { scheduleFlush(); bump() }
+    }
+
+    var smallFontSize: CGFloat {
+        didSet { scheduleFlush(); bump() }
+    }
+
+    var monoFontSize: CGFloat {
+        didSet { scheduleFlush(); bump() }
+    }
 
     // MARK: - Graphs
 
-    var graphWidth: CGFloat { didSet { scheduleFlush(); bump() } }
-    var graphHeight: CGFloat { didSet { scheduleFlush(); bump() } }
-    var graphDataPoints: Int { didSet { scheduleFlush(); bump() } }
-    var cpuGraphHex: UInt32 { didSet { scheduleFlush(); bump() } }
-    var memoryGraphHex: UInt32 { didSet { scheduleFlush(); bump() } }
+    var graphWidth: CGFloat {
+        didSet { scheduleFlush(); bump() }
+    }
+
+    var graphHeight: CGFloat {
+        didSet { scheduleFlush(); bump() }
+    }
+
+    var graphDataPoints: Int {
+        didSet { scheduleFlush(); bump() }
+    }
+
+    var cpuGraphHex: UInt32 {
+        didSet { scheduleFlush(); bump() }
+    }
+
+    var memoryGraphHex: UInt32 {
+        didSet { scheduleFlush(); bump() }
+    }
 
     // MARK: - Glass Tint
 
-    var barTintHex: UInt32 { didSet { scheduleFlush(); bump() } }
-    var barTintOpacity: Double { didSet { scheduleFlush(); bump() } }
+    var barTintHex: UInt32 {
+        didSet { scheduleFlush(); bump() }
+    }
+
+    var barTintOpacity: Double {
+        didSet { scheduleFlush(); bump() }
+    }
 
     // MARK: - Shadow
 
-    var shadowEnabled: Bool { didSet { scheduleFlush(); bump() } }
+    var shadowEnabled: Bool {
+        didSet { scheduleFlush(); bump() }
+    }
 
     // MARK: - Popup
 
-    var popupCornerRadius: CGFloat { didSet { scheduleFlush(); bump() } }
-    var popupPadding: CGFloat { didSet { scheduleFlush(); bump() } }
+    var popupCornerRadius: CGFloat {
+        didSet { scheduleFlush(); bump() }
+    }
+
+    var popupPadding: CGFloat {
+        didSet { scheduleFlush(); bump() }
+    }
 
     // MARK: - Behavior
 
-    var autoHideEnabled: Bool { didSet { scheduleFlush(); bump() } }
-    var autoHideDwellTime: Double { didSet { scheduleFlush(); bump() } }
-    var autoHideFadeDuration: Double { didSet { scheduleFlush(); bump() } }
-    var launchAtLogin: Bool { didSet { scheduleFlush(); bump() } }
+    var autoHideEnabled: Bool {
+        didSet { scheduleFlush(); bump() }
+    }
+
+    var autoHideDwellTime: Double {
+        didSet { scheduleFlush(); bump() }
+    }
+
+    var autoHideFadeDuration: Double {
+        didSet { scheduleFlush(); bump() }
+    }
+
+    var launchAtLogin: Bool {
+        didSet { scheduleFlush(); bump() }
+    }
 
     // MARK: - Notifications
 
-    var notifyBatteryLow: Bool { didSet { scheduleFlush(); bump() } }
-    var batteryThreshold: Double { didSet { scheduleFlush(); bump() } }
-    var notifyCPUHigh: Bool { didSet { scheduleFlush(); bump() } }
-    var cpuThreshold: Double { didSet { scheduleFlush(); bump() } }
-    var cpuSustainedDuration: Double { didSet { scheduleFlush(); bump() } }
-    var notifyMemoryHigh: Bool { didSet { scheduleFlush(); bump() } }
-    var memoryThreshold: Double { didSet { scheduleFlush(); bump() } }
-    var memorySustainedDuration: Double { didSet { scheduleFlush(); bump() } }
+    var notifyBatteryLow: Bool {
+        didSet { scheduleFlush(); bump() }
+    }
+
+    var batteryThreshold: Double {
+        didSet { scheduleFlush(); bump() }
+    }
+
+    var notifyCPUHigh: Bool {
+        didSet { scheduleFlush(); bump() }
+    }
+
+    var cpuThreshold: Double {
+        didSet { scheduleFlush(); bump() }
+    }
+
+    var cpuSustainedDuration: Double {
+        didSet { scheduleFlush(); bump() }
+    }
+
+    var notifyMemoryHigh: Bool {
+        didSet { scheduleFlush(); bump() }
+    }
+
+    var memoryThreshold: Double {
+        didSet { scheduleFlush(); bump() }
+    }
+
+    var memorySustainedDuration: Double {
+        didSet { scheduleFlush(); bump() }
+    }
 
     // MARK: - Computed Colors
 
-    var accentColor: Color { Color(hex: accentHex) }
-    var primaryColor: Color { Color.white.opacity(textPrimaryOpacity) }
-    var secondaryColor: Color { Color.white.opacity(textSecondaryOpacity) }
-    var tertiaryColor: Color { Color.white.opacity(textTertiaryOpacity) }
-    var greenColor: Color { Color(hex: greenHex) }
-    var yellowColor: Color { Color(hex: yellowHex) }
-    var redColor: Color { Color(hex: redHex) }
-    var cyanColor: Color { Color(hex: cyanHex) }
-    var purpleColor: Color { Color(hex: purpleHex) }
-    var cpuGraphColor: Color { Color(hex: cpuGraphHex) }
-    var memoryGraphColor: Color { Color(hex: memoryGraphHex) }
+    var accentColor: Color {
+        Color(hex: accentHex)
+    }
+
+    var primaryColor: Color {
+        Color.white.opacity(textPrimaryOpacity)
+    }
+
+    var secondaryColor: Color {
+        Color.white.opacity(textSecondaryOpacity)
+    }
+
+    var tertiaryColor: Color {
+        Color.white.opacity(textTertiaryOpacity)
+    }
+
+    var greenColor: Color {
+        Color(hex: greenHex)
+    }
+
+    var yellowColor: Color {
+        Color(hex: yellowHex)
+    }
+
+    var redColor: Color {
+        Color(hex: redHex)
+    }
+
+    var cyanColor: Color {
+        Color(hex: cyanHex)
+    }
+
+    var purpleColor: Color {
+        Color(hex: purpleHex)
+    }
+
+    var cpuGraphColor: Color {
+        Color(hex: cpuGraphHex)
+    }
+
+    var memoryGraphColor: Color {
+        Color(hex: memoryGraphHex)
+    }
 
     // MARK: - Computed Fonts
 
-    var sfIconFont: Font { Font.system(size: iconFontSize, weight: .medium, design: .rounded) }
-    var labelFont: Font { Font.system(size: labelFontSize, weight: .medium) }
-    var smallFont: Font { Font.system(size: smallFontSize, weight: .regular) }
-    var monoFont: Font { Font.system(size: monoFontSize, weight: .medium, design: .monospaced) }
-    var popupLabelFont: Font { Font.system(size: labelFontSize, weight: .regular) }
+    var sfIconFont: Font {
+        Font.system(size: iconFontSize, weight: .medium, design: .rounded)
+    }
+
+    var labelFont: Font {
+        Font.system(size: labelFontSize, weight: .medium)
+    }
+
+    var smallFont: Font {
+        Font.system(size: smallFontSize, weight: .regular)
+    }
+
+    var monoFont: Font {
+        Font.system(size: monoFontSize, weight: .medium, design: .monospaced)
+    }
+
+    var popupLabelFont: Font {
+        Font.system(size: labelFontSize, weight: .regular)
+    }
 
     // MARK: - Init
 
@@ -366,7 +529,7 @@ final class PreferencesModel: ThemeProvider {
     }
 }
 
-// MARK: - Default Values
+// MARK: PreferencesModel.Defaults
 
 extension PreferencesModel {
     enum Defaults {
@@ -406,7 +569,7 @@ extension PreferencesModel {
         static let barTintHex: UInt32 = 0x000000
         static let barTintOpacity: Double = 0.0
 
-        // Shadow
+        /// Shadow
         static let shadowEnabled: Bool = true
 
         // Popup
@@ -430,3 +593,5 @@ extension PreferencesModel {
         static let memorySustainedDuration: Double = 5.0
     }
 }
+
+// swiftlint:enable type_body_length file_length

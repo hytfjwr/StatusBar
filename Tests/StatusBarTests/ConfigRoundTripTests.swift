@@ -1,10 +1,8 @@
 import Foundation
+@testable import StatusBar
 import Testing
 import Yams
 
-@testable import StatusBar
-
-@Suite("StatusBarConfig — YAML round-trip")
 struct ConfigRoundTripTests {
     @Test("Default config encodes and decodes via YAML")
     func defaultConfigRoundTrip() throws {

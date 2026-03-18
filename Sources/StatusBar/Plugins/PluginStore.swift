@@ -6,7 +6,7 @@ private let logger = Logger(subsystem: "com.statusbar", category: "PluginStore")
 
 // MARK: - InstalledPluginRecord
 
-struct InstalledPluginRecord: Codable, Sendable {
+struct InstalledPluginRecord: Codable {
     let id: String
     let name: String
     let version: String
@@ -44,8 +44,8 @@ struct InstalledPluginRecord: Codable, Sendable {
         githubURL: String?? = nil,
         installedAt: Date? = nil,
         enabled: Bool? = nil
-    ) -> InstalledPluginRecord {
-        InstalledPluginRecord(
+    ) -> Self {
+        Self(
             id: id,
             name: name ?? self.name,
             version: version ?? self.version,
@@ -106,7 +106,9 @@ final class PluginStore {
     }
 
     func setEnabled(_ enabled: Bool, for id: String) {
-        guard let index = plugins.firstIndex(where: { $0.id == id }) else { return }
+        guard let index = plugins.firstIndex(where: { $0.id == id }) else {
+            return
+        }
         plugins[index].enabled = enabled
         do {
             try save()

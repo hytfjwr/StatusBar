@@ -1,5 +1,5 @@
-import SwiftUI
 import StatusBarKit
+import SwiftUI
 
 @MainActor
 @Observable
@@ -7,7 +7,9 @@ final class ChevronWidget: StatusBarWidget {
     let id = "chevron"
     let position: WidgetPosition = .left
     let updateInterval: TimeInterval? = nil
-    var sfSymbolName: String { "chevron.right" }
+    var sfSymbolName: String {
+        "chevron.right"
+    }
 
     func start() {}
     func stop() {}

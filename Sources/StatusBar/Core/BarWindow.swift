@@ -65,7 +65,9 @@ final class BarWindow: NSPanel {
     }
 
     func updateTint() {
-        guard let glassView = contentView as? NSGlassEffectView else { return }
+        guard let glassView = contentView as? NSGlassEffectView else {
+            return
+        }
         GlassEffect.applyTint(to: glassView)
     }
 
@@ -78,7 +80,7 @@ final class BarWindow: NSPanel {
         setFrame(NSRect(x: barX, y: barY, width: barW, height: Theme.barHeight), display: true)
     }
 
-    // Bypass macOS constraint that pushes windows below the menu bar / notch
+    /// Bypass macOS constraint that pushes windows below the menu bar / notch
     override func constrainFrameRect(_ frameRect: NSRect, to screen: NSScreen?) -> NSRect {
         frameRect
     }

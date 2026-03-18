@@ -4,6 +4,8 @@ import UserNotifications
 
 private let logger = Logger(subsystem: "com.statusbar", category: "NotificationService")
 
+// MARK: - NotificationService
+
 @MainActor
 @Observable
 final class NotificationService {
@@ -58,7 +60,7 @@ final class NotificationService {
         let prefs = PreferencesModel.shared
         let anyEnabled = prefs.notifyBatteryLow || prefs.notifyCPUHigh || prefs.notifyMemoryHigh
 
-        if anyEnabled && timer == nil {
+        if anyEnabled, timer == nil {
             timer = Timer.publish(every: 1, tolerance: 0.1, on: .main, in: .common)
                 .autoconnect()
                 .sink { [weak self] _ in self?.check() }
@@ -141,7 +143,9 @@ final class NotificationService {
     // MARK: - Battery
 
     private func checkBattery(_ prefs: PreferencesModel) {
-        guard prefs.notifyBatteryLow else { return }
+        guard prefs.notifyBatteryLow else {
+            return
+        }
 
         // Reset notification state when charging
         if currentBatteryCharging {
@@ -152,7 +156,7 @@ final class NotificationService {
         let threshold = Int(prefs.batteryThreshold)
 
         // Fire once when dropping below threshold (not every tick)
-        if currentBatteryPct <= threshold && currentBatteryPct < lastBatteryNotifPct {
+        if currentBatteryPct <= threshold, currentBatteryPct < lastBatteryNotifPct {
             lastBatteryNotifPct = currentBatteryPct
             postNotification(
                 id: "battery-low",
@@ -180,7 +184,8 @@ final class NotificationService {
             }
             if let start = cpuExceedStart,
                Date().timeIntervalSince(start) >= prefs.cpuSustainedDuration,
-               !cpuNotified {
+               !cpuNotified
+            {
                 cpuNotified = true
                 cpuCooldownEnd = Date().addingTimeInterval(Self.notificationCooldown)
                 postNotification(
@@ -219,7 +224,8 @@ final class NotificationService {
             }
             if let start = memExceedStart,
                Date().timeIntervalSince(start) >= prefs.memorySustainedDuration,
-               !memNotified {
+               !memNotified
+            {
                 memNotified = true
                 memCooldownEnd = Date().addingTimeInterval(Self.notificationCooldown)
                 postNotification(
@@ -242,7 +248,9 @@ final class NotificationService {
     // MARK: - Post
 
     private func postNotification(id: String, title: String, body: String) {
-        guard isAvailable else { return }
+        guard isAvailable else {
+            return
+        }
 
         let content = UNMutableNotificationContent()
         content.title = title

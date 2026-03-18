@@ -1,9 +1,13 @@
 import AppKit
 import SwiftUI
 
+// MARK: - OnboardingKeys
+
 enum OnboardingKeys {
     static let hasCompleted = "hasCompletedOnboarding"
 }
+
+// MARK: - OnboardingWindow
 
 @MainActor
 final class OnboardingWindow {

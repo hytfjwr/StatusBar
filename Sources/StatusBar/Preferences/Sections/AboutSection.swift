@@ -6,7 +6,9 @@ struct AboutSection: View {
     @State private var showingResetConfirm = false
     private let updateService = AppUpdateService.shared
 
-    private var appVersion: String { AppUpdateService.appVersion }
+    private var appVersion: String {
+        AppUpdateService.appVersion
+    }
 
     private var buildNumber: String {
         Bundle.main.infoDictionary?["CFBundleVersion"] as? String ?? "1"
@@ -117,7 +119,10 @@ struct AboutSection: View {
             }
             Button("Cancel", role: .cancel) {}
         } message: {
-            Text("This will reset all preferences, widget layout, presets, and widget settings to their defaults. This action cannot be undone.")
+            Text(
+                "This will reset all preferences, widget layout, presets, and widget settings to their defaults."
+                    + " This action cannot be undone."
+            )
         }
     }
 
@@ -129,7 +134,9 @@ struct AboutSection: View {
     }
 
     private var isChecking: Bool {
-        if case .checking = updateService.state { return true }
+        if case .checking = updateService.state {
+            return true
+        }
         return false
     }
 
