@@ -7,6 +7,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var controller: StatusBarController?
 
     func applicationDidFinishLaunching(_ notification: Notification) {
+        setupMainMenu()
         checkAccessibilityPermission()
 
         // Load YAML config before anything else accesses PreferencesModel
@@ -49,6 +50,25 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         controller?.setup()
 
         NotificationService.shared.start()
+    }
+
+    /// Set up a minimal main menu so standard text editing shortcuts (Cmd+C/V/X/A) work.
+    private func setupMainMenu() {
+        let mainMenu = NSMenu()
+        let editItem = NSMenuItem()
+        editItem.submenu = {
+            let menu = NSMenu(title: "Edit")
+            menu.addItem(withTitle: "Undo", action: Selector(("undo:")), keyEquivalent: "z")
+            menu.addItem(withTitle: "Redo", action: Selector(("redo:")), keyEquivalent: "Z")
+            menu.addItem(.separator())
+            menu.addItem(withTitle: "Cut", action: #selector(NSText.cut(_:)), keyEquivalent: "x")
+            menu.addItem(withTitle: "Copy", action: #selector(NSText.copy(_:)), keyEquivalent: "c")
+            menu.addItem(withTitle: "Paste", action: #selector(NSText.paste(_:)), keyEquivalent: "v")
+            menu.addItem(withTitle: "Select All", action: #selector(NSText.selectAll(_:)), keyEquivalent: "a")
+            return menu
+        }()
+        mainMenu.addItem(editItem)
+        NSApp.mainMenu = mainMenu
     }
 
     /// Accessibility 権限を確認し、未付与の場合はシステムダイアログを表示する。
