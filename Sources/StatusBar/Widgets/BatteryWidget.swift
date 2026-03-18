@@ -45,12 +45,14 @@ final class BatteryWidget: StatusBarWidget {
 
     private var percentage: Int = 0
     private var isCharging = false
+    private var hasBattery = true
     private var showPercentage = true
     func start() {
         showPercentage = BatterySettings.shared.showPercentage
-        BatteryService.shared.addObserver { [weak self] pct, charging in
+        BatteryService.shared.addObserver { [weak self] pct, charging, battery in
             self?.percentage = pct
             self?.isCharging = charging
+            self?.hasBattery = battery
         }
         BatteryService.shared.start()
         observeSettings()
@@ -103,17 +105,23 @@ final class BatteryWidget: StatusBarWidget {
         return AnyShapeStyle(.primary)
     }
 
+    @ViewBuilder
     func body() -> some View {
-        HStack(spacing: 4) {
-            Image(systemName: iconName)
-                .font(Theme.sfIconFont)
-                .foregroundStyle(iconStyle)
-            if showPercentage {
-                Text("\(percentage)%")
-                    .font(Theme.labelFont)
-                    .foregroundStyle(.primary)
+        if hasBattery {
+            HStack(spacing: 4) {
+                Image(systemName: iconName)
+                    .font(Theme.sfIconFont)
+                    .foregroundStyle(iconStyle)
+                if showPercentage {
+                    Text("\(percentage)%")
+                        .font(Theme.labelFont)
+                        .foregroundStyle(.primary)
+                }
             }
+            .padding(.horizontal, 4)
+            .accessibilityElement(children: .combine)
+            .accessibilityLabel("Battery")
+            .accessibilityValue(isCharging ? "Charging \(percentage)%" : "\(percentage)%")
         }
-        .padding(.horizontal, 4)
     }
 }

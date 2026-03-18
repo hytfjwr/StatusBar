@@ -39,7 +39,7 @@ final class NotificationService {
     func start() {
         stop()
 
-        BatteryService.shared.addObserver { [weak self] pct, charging in
+        BatteryService.shared.addObserver { [weak self] pct, charging, _ in
             self?.currentBatteryPct = pct
             self?.currentBatteryCharging = charging
         }

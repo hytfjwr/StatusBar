@@ -85,11 +85,10 @@ struct AboutSection: View {
     }
 
     private func openSettingsFolder() {
-        let appSupport = FileManager.default
-            .urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
-            .appendingPathComponent("StatusBar", isDirectory: true)
-        try? FileManager.default.createDirectory(at: appSupport, withIntermediateDirectories: true)
-        NSWorkspace.shared.activateFileViewerSelecting([appSupport])
+        let configDir = FileManager.default.homeDirectoryForCurrentUser
+            .appendingPathComponent(".config/statusbar", isDirectory: true)
+        try? FileManager.default.createDirectory(at: configDir, withIntermediateDirectories: true)
+        NSWorkspace.shared.activateFileViewerSelecting([configDir])
     }
 
     private func resetAllSettings() {
