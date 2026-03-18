@@ -3,6 +3,7 @@ import Foundation
 
 @MainActor
 final class SystemMonitorService {
+    static let shared = SystemMonitorService()
     private struct CPUTicks {
         var user: UInt64 = 0
         var system: UInt64 = 0
@@ -11,6 +12,8 @@ final class SystemMonitorService {
     }
 
     private var previousCPUTicks = CPUTicks()
+
+    private init() {}
 
     func cpuUsage() -> Double {
         var loadInfo = host_cpu_load_info()
