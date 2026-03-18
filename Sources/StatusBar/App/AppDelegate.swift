@@ -50,6 +50,17 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
         NotificationService.shared.start()
 
+        // Show onboarding on first launch
+        if ConfigLoader.shared.isFirstLaunch
+            || !UserDefaults.standard.bool(forKey: "hasCompletedOnboarding") {
+            OnboardingWindow.shared.show()
+        }
+
+        // Background update check (throttled to once per hour)
+        Task {
+            await AppUpdateService.shared.checkIfNeeded()
+        }
+
         configErrorObserver = NotificationCenter.default.addObserver(
             forName: .configParseError,
             object: nil,

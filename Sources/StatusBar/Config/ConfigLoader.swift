@@ -33,6 +33,9 @@ final class ConfigLoader {
     /// Guards against write-back during apply (hot-reload or bootstrap).
     private var isApplying = false
 
+    /// True when bootstrap created a fresh config (no existing file).
+    private(set) var isFirstLaunch = false
+
     private init() {
         let configDir = FileManager.default.homeDirectoryForCurrentUser
             .appendingPathComponent(".config/statusbar", isDirectory: true)
@@ -58,6 +61,7 @@ final class ConfigLoader {
             logger.info("Loaded config from \(self.fileURL.path)")
         } catch let error as NSError where error.domain == NSCocoaErrorDomain
             && error.code == NSFileReadNoSuchFileError {
+            isFirstLaunch = true
             currentConfig = StatusBarConfig()
             writeCurrentStateToDisk()
             logger.info("Generated default config at \(self.fileURL.path)")
