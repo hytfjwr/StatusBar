@@ -1,4 +1,5 @@
 import Foundation
+import IOKit
 import OSLog
 import StatusBarKit
 
@@ -33,79 +34,139 @@ final class BluetoothService: @unchecked Sendable {
         }
     }
 
-    /// Enumerate connected Bluetooth devices via system_profiler (supports both classic and BLE).
-    func poll() async -> [BluetoothDevice] {
-        do {
-            let output = try await ShellCommand.run("system_profiler", arguments: ["SPBluetoothDataType", "-json"])
-            guard let data = output.data(using: .utf8),
-                  let root = try JSONSerialization.jsonObject(with: data) as? [String: Any],
-                  let entries = root["SPBluetoothDataType"] as? [[String: Any]],
-                  let entry = entries.first,
-                  let connected = entry["device_connected"] as? [[String: Any]]
-            else { return [] }
+    /// Enumerate connected Bluetooth devices via IOKit IORegistry (no TCC permission required).
+    func poll() -> [BluetoothDevice] {
+        let batteryMap = queryBatteryLevels()
+        return queryConnectedDevices(batteryMap: batteryMap)
+    }
 
-            return connected.compactMap { dict -> BluetoothDevice? in
-                guard let (name, props) = dict.first,
-                      let props = props as? [String: Any]
-                else { return nil }
+    // MARK: - Device Enumeration (IORegistry)
 
-                let address = props["device_address"] as? String ?? UUID().uuidString
-                let minorType = (props["device_minorType"] as? String) ?? ""
-                let category = classify(minorType: minorType, name: name)
-                let battery = parseBattery(props)
-
-                return BluetoothDevice(
-                    id: address,
-                    name: name,
-                    category: category,
-                    batteryLevel: battery
-                )
-            }
-        } catch {
-            logger.debug("Bluetooth poll failed: \(error.localizedDescription)")
+    private func queryConnectedDevices(batteryMap: [String: Int]) -> [BluetoothDevice] {
+        let matching = IOServiceMatching("IOBluetoothDevice")
+        var iterator: io_iterator_t = 0
+        guard IOServiceGetMatchingServices(kIOMainPortDefault, matching, &iterator) == KERN_SUCCESS else {
             return []
         }
+        defer { IOObjectRelease(iterator) }
+
+        var devices: [BluetoothDevice] = []
+        var service = IOIteratorNext(iterator)
+        while service != 0 {
+            defer {
+                IOObjectRelease(service)
+                service = IOIteratorNext(iterator)
+            }
+
+            guard let props = serviceProperties(service) else { continue }
+
+            // Only include connected devices
+            guard let connected = props["Connected"] as? Bool, connected else { continue }
+
+            let name = props["Name"] as? String ?? "Unknown"
+            let address = (props["DeviceAddress"] as? String) ?? "unknown-\(name.lowercased())"
+            let classOfDevice = props["ClassOfDevice"] as? UInt32 ?? 0
+            let category = classify(classOfDevice: classOfDevice, name: name)
+            let battery = lookupBattery(address: address, name: name, batteryMap: batteryMap)
+
+            devices.append(BluetoothDevice(
+                id: address,
+                name: name,
+                category: category,
+                batteryLevel: battery
+            ))
+        }
+
+        return devices
+    }
+
+    private func serviceProperties(_ service: io_object_t) -> [String: Any]? {
+        var propsRef: Unmanaged<CFMutableDictionary>?
+        guard IORegistryEntryCreateCFProperties(service, &propsRef, kCFAllocatorDefault, 0) == KERN_SUCCESS,
+              let cfDict = propsRef?.takeRetainedValue()
+        else { return nil }
+        return cfDict as? [String: Any]
     }
 
     // MARK: - Classification
 
-    private func classify(minorType: String, name: String) -> BluetoothDevice.DeviceCategory {
-        let type = minorType.lowercased()
-        if type.contains("keyboard") { return .keyboard }
-        if type.contains("mouse") { return .mouse }
-        if type.contains("trackpad") { return .trackpad }
-        if type.contains("headphone") || type.contains("headset") { return .headphones }
-        if type.contains("gamepad") || type.contains("joystick") { return .gamepad }
+    private func classify(classOfDevice: UInt32, name: String) -> BluetoothDevice.DeviceCategory {
+        let majorClass = (classOfDevice >> 8) & 0x1F
+        let minorClass = (classOfDevice >> 2) & 0x3F
 
-        // Fall back to name-based classification
+        switch majorClass {
+        case 0x05:  // Peripheral
+            let minorUpper = minorClass & 0x3C
+            if minorUpper == 0x10 { return .keyboard }
+            if minorUpper == 0x20 { return .mouse }
+            if minorUpper == 0x30 { return .keyboard }  // combo keyboard+pointing
+            if minorUpper == 0x02 { return .gamepad }
+            return classifyByName(name)
+
+        case 0x04:  // Audio/Video
+            return .headphones
+
+        default:
+            return classifyByName(name)
+        }
+    }
+
+    private func classifyByName(_ name: String) -> BluetoothDevice.DeviceCategory {
         let lower = name.lowercased()
         if lower.contains("keyboard") { return .keyboard }
         if lower.contains("mouse") || lower.contains("magic mouse") { return .mouse }
         if lower.contains("trackpad") { return .trackpad }
         if lower.contains("airpods") || lower.contains("headphone") || lower.contains("beats") { return .headphones }
         if lower.contains("controller") || lower.contains("gamepad") { return .gamepad }
-
         return .generic
     }
 
-    // MARK: - Battery
+    // MARK: - Battery (IORegistry)
 
-    private func parseBattery(_ props: [String: Any]) -> Int? {
-        // Try single battery level first, then left/right averages
-        if let level = percentValue(props["device_batteryLevel"]) {
-            return level
+    private func queryBatteryLevels() -> [String: Int] {
+        var result: [String: Int] = [:]
+
+        let matching = IOServiceMatching("AppleDeviceManagementHIDEventService")
+        var iterator: io_iterator_t = 0
+        guard IOServiceGetMatchingServices(kIOMainPortDefault, matching, &iterator) == KERN_SUCCESS else {
+            return result
         }
-        let left = percentValue(props["device_batteryLevelLeft"])
-        let right = percentValue(props["device_batteryLevelRight"])
-        if let l = left, let r = right {
-            return (l + r) / 2
+        defer { IOObjectRelease(iterator) }
+
+        var service = IOIteratorNext(iterator)
+        while service != 0 {
+            defer {
+                IOObjectRelease(service)
+                service = IOIteratorNext(iterator)
+            }
+
+            guard let props = serviceProperties(service),
+                  let battery = props["BatteryPercent"] as? Int
+            else { continue }
+
+            if let addr = props["DeviceAddress"] as? String {
+                result[normalizeAddress(addr)] = battery
+            }
+
+            if let product = props["Product"] as? String {
+                result[product.lowercased()] = battery
+            }
         }
-        return left ?? right
+
+        return result
     }
 
-    private func percentValue(_ value: Any?) -> Int? {
-        guard let str = value as? String else { return nil }
-        // "80%" -> 80
-        return Int(str.replacingOccurrences(of: "%", with: ""))
+    private func lookupBattery(address: String, name: String, batteryMap: [String: Int]) -> Int? {
+        if let level = batteryMap[normalizeAddress(address)] {
+            return level
+        }
+        if let level = batteryMap[name.lowercased()] {
+            return level
+        }
+        return nil
+    }
+
+    private func normalizeAddress(_ address: String) -> String {
+        address.lowercased().replacingOccurrences(of: "-", with: ":").trimmingCharacters(in: .whitespaces)
     }
 }

@@ -50,7 +50,7 @@ final class TimeWidget: StatusBarWidget {
     func start() {
         applyFormat()
         updateTime()
-        timer = Timer.publish(every: 2, on: .main, in: .common)
+        timer = Timer.publish(every: 2, tolerance: 0.2, on: .main, in: .common)
             .autoconnect()
             .sink { [weak self] _ in self?.updateTime() }
         observeSettings()

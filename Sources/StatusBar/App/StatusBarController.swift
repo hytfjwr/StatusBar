@@ -128,7 +128,7 @@ final class StatusBarController {
     private func installMouseMonitor() {
         removeMouseMonitor()
         mouseMonitor = NSEvent.addGlobalMonitorForEvents(matching: .mouseMoved) { [weak self] _ in
-            Task { @MainActor in
+            MainActor.assumeIsolated {
                 self?.handleMouseMove()
             }
         }

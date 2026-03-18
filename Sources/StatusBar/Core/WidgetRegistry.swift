@@ -77,8 +77,11 @@ final class WidgetRegistry: WidgetRegistryProtocol {
     // MARK: - Lifecycle
 
     func startAll() {
-        for widget in allWidgets.values {
-            widget.start()
+        let visibleIDs = Set(layout.filter(\.isVisible).map(\.id))
+        for (id, widget) in allWidgets {
+            if visibleIDs.contains(id) {
+                widget.start()
+            }
         }
     }
 
@@ -192,6 +195,13 @@ final class WidgetRegistry: WidgetRegistryProtocol {
     func setVisible(_ visible: Bool, for widgetID: String) {
         guard let index = layout.firstIndex(where: { $0.id == widgetID }) else { return }
         layout[index].isVisible = visible
+
+        if visible {
+            allWidgets[widgetID]?.start()
+        } else {
+            allWidgets[widgetID]?.stop()
+        }
+
         persist()
     }
 

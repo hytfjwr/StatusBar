@@ -13,7 +13,7 @@ final class NotificationService {
     private(set) var permissionStatus: String = "Unknown"
 
     private var timer: AnyCancellable?
-    private let monitorService = SystemMonitorService()
+    private let monitorService = SystemMonitorService.shared
 
     // Battery state
     private var currentBatteryPct: Int = 100
@@ -45,13 +45,48 @@ final class NotificationService {
         }
         BatteryService.shared.start()
 
-        timer = Timer.publish(every: 1, on: .main, in: .common)
-            .autoconnect()
-            .sink { [weak self] _ in self?.check() }
+        updateTimerState()
+        observeNotificationPrefs()
     }
 
     func stop() {
         timer?.cancel()
+        timer = nil
+    }
+
+    private func updateTimerState() {
+        let prefs = PreferencesModel.shared
+        let anyEnabled = prefs.notifyBatteryLow || prefs.notifyCPUHigh || prefs.notifyMemoryHigh
+
+        if anyEnabled && timer == nil {
+            timer = Timer.publish(every: 1, tolerance: 0.1, on: .main, in: .common)
+                .autoconnect()
+                .sink { [weak self] _ in self?.check() }
+        } else if !anyEnabled {
+            timer?.cancel()
+            timer = nil
+            // Reset sustained state
+            cpuExceedStart = nil
+            cpuNotified = false
+            cpuCooldownEnd = nil
+            memExceedStart = nil
+            memNotified = false
+            memCooldownEnd = nil
+        }
+    }
+
+    private func observeNotificationPrefs() {
+        withObservationTracking {
+            let prefs = PreferencesModel.shared
+            _ = prefs.notifyBatteryLow
+            _ = prefs.notifyCPUHigh
+            _ = prefs.notifyMemoryHigh
+        } onChange: { [weak self] in
+            Task { @MainActor in
+                self?.updateTimerState()
+                self?.observeNotificationPrefs()
+            }
+        }
     }
 
     func requestPermission() {

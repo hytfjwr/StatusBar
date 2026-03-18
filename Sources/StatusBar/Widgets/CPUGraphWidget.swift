@@ -45,7 +45,7 @@ final class CPUGraphWidget: StatusBarWidget {
 
     private var timer: AnyCancellable?
     private let buffer = GraphDataBuffer(capacity: 50)
-    private let service = SystemMonitorService()
+    private let service = SystemMonitorService.shared
     private var graphValues: [Double] = []
 
     func start() {
@@ -66,7 +66,7 @@ final class CPUGraphWidget: StatusBarWidget {
     private func restartTimer() {
         timer?.cancel()
         let interval = CPUGraphSettings.shared.updateInterval
-        timer = Timer.publish(every: interval, on: .main, in: .common)
+        timer = Timer.publish(every: interval, tolerance: interval * 0.1, on: .main, in: .common)
             .autoconnect()
             .sink { [weak self] _ in self?.update() }
     }
