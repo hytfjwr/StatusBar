@@ -39,5 +39,14 @@ let package = Package(
             ],
             plugins: [swiftLint]
         ),
+        .testTarget(
+            name: "StatusBarTests",
+            dependencies: [
+                "StatusBar",
+                .product(name: "StatusBarKit", package: "StatusBarKit"),
+                .product(name: "Yams", package: "Yams"),
+            ],
+            path: "Tests/StatusBarTests"
+        ),
     ]
 )
