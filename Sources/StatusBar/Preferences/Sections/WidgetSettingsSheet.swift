@@ -36,10 +36,7 @@ struct WidgetSettingsSheet: View {
     }
 
     private var displayName: String {
-        widgetID
-            .split(separator: "-")
-            .map { $0.prefix(1).uppercased() + $0.dropFirst() }
-            .joined(separator: " ")
+        WidgetRegistry.displayName(for: widgetID)
     }
 }
 
