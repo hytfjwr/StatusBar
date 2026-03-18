@@ -184,14 +184,14 @@ widgets:
 
 StatusBar supports third-party plugins distributed as `.statusplugin.zip` archives via GitHub Releases. Install and manage plugins entirely through the Preferences UI — no CLI required.
 
-## Distribution
+## Install
 
-- **Homebrew Cask**: `brew tap hytfjwr/statusbar && brew install --cask statusbar`
-- **GitHub Releases**: `.app` bundle as ZIP
+```bash
+brew tap hytfjwr/statusbar
+brew install statusbar
+```
 
-## Installation Notes
-
-The app is ad-hoc signed (no Apple Developer ID), so macOS Gatekeeper will block the first launch. To allow it, go to **System Settings → Privacy & Security**, scroll to the blocked app message, and click **Open Anyway**. Alternatively, run `xattr -cr StatusBar.app` in Terminal before launching.
+Alternatively, download the `.app` bundle from [GitHub Releases](https://github.com/hytfjwr/StatusBar/releases).
 
 ## License
 
