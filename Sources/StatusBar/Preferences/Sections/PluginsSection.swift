@@ -448,11 +448,10 @@ struct PluginsSection: View {
     }
 
     private func restartApp() {
-        let url = URL(fileURLWithPath: Bundle.main.resourcePath ?? "")
-        let path = url.deletingLastPathComponent().deletingLastPathComponent().absoluteString
+        // Use bundleURL.path directly instead of absoluteString (which includes file:// scheme)
         let task = Process()
         task.executableURL = URL(fileURLWithPath: "/usr/bin/open")
-        task.arguments = ["-n", path]
+        task.arguments = ["-n", Bundle.main.bundleURL.path]
         try? task.run()
         NSApplication.shared.terminate(nil)
     }

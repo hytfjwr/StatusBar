@@ -36,7 +36,7 @@ final class BluetoothService: @unchecked Sendable {
     /// Enumerate connected Bluetooth devices via system_profiler (supports both classic and BLE).
     func poll() async -> [BluetoothDevice] {
         do {
-            let output = try await ShellCommand.run("system_profiler SPBluetoothDataType -json")
+            let output = try await ShellCommand.run("system_profiler", arguments: ["SPBluetoothDataType", "-json"])
             guard let data = output.data(using: .utf8),
                   let root = try JSONSerialization.jsonObject(with: data) as? [String: Any],
                   let entries = root["SPBluetoothDataType"] as? [[String: Any]],

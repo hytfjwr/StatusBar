@@ -70,9 +70,23 @@ final class ConfigLoader {
 
     // MARK: - YAML I/O
 
+    /// Maximum config file size (1 MB) to prevent resource exhaustion (e.g. YAML billion laughs).
+    private static let maxConfigFileSize: UInt64 = 1_048_576
+
     /// Synchronous file I/O. Called during bootstrap (before run loop) and hot-reload
     /// (small YAML file, sub-millisecond). Kept synchronous intentionally.
     private func loadConfigFromDisk() throws -> StatusBarConfig {
+        // Check file size before reading to prevent resource exhaustion
+        let attrs = try FileManager.default.attributesOfItem(atPath: fileURL.path)
+        let fileSize = attrs[.size] as? UInt64 ?? 0
+        guard fileSize <= Self.maxConfigFileSize else {
+            throw NSError(
+                domain: "ConfigLoader",
+                code: 1,
+                userInfo: [NSLocalizedDescriptionKey: "Config file exceeds 1 MB size limit"]
+            )
+        }
+
         let data = try Data(contentsOf: fileURL)
         let yaml = String(data: data, encoding: .utf8) ?? ""
         return try YAMLDecoder().decode(StatusBarConfig.self, from: yaml)
