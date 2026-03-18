@@ -69,14 +69,18 @@ struct OnboardingView: View {
     }
 }
 
-// MARK: - Pages
+// MARK: - OnboardingPage
 
 private enum OnboardingPage: String, CaseIterable, Identifiable {
-    case welcome, widgets, tips
+    case welcome
+    case widgets
+    case tips
 
-    var id: Self { self }
+    var id: Self {
+        self
+    }
 
-    var next: OnboardingPage {
+    var next: Self {
         switch self {
         case .welcome: .widgets
         case .widgets: .tips
@@ -84,7 +88,7 @@ private enum OnboardingPage: String, CaseIterable, Identifiable {
         }
     }
 
-    var previous: OnboardingPage {
+    var previous: Self {
         switch self {
         case .welcome: .welcome
         case .widgets: .welcome
@@ -93,7 +97,7 @@ private enum OnboardingPage: String, CaseIterable, Identifiable {
     }
 }
 
-// MARK: - Welcome Page
+// MARK: - WelcomePage
 
 private struct WelcomePage: View {
     var body: some View {
@@ -144,6 +148,8 @@ private struct WelcomePage: View {
     }
 }
 
+// MARK: - FeatureCard
+
 private struct FeatureCard: View {
     let icon: String
     let title: String
@@ -167,7 +173,7 @@ private struct FeatureCard: View {
     }
 }
 
-// MARK: - Widget Picker Page
+// MARK: - WidgetPickerPage
 
 private struct WidgetPickerPage: View {
     let registry: WidgetRegistry
@@ -203,6 +209,8 @@ private struct WidgetPickerPage: View {
         }
     }
 }
+
+// MARK: - WidgetToggleRow
 
 private struct WidgetToggleRow: View {
     let entry: WidgetLayoutEntry
@@ -247,7 +255,7 @@ private struct WidgetToggleRow: View {
     }
 }
 
-// MARK: - Tips Page
+// MARK: - TipsPage
 
 private struct TipsPage: View {
     var body: some View {
@@ -267,7 +275,8 @@ private struct TipsPage: View {
                     icon: "folder",
                     color: .blue,
                     title: "Config File",
-                    description: "Your settings are stored at ~/.config/statusbar/config.yml. Edit it directly — changes are applied instantly via hot-reload."
+                    description: "Your settings are stored at ~/.config/statusbar/config.yml."
+                        + " Edit it directly — changes are applied instantly via hot-reload."
                 )
                 TipRow(
                     icon: "arrow.triangle.2.circlepath",
@@ -300,6 +309,8 @@ private struct TipsPage: View {
         .padding(.horizontal, 24)
     }
 }
+
+// MARK: - TipRow
 
 private struct TipRow: View {
     let icon: String

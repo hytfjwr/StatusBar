@@ -2,6 +2,8 @@ import StatusBarKit
 import SwiftUI
 import UniformTypeIdentifiers
 
+// MARK: - PresetsSection
+
 struct PresetsSection: View {
     private let store = PresetStore.shared
     @State private var selectedPresetID: UUID? = PresetStore.builtInPresets[0].id
@@ -43,7 +45,9 @@ struct PresetsSection: View {
             TextField("Preset name", text: $newPresetName)
             Button("Save") {
                 let name = newPresetName.trimmingCharacters(in: .whitespaces)
-                guard !name.isEmpty else { return }
+                guard !name.isEmpty else {
+                    return
+                }
                 store.saveCurrentState(name: name)
                 newPresetName = ""
             }
@@ -57,7 +61,9 @@ struct PresetsSection: View {
             titleVisibility: .visible
         ) {
             Button("Apply", role: .destructive) {
-                if let p = pendingApply { store.apply(p) }
+                if let p = pendingApply {
+                    store.apply(p)
+                }
             }
             Button("Cancel", role: .cancel) {}
         } message: {
@@ -72,7 +78,11 @@ struct PresetsSection: View {
         .fileExporter(
             isPresented: Binding(
                 get: { exportingData != nil },
-                set: { if !$0 { exportingData = nil } }
+                set: {
+                    if !$0 {
+                        exportingData = nil
+                    }
+                }
             ),
             document: exportingData.map { PresetDocument(data: $0) },
             contentType: .json,
@@ -84,7 +94,6 @@ struct PresetsSection: View {
 
     // MARK: - Preset List
 
-    @ViewBuilder
     private var presetList: some View {
         VStack(spacing: 0) {
             List(store.allPresets, selection: $selectedPresetID) { preset in
@@ -197,10 +206,16 @@ struct PresetsSection: View {
     // MARK: - Import Helper
 
     private func handleImport(_ result: Result<URL, any Error>) {
-        guard case .success(let url) = result else { return }
+        guard case let .success(url) = result else {
+            return
+        }
         let accessing = url.startAccessingSecurityScopedResource()
-        defer { if accessing { url.stopAccessingSecurityScopedResource() } }
-        guard let data = try? Data(contentsOf: url) else { return }
+        defer { if accessing {
+            url.stopAccessingSecurityScopedResource()
+        } }
+        guard let data = try? Data(contentsOf: url) else {
+            return
+        }
         _ = store.importPreset(from: data)
     }
 }
@@ -260,9 +275,12 @@ private struct SnapshotPreview: View {
             }
 
             // Dimensions summary
-            Text("Bar: \(Int(snapshot.barHeight))px, Radius: \(Int(snapshot.barCornerRadius))px, Font: \(Int(snapshot.labelFontSize))px")
-                .font(.system(size: 10, design: .monospaced))
-                .foregroundStyle(.secondary)
+            Text(
+                "Bar: \(Int(snapshot.barHeight))px, Radius: \(Int(snapshot.barCornerRadius))px,"
+                    + " Font: \(Int(snapshot.labelFontSize))px"
+            )
+            .font(.system(size: 10, design: .monospaced))
+            .foregroundStyle(.secondary)
         }
     }
 
@@ -273,13 +291,18 @@ private struct SnapshotPreview: View {
     }
 }
 
-// MARK: - PresetDocument (for fileExporter)
+// MARK: - PresetDocument
 
 struct PresetDocument: FileDocument {
-    static var readableContentTypes: [UTType] { [.json] }
+    static var readableContentTypes: [UTType] {
+        [.json]
+    }
+
     var data: Data
 
-    init(data: Data) { self.data = data }
+    init(data: Data) {
+        self.data = data
+    }
 
     init(configuration: ReadConfiguration) throws {
         guard let data = configuration.file.regularFileContents else {

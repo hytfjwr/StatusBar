@@ -13,7 +13,9 @@ final class BatterySettings: WidgetConfigProvider {
     private var suppressWrite = false
 
     var showPercentage: Bool {
-        didSet { if !suppressWrite { WidgetConfigRegistry.shared.notifySettingsChanged() } }
+        didSet { if !suppressWrite {
+            WidgetConfigRegistry.shared.notifySettingsChanged()
+        } }
     }
 
     private init() {
@@ -29,7 +31,9 @@ final class BatterySettings: WidgetConfigProvider {
     func applyConfig(_ values: [String: ConfigValue]) {
         suppressWrite = true
         defer { suppressWrite = false }
-        if let v = values["showPercentage"]?.boolValue { showPercentage = v }
+        if let v = values["showPercentage"]?.boolValue {
+            showPercentage = v
+        }
     }
 }
 
@@ -41,7 +45,9 @@ final class BatteryWidget: StatusBarWidget {
     let id = "battery"
     let position: WidgetPosition = .right
     let updateInterval: TimeInterval? = 120
-    var sfSymbolName: String { "battery.75percent" }
+    var sfSymbolName: String {
+        "battery.75percent"
+    }
 
     private var percentage: Int = 0
     private var isCharging = false
@@ -62,7 +68,9 @@ final class BatteryWidget: StatusBarWidget {
         // Singleton is shared; stop is managed centrally
     }
 
-    var hasSettings: Bool { true }
+    var hasSettings: Bool {
+        true
+    }
 
     func settingsBody() -> some View {
         BatteryWidgetSettings()

@@ -2,10 +2,12 @@ import Foundation
 
 /// A color value that encodes/decodes as a `"#RRGGBB"` string in YAML,
 /// while storing a `UInt32` internally for compatibility with the rest of the app.
-struct HexColor: Codable, Sendable, Equatable {
+struct HexColor: Codable, Equatable {
     let rawValue: UInt32
 
-    init(_ value: UInt32) { rawValue = value }
+    init(_ value: UInt32) {
+        rawValue = value
+    }
 
     init(from decoder: any Decoder) throws {
         let container = try decoder.singleValueContainer()

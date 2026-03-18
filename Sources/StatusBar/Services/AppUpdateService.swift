@@ -4,12 +4,14 @@ import StatusBarKit
 
 private let logger = Logger(subsystem: "com.statusbar", category: "AppUpdateService")
 
+// MARK: - AppUpdateService
+
 @MainActor
 @Observable
 final class AppUpdateService {
     static let shared = AppUpdateService()
 
-    enum UpdateState: Sendable {
+    enum UpdateState {
         case idle
         case checking
         case upToDate
@@ -27,7 +29,7 @@ final class AppUpdateService {
     private static let repo = "StatusBar"
 
     /// Minimum interval between automatic checks (1 hour).
-    private static let autoCheckInterval: TimeInterval = 3600
+    private static let autoCheckInterval: TimeInterval = 3_600
 
     private init() {
         let ts = UserDefaults.standard.double(forKey: "appUpdate.lastCheckTimestamp")
@@ -52,10 +54,13 @@ final class AppUpdateService {
             recordCheck()
 
             guard let latest = SemanticVersion(latestTag),
-                  let current = SemanticVersion(currentVersion) else {
+                  let current = SemanticVersion(currentVersion)
+            else {
                 // Fallback to string comparison if parsing fails
                 if latestTag != currentVersion {
-                    let url = URL(string: "https://github.com/\(Self.owner)/\(Self.repo)/releases/latest")!
+                    guard let url = URL(string: "https://github.com/\(Self.owner)/\(Self.repo)/releases/latest") else {
+                        return
+                    }
                     state = .available(version: latestTag, url: url)
                 } else {
                     state = .upToDate
@@ -64,7 +69,11 @@ final class AppUpdateService {
             }
 
             if latest > current {
-                let url = URL(string: "https://github.com/\(Self.owner)/\(Self.repo)/releases/tag/\(release.tagName)")!
+                guard let url = URL(
+                    string: "https://github.com/\(Self.owner)/\(Self.repo)/releases/tag/\(release.tagName)"
+                ) else {
+                    return
+                }
                 state = .available(version: latestTag, url: url)
             } else {
                 state = .upToDate
@@ -78,7 +87,8 @@ final class AppUpdateService {
     /// Auto-check on launch if enough time has passed.
     func checkIfNeeded() async {
         if let last = lastCheckDate,
-           Date().timeIntervalSince(last) < Self.autoCheckInterval {
+           Date().timeIntervalSince(last) < Self.autoCheckInterval
+        {
             return
         }
         await checkForUpdates()
@@ -129,7 +139,7 @@ final class AppUpdateService {
     }
 }
 
-// MARK: - Error
+// MARK: AppUpdateService.UpdateError
 
 extension AppUpdateService {
     enum UpdateError: LocalizedError {
@@ -147,7 +157,7 @@ extension AppUpdateService {
     }
 }
 
-// MARK: - GitHub API Models
+// MARK: - GitHubRelease
 
 private struct GitHubRelease: Decodable {
     let tagName: String

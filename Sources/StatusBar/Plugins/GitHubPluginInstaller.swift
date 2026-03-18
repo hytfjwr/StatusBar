@@ -17,9 +17,9 @@ enum GitHubPluginError: Error, LocalizedError {
 
     var errorDescription: String? {
         switch self {
-        case .invalidURL(let url):
+        case let .invalidURL(url):
             "Invalid GitHub URL: \(url)"
-        case .networkError(let error):
+        case let .networkError(error):
             "Network error: \(error.localizedDescription)"
         case .noReleaseFound:
             "No releases found for this repository"
@@ -27,13 +27,13 @@ enum GitHubPluginError: Error, LocalizedError {
             "No .statusplugin.zip asset found in the latest release"
         case .downloadFailed:
             "Failed to download plugin asset"
-        case .extractionFailed(let error):
+        case let .extractionFailed(error):
             "Failed to extract plugin: \(error.localizedDescription)"
         case .manifestMissing:
             "Downloaded plugin does not contain a valid manifest.json"
-        case .incompatibleVersion(let required, let current):
+        case let .incompatibleVersion(required, current):
             "Plugin requires StatusBarKit \(required), but app has \(current)"
-        case .untrustedDownloadURL(let url):
+        case let .untrustedDownloadURL(url):
             "Download URL is not from a trusted GitHub domain: \(url)"
         case .rateLimited:
             "GitHub API rate limit exceeded. Try again later or configure a personal access token."
@@ -49,7 +49,7 @@ final class GitHubPluginInstaller {
 
     private init() {}
 
-    // Trusted download hosts for SSRF prevention
+    /// Trusted download hosts for SSRF prevention
     private static let allowedDownloadHosts: Set<String> = [
         "github.com",
         "api.github.com",
@@ -65,7 +65,7 @@ final class GitHubPluginInstaller {
 
     /// Install a plugin from a GitHub repository URL.
     /// The URL should be like: https://github.com/owner/repo
-    func install(from urlString: String) async throws -> InstalledPluginRecord {
+    func install(from urlString: String) async throws -> InstalledPluginRecord { // swiftlint:disable:this function_body_length
         // Parse owner/repo from URL
         let (owner, repo) = try parseGitHubURL(urlString)
 
@@ -125,7 +125,8 @@ final class GitHubPluginInstaller {
 
         // Version check
         if let pluginVersion = SemanticVersion(manifest.statusBarKitVersion),
-           let hostVersion = SemanticVersion(statusBarKitVersion) {
+           let hostVersion = SemanticVersion(statusBarKitVersion)
+        {
             guard hostVersion.isCompatible(with: pluginVersion) else {
                 throw GitHubPluginError.incompatibleVersion(
                     required: manifest.statusBarKitVersion,
@@ -154,15 +155,14 @@ final class GitHubPluginInstaller {
         let normalizedURL = "https://github.com/\(owner)/\(repo)"
         let bundleName = destURL.deletingPathExtension().lastPathComponent
         let store = PluginStore.shared
-        let record: InstalledPluginRecord
-        if let existing = store.record(forID: manifest.id, orBundleName: bundleName) {
-            record = existing.updating(
+        let record: InstalledPluginRecord = if let existing = store.record(forID: manifest.id, orBundleName: bundleName) {
+            existing.updating(
                 name: manifest.name,
                 version: releaseVersion,
                 githubURL: normalizedURL
             )
         } else {
-            record = InstalledPluginRecord(
+            InstalledPluginRecord(
                 id: manifest.id,
                 name: manifest.name,
                 version: releaseVersion,
@@ -179,7 +179,9 @@ final class GitHubPluginInstaller {
 
     /// Remove a plugin by ID.
     func uninstall(pluginID: String) throws {
-        guard let record = PluginStore.shared.record(forID: pluginID) else { return }
+        guard let record = PluginStore.shared.record(forID: pluginID) else {
+            return
+        }
 
         let bundleURL = pluginsDirectory.appendingPathComponent("\(record.bundleName).statusplugin")
         if FileManager.default.fileExists(atPath: bundleURL.path) {
@@ -191,7 +193,7 @@ final class GitHubPluginInstaller {
 
     // MARK: - Update Check
 
-    struct UpdateInfo: Sendable {
+    struct UpdateInfo {
         let pluginID: String
         let currentVersion: String
         let latestVersion: String
@@ -203,7 +205,9 @@ final class GitHubPluginInstaller {
         var updates: [UpdateInfo] = []
 
         for plugin in PluginStore.shared.plugins {
-            guard let url = plugin.githubURL else { continue }
+            guard let url = plugin.githubURL else {
+                continue
+            }
             do {
                 let (owner, repo) = try parseGitHubURL(url)
                 let release = try await fetchLatestRelease(owner: owner, repo: repo)
@@ -302,13 +306,15 @@ final class GitHubPluginInstaller {
         // Validate URL host and scheme to prevent SSRF
         guard downloadURL.scheme == "https",
               let host = downloadURL.host,
-              Self.allowedDownloadHosts.contains(host) else {
+              Self.allowedDownloadHosts.contains(host)
+        else {
             throw GitHubPluginError.untrustedDownloadURL(url)
         }
 
         let (data, response) = try await URLSession.shared.data(from: downloadURL)
         guard let httpResponse = response as? HTTPURLResponse,
-              httpResponse.statusCode == 200 else {
+              httpResponse.statusCode == 200
+        else {
             throw GitHubPluginError.downloadFailed
         }
         return data
@@ -337,7 +343,7 @@ final class GitHubPluginInstaller {
     }
 }
 
-// MARK: - GitHub API Models
+// MARK: - GitHubRelease
 
 private struct GitHubRelease: Decodable {
     let tagName: String
@@ -348,6 +354,8 @@ private struct GitHubRelease: Decodable {
         case assets
     }
 }
+
+// MARK: - GitHubAsset
 
 private struct GitHubAsset: Decodable {
     let name: String

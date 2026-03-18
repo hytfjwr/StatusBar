@@ -1,10 +1,9 @@
 import Foundation
+@testable import StatusBar
 import Testing
 
-@testable import StatusBar
-
-@Suite("NetworkService.NetworkSpeed")
 struct NetworkSpeedTests {
+
     // MARK: - formatSpeed
 
     @Test("Formats zero bytes as 0 kB/s")

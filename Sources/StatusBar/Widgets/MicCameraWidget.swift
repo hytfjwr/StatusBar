@@ -7,7 +7,9 @@ final class MicCameraWidget: StatusBarWidget {
     let id = "mic-camera"
     let position: WidgetPosition = .right
     let updateInterval: TimeInterval? = nil
-    var sfSymbolName: String { "video" }
+    var sfSymbolName: String {
+        "video"
+    }
 
     private var micActive = false
     private var cameraActive = false

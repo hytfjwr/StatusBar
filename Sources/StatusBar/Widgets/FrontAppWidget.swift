@@ -8,7 +8,9 @@ final class FrontAppWidget: StatusBarWidget {
     let id = "front-app"
     let position: WidgetPosition = .left
     let updateInterval: TimeInterval? = nil
-    var sfSymbolName: String { "app.fill" }
+    var sfSymbolName: String {
+        "app.fill"
+    }
 
     private var appName = ""
     private var observer: NSObjectProtocol?

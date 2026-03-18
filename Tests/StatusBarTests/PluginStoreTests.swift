@@ -1,9 +1,7 @@
 import Foundation
+@testable import StatusBar
 import Testing
 
-@testable import StatusBar
-
-@Suite("InstalledPluginRecord.updating()")
 struct InstalledPluginRecordUpdatingTests {
     let base = InstalledPluginRecord(
         id: "com.test.plugin",

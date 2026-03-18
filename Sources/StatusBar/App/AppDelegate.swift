@@ -52,7 +52,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
         // Show onboarding on first launch
         if ConfigLoader.shared.isFirstLaunch
-            || !UserDefaults.standard.bool(forKey: OnboardingKeys.hasCompleted) {
+            || !UserDefaults.standard.bool(forKey: OnboardingKeys.hasCompleted)
+        {
             OnboardingWindow.shared.show()
         }
 
@@ -72,7 +73,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                 let alert = NSAlert()
                 alert.alertStyle = .warning
                 alert.messageText = "Config Reload Failed"
-                alert.informativeText = "config.yml could not be parsed. The previous working configuration will continue to be used.\n\n\(message)"
+                alert.informativeText = "config.yml could not be parsed."
+                    + " The previous working configuration will continue to be used.\n\n\(message)"
                 alert.addButton(withTitle: "OK")
                 alert.runModal()
             }

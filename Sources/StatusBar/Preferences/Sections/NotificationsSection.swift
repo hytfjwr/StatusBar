@@ -29,9 +29,12 @@ struct NotificationsSection: View {
                         HStack {
                             Image(systemName: "exclamationmark.triangle")
                                 .foregroundStyle(.yellow)
-                            Text("Notifications are unavailable in debug builds without a bundle identifier. Build as a .app bundle to enable.")
-                                .font(.system(size: 12))
-                                .foregroundStyle(.secondary)
+                            Text(
+                                "Notifications are unavailable in debug builds without a bundle identifier."
+                                    + " Build as a .app bundle to enable."
+                            )
+                            .font(.system(size: 12))
+                            .foregroundStyle(.secondary)
                         }
                     }
                 }
@@ -47,7 +50,7 @@ struct NotificationsSection: View {
                     DoubleSliderRow(
                         label: "Threshold",
                         value: $model.batteryThreshold,
-                        range: 5...50,
+                        range: 5 ... 50,
                         step: 1,
                         unit: "%"
                     )
@@ -62,7 +65,7 @@ struct NotificationsSection: View {
                     DoubleSliderRow(
                         label: "Threshold",
                         value: $model.cpuThreshold,
-                        range: 50...100,
+                        range: 50 ... 100,
                         step: 1,
                         unit: "%"
                     )
@@ -70,7 +73,7 @@ struct NotificationsSection: View {
                     DoubleSliderRow(
                         label: "Sustained",
                         value: $model.cpuSustainedDuration,
-                        range: 1...60,
+                        range: 1 ... 60,
                         step: 1,
                         unit: "s"
                     )
@@ -85,7 +88,7 @@ struct NotificationsSection: View {
                     DoubleSliderRow(
                         label: "Threshold",
                         value: $model.memoryThreshold,
-                        range: 50...100,
+                        range: 50 ... 100,
                         step: 1,
                         unit: "%"
                     )
@@ -93,7 +96,7 @@ struct NotificationsSection: View {
                     DoubleSliderRow(
                         label: "Sustained",
                         value: $model.memorySustainedDuration,
-                        range: 1...60,
+                        range: 1 ... 60,
                         step: 1,
                         unit: "s"
                     )

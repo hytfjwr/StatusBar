@@ -1,5 +1,5 @@
-import SwiftUI
 import StatusBarKit
+import SwiftUI
 
 struct AppearanceSection: View {
     @Bindable var model: PreferencesModel
@@ -10,7 +10,7 @@ struct AppearanceSection: View {
 
             GroupBox("Glass Tint (Blur Density)") {
                 VStack(spacing: 10) {
-                    OpacityRow(label: "Tint Opacity", value: $model.barTintOpacity, range: 0...0.8)
+                    OpacityRow(label: "Tint Opacity", value: $model.barTintOpacity, range: 0 ... 0.8)
                     ColorHexRow(label: "Tint Color", hex: $model.barTintHex)
                 }
                 .padding(8)
@@ -32,9 +32,9 @@ struct AppearanceSection: View {
 
             GroupBox("Text Opacity") {
                 VStack(spacing: 10) {
-                    OpacityRow(label: "Primary", value: $model.textPrimaryOpacity, range: 0.5...1)
-                    OpacityRow(label: "Secondary", value: $model.textSecondaryOpacity, range: 0.2...1)
-                    OpacityRow(label: "Tertiary", value: $model.textTertiaryOpacity, range: 0.1...1)
+                    OpacityRow(label: "Primary", value: $model.textPrimaryOpacity, range: 0.5 ... 1)
+                    OpacityRow(label: "Secondary", value: $model.textSecondaryOpacity, range: 0.2 ... 1)
+                    OpacityRow(label: "Tertiary", value: $model.textTertiaryOpacity, range: 0.1 ... 1)
                 }
                 .padding(8)
             }
@@ -52,8 +52,8 @@ struct AppearanceSection: View {
 
             GroupBox("Popup") {
                 VStack(spacing: 10) {
-                    SliderRow(label: "Corner Radius", value: $model.popupCornerRadius, range: 0...24)
-                    SliderRow(label: "Padding", value: $model.popupPadding, range: 4...24)
+                    SliderRow(label: "Corner Radius", value: $model.popupCornerRadius, range: 0 ... 24)
+                    SliderRow(label: "Padding", value: $model.popupPadding, range: 4 ... 24)
                 }
                 .padding(8)
             }

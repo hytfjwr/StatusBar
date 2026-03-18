@@ -7,7 +7,9 @@ final class InputSourceWidget: StatusBarWidget {
     let id = "input-source"
     let position: WidgetPosition = .right
     let updateInterval: TimeInterval? = nil
-    var sfSymbolName: String { "keyboard" }
+    var sfSymbolName: String {
+        "keyboard"
+    }
 
     private var abbreviation = "??"
     private var service: InputSourceService?

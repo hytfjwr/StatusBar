@@ -1,5 +1,5 @@
-import SwiftUI
 import StatusBarKit
+import SwiftUI
 
 // MARK: - PreferencesView
 
@@ -71,7 +71,9 @@ enum PreferencesSection: String, CaseIterable, Identifiable, Hashable {
     case presets
     case about
 
-    var id: Self { self }
+    var id: Self {
+        self
+    }
 
     var title: String {
         switch self {
@@ -104,7 +106,7 @@ enum PreferencesSection: String, CaseIterable, Identifiable, Hashable {
     }
 }
 
-// MARK: - Shared Components
+// MARK: - SectionHeader
 
 struct SectionHeader: View {
     let title: String
@@ -125,6 +127,8 @@ struct SectionHeader: View {
     }
 }
 
+// MARK: - SliderRow
+
 struct SliderRow: View {
     let label: String
     @Binding var value: CGFloat
@@ -134,7 +138,7 @@ struct SliderRow: View {
 
     init(label: String, value: Binding<CGFloat>, range: ClosedRange<CGFloat>, step: CGFloat = 1, unit: String = "px") {
         self.label = label
-        self._value = value
+        _value = value
         self.range = range
         self.step = step
         self.unit = unit
@@ -152,6 +156,8 @@ struct SliderRow: View {
     }
 }
 
+// MARK: - DoubleSliderRow
+
 struct DoubleSliderRow: View {
     let label: String
     @Binding var value: Double
@@ -160,9 +166,16 @@ struct DoubleSliderRow: View {
     let unit: String
     let fractionDigits: Int
 
-    init(label: String, value: Binding<Double>, range: ClosedRange<Double>, step: Double = 1, unit: String = "", fractionDigits: Int = 0) {
+    init(
+        label: String,
+        value: Binding<Double>,
+        range: ClosedRange<Double>,
+        step: Double = 1,
+        unit: String = "",
+        fractionDigits: Int = 0
+    ) {
         self.label = label
-        self._value = value
+        _value = value
         self.range = range
         self.step = step
         self.unit = unit
@@ -188,6 +201,8 @@ struct DoubleSliderRow: View {
     }
 }
 
+// MARK: - ToggleRow
+
 struct ToggleRow: View {
     let label: String
     @Binding var value: Bool
@@ -202,6 +217,8 @@ struct ToggleRow: View {
         }
     }
 }
+
+// MARK: - OpacityRow
 
 struct OpacityRow: View {
     let label: String
@@ -220,6 +237,8 @@ struct OpacityRow: View {
     }
 }
 
+// MARK: - ColorHexRow
+
 struct ColorHexRow: View {
     let label: String
     @Binding var hex: UInt32
@@ -228,8 +247,8 @@ struct ColorHexRow: View {
 
     init(label: String, hex: Binding<UInt32>) {
         self.label = label
-        self._hex = hex
-        self._selectedColor = State(initialValue: Color(hex: hex.wrappedValue))
+        _hex = hex
+        _selectedColor = State(initialValue: Color(hex: hex.wrappedValue))
     }
 
     var body: some View {
@@ -256,7 +275,7 @@ extension Color {
         guard let components = NSColor(self).usingColorSpace(.sRGB)?.cgColor.components else {
             return 0x000000
         }
-        let r = components.count > 0 ? components[0] : 0
+        let r = !components.isEmpty ? components[0] : 0
         let g = components.count > 1 ? components[1] : 0
         let b = components.count > 2 ? components[2] : 0
         return (UInt32(r * 255) << 16) | (UInt32(g * 255) << 8) | UInt32(b * 255)

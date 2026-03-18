@@ -1,5 +1,5 @@
-import SwiftUI
 import StatusBarKit
+import SwiftUI
 
 // MARK: - AppleMenuWidget
 
@@ -9,7 +9,9 @@ final class AppleMenuWidget: StatusBarWidget {
     let id = "apple-menu"
     let position: WidgetPosition = .left
     let updateInterval: TimeInterval? = nil
-    var sfSymbolName: String { "apple.logo" }
+    var sfSymbolName: String {
+        "apple.logo"
+    }
 
     private var popupPanel: PopupPanel?
 
@@ -67,7 +69,9 @@ struct AppleMenuPopupContent: View {
         case restart = "Restart"
         case shutdown = "Shutdown"
 
-        var id: String { rawValue }
+        var id: String {
+            rawValue
+        }
 
         var command: String {
             switch self {
@@ -90,7 +94,9 @@ struct AppleMenuPopupContent: View {
                     dismiss()
                 }
                 PopupRow(icon: "gearshape.2", label: "System Settings") {
-                    NSWorkspace.shared.open(URL(string: "x-apple.systempreferences:")!)
+                    if let url = URL(string: "x-apple.systempreferences:") {
+                        NSWorkspace.shared.open(url)
+                    }
                     dismiss()
                 }
                 PopupRow(icon: "lock.display", label: "Lock Screen") {
@@ -115,11 +121,10 @@ struct AppleMenuPopupContent: View {
 
             VStack(spacing: 2) {
                 PopupRow(icon: "arrow.clockwise", label: "Reload") {
-                    let relaunchCmd: String
-                    if Bundle.main.bundleURL.pathExtension == "app" {
-                        relaunchCmd = "open \"\(Bundle.main.bundleURL.path)\""
+                    let relaunchCmd = if Bundle.main.bundleURL.pathExtension == "app" {
+                        "open \"\(Bundle.main.bundleURL.path)\""
                     } else {
-                        relaunchCmd = "\"\(Bundle.main.executablePath ?? "")\" &"
+                        "\"\(Bundle.main.executablePath ?? "")\" &"
                     }
                     let task = Process()
                     task.executableURL = URL(fileURLWithPath: "/bin/sh")

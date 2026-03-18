@@ -10,7 +10,9 @@ final class FocusTimerWidget: StatusBarWidget {
     let id = "focus-timer"
     let position: WidgetPosition = .right
     let updateInterval: TimeInterval? = 2
-    var sfSymbolName: String { "timer" }
+    var sfSymbolName: String {
+        "timer"
+    }
 
     private var timer: AnyCancellable?
     private var popupPanel: PopupPanel?
@@ -41,7 +43,9 @@ final class FocusTimerWidget: StatusBarWidget {
     }
 
     private func startTickTimer() {
-        guard timer == nil else { return }
+        guard timer == nil else {
+            return
+        }
         timer = Timer.publish(every: 1, tolerance: 0.1, on: .main, in: .common)
             .autoconnect()
             .sink { [weak self] _ in self?.update() }
@@ -108,9 +112,13 @@ final class FocusTimerWidget: StatusBarWidget {
         }
 
         // Restore running timer if present
-        guard let mode = defaults.string(forKey: Keys.mode) else { return }
+        guard let mode = defaults.string(forKey: Keys.mode) else {
+            return
+        }
         let endTimeInterval = defaults.double(forKey: Keys.endTime)
-        guard endTimeInterval > 0 else { return }
+        guard endTimeInterval > 0 else {
+            return
+        }
 
         let endTime = Date(timeIntervalSince1970: endTimeInterval)
         let remaining = endTime.timeIntervalSinceNow
@@ -254,7 +262,7 @@ struct FocusTimerPopupContent: View {
         self.widget = widget
         self.showCustomSlider = showCustomSlider
         self.customMinutes = customMinutes
-        self._sliderValue = State(initialValue: customMinutes)
+        _sliderValue = State(initialValue: customMinutes)
     }
 
     var body: some View {
@@ -305,7 +313,7 @@ struct FocusTimerPopupContent: View {
                             Spacer()
                         }
 
-                        Slider(value: $sliderValue, in: 1...120, step: 1)
+                        Slider(value: $sliderValue, in: 1 ... 120, step: 1)
                             .tint(.purple)
                             .onChange(of: sliderValue) { _, newValue in
                                 widget?.setCustomMinutes(newValue)

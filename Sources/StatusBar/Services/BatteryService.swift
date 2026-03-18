@@ -35,7 +35,9 @@ final class BatteryService {
         // Use Unmanaged.passUnretained since `shared` singleton is never deallocated.
         let pointer = Unmanaged.passUnretained(self).toOpaque()
         runLoopSource = IOPSNotificationCreateRunLoopSource({ context in
-            guard let context else { return }
+            guard let context else {
+                return
+            }
             let service = Unmanaged<BatteryService>.fromOpaque(context).takeUnretainedValue()
             // Safely dispatch to MainActor instead of assumeIsolated,
             // since IOKit does not guarantee callback thread.
@@ -48,7 +50,9 @@ final class BatteryService {
     }
 
     func stop() {
-        guard started else { return }
+        guard started else {
+            return
+        }
         if let source = runLoopSource {
             CFRunLoopRemoveSource(CFRunLoopGetMain(), source, .commonModes)
             runLoopSource = nil

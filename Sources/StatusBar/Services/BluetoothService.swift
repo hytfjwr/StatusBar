@@ -5,6 +5,8 @@ import StatusBarKit
 
 private let logger = Logger(subsystem: "com.statusbar", category: "BluetoothService")
 
+// MARK: - BluetoothService
+
 final class BluetoothService: @unchecked Sendable {
 
     struct BluetoothDevice: Identifiable {
@@ -58,10 +60,14 @@ final class BluetoothService: @unchecked Sendable {
                 service = IOIteratorNext(iterator)
             }
 
-            guard let props = serviceProperties(service) else { continue }
+            guard let props = serviceProperties(service) else {
+                continue
+            }
 
             // Only include connected devices
-            guard let connected = props["Connected"] as? Bool, connected else { continue }
+            guard let connected = props["Connected"] as? Bool, connected else {
+                continue
+            }
 
             let name = props["Name"] as? String ?? "Unknown"
             let address = (props["DeviceAddress"] as? String) ?? "unknown-\(name.lowercased())"
@@ -84,7 +90,9 @@ final class BluetoothService: @unchecked Sendable {
         var propsRef: Unmanaged<CFMutableDictionary>?
         guard IORegistryEntryCreateCFProperties(service, &propsRef, kCFAllocatorDefault, 0) == KERN_SUCCESS,
               let cfDict = propsRef?.takeRetainedValue()
-        else { return nil }
+        else {
+            return nil
+        }
         return cfDict as? [String: Any]
     }
 
@@ -95,15 +103,23 @@ final class BluetoothService: @unchecked Sendable {
         let minorClass = (classOfDevice >> 2) & 0x3F
 
         switch majorClass {
-        case 0x05:  // Peripheral
+        case 0x05: // Peripheral
             let minorUpper = minorClass & 0x3C
-            if minorUpper == 0x10 { return .keyboard }
-            if minorUpper == 0x20 { return .mouse }
-            if minorUpper == 0x30 { return .keyboard }  // combo keyboard+pointing
-            if minorUpper == 0x02 { return .gamepad }
+            if minorUpper == 0x10 {
+                return .keyboard
+            }
+            if minorUpper == 0x20 {
+                return .mouse
+            }
+            if minorUpper == 0x30 {
+                return .keyboard
+            } // combo keyboard+pointing
+            if minorUpper == 0x02 {
+                return .gamepad
+            }
             return classifyByName(name)
 
-        case 0x04:  // Audio/Video
+        case 0x04: // Audio/Video
             return .headphones
 
         default:
@@ -113,11 +129,21 @@ final class BluetoothService: @unchecked Sendable {
 
     private func classifyByName(_ name: String) -> BluetoothDevice.DeviceCategory {
         let lower = name.lowercased()
-        if lower.contains("keyboard") { return .keyboard }
-        if lower.contains("mouse") || lower.contains("magic mouse") { return .mouse }
-        if lower.contains("trackpad") { return .trackpad }
-        if lower.contains("airpods") || lower.contains("headphone") || lower.contains("beats") { return .headphones }
-        if lower.contains("controller") || lower.contains("gamepad") { return .gamepad }
+        if lower.contains("keyboard") {
+            return .keyboard
+        }
+        if lower.contains("mouse") || lower.contains("magic mouse") {
+            return .mouse
+        }
+        if lower.contains("trackpad") {
+            return .trackpad
+        }
+        if lower.contains("airpods") || lower.contains("headphone") || lower.contains("beats") {
+            return .headphones
+        }
+        if lower.contains("controller") || lower.contains("gamepad") {
+            return .gamepad
+        }
         return .generic
     }
 
@@ -142,7 +168,9 @@ final class BluetoothService: @unchecked Sendable {
 
             guard let props = serviceProperties(service),
                   let battery = props["BatteryPercent"] as? Int
-            else { continue }
+            else {
+                continue
+            }
 
             if let addr = props["DeviceAddress"] as? String {
                 result[normalizeAddress(addr)] = battery

@@ -3,6 +3,8 @@ import Foundation
 import StatusBarKit
 import SwiftUI
 
+// MARK: - CalendarService
+
 /// Wraps EventKit to fetch calendar events with proper authorization handling.
 @MainActor
 final class CalendarService {
@@ -11,7 +13,9 @@ final class CalendarService {
 
     /// Request calendar access (cached after first grant).
     func requestAccess() async -> Bool {
-        if accessGranted { return true }
+        if accessGranted {
+            return true
+        }
         let status = EKEventStore.authorizationStatus(for: .event)
         if status == .fullAccess {
             accessGranted = true
@@ -28,7 +32,9 @@ final class CalendarService {
     /// Fetch events for a given date range.
     func fetchEvents(from startDate: Date, to endDate: Date) async -> [CalendarEvent] {
         let granted = await requestAccess()
-        guard granted else { return [] }
+        guard granted else {
+            return []
+        }
 
         let predicate = store.predicateForEvents(withStart: startDate, end: endDate, calendars: nil)
         let ekEvents = store.events(matching: predicate)
@@ -49,7 +55,8 @@ final class CalendarService {
     func fetchMonthData(for month: Date, selectedDate: Date) async -> MonthData {
         let calendar = Calendar.current
         guard let startOfMonth = calendar.date(from: calendar.dateComponents([.year, .month], from: month)),
-              let endOfMonth = calendar.date(byAdding: .month, value: 1, to: startOfMonth) else {
+              let endOfMonth = calendar.date(byAdding: .month, value: 1, to: startOfMonth)
+        else {
             return MonthData(allEvents: [], datesWithEvents: [], eventsForSelectedDate: [])
         }
 
@@ -61,7 +68,9 @@ final class CalendarService {
             let end = min(event.endDate, endOfMonth)
             while current < end {
                 dates.insert(calendar.dateComponents([.year, .month, .day], from: current))
-                guard let next = calendar.date(byAdding: .day, value: 1, to: current) else { break }
+                guard let next = calendar.date(byAdding: .day, value: 1, to: current) else {
+                    break
+                }
                 current = next
             }
         }
@@ -74,10 +83,14 @@ final class CalendarService {
     func filterEvents(from allEvents: [CalendarEvent], for date: Date) -> [CalendarEvent] {
         let calendar = Calendar.current
         let dayStart = calendar.startOfDay(for: date)
-        guard let dayEnd = calendar.date(byAdding: .day, value: 1, to: dayStart) else { return [] }
+        guard let dayEnd = calendar.date(byAdding: .day, value: 1, to: dayStart) else {
+            return []
+        }
         return allEvents.filter { $0.startDate < dayEnd && $0.endDate > dayStart }
     }
 }
+
+// MARK: - MonthData
 
 /// Combined result from a month data fetch.
 struct MonthData {
@@ -85,6 +98,8 @@ struct MonthData {
     let datesWithEvents: Set<DateComponents>
     let eventsForSelectedDate: [CalendarEvent]
 }
+
+// MARK: - CalendarEvent
 
 /// A simplified calendar event model.
 struct CalendarEvent: Identifiable {
@@ -102,7 +117,9 @@ struct CalendarEvent: Identifiable {
     }()
 
     var timeString: String {
-        if isAllDay { return "All Day" }
+        if isAllDay {
+            return "All Day"
+        }
         let start = Self.timeFormatter.string(from: startDate)
         let end = Self.timeFormatter.string(from: endDate)
         return "\(start) – \(end)"

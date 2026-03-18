@@ -8,7 +8,7 @@ private let logger = Logger(subsystem: "com.statusbar", category: "PresetStore")
 
 /// A complete, point-in-time capture of all user-configurable state.
 /// All field names intentionally match the UserDefaults keys used by PreferencesModel.
-struct PresetSnapshot: Codable, Sendable {
+struct PresetSnapshot: Codable {
     // General
     var barHeight: Double
     var barCornerRadius: Double
@@ -56,13 +56,11 @@ struct PresetSnapshot: Codable, Sendable {
     var memoryThreshold: Double
     var memorySustainedDuration: Double
 
-    // Widget Layout
+    /// Widget Layout
     var widgetLayout: [WidgetLayoutEntry]
 
-    // Per-widget Settings
+    /// Per-widget Settings
     var widgetSettings: [String: [String: ConfigValue]]
-
-    // swiftlint:disable function_body_length
 
     // MARK: - Memberwise Init (required because custom Decodable init suppresses synthesis)
 
@@ -168,11 +166,11 @@ struct PresetSnapshot: Codable, Sendable {
         cpuSustainedDuration = try c.decodeIfPresent(Double.self, forKey: .cpuSustainedDuration) ?? d.cpuSustainedDuration
         notifyMemoryHigh = try c.decodeIfPresent(Bool.self, forKey: .notifyMemoryHigh) ?? d.notifyMemoryHigh
         memoryThreshold = try c.decodeIfPresent(Double.self, forKey: .memoryThreshold) ?? d.memoryThreshold
-        memorySustainedDuration = try c.decodeIfPresent(Double.self, forKey: .memorySustainedDuration) ?? d.memorySustainedDuration
+        memorySustainedDuration = try c.decodeIfPresent(
+            Double.self, forKey: .memorySustainedDuration
+        ) ?? d.memorySustainedDuration
         widgetSettings = try c.decodeIfPresent([String: [String: ConfigValue]].self, forKey: .widgetSettings) ?? [:]
     }
-
-    // swiftlint:enable function_body_length
 }
 
 extension PresetSnapshot {
@@ -229,8 +227,8 @@ extension PresetSnapshot {
             notifyMemoryHigh: d.notifyMemoryHigh,
             memoryThreshold: d.memoryThreshold,
             memorySustainedDuration: d.memorySustainedDuration,
-            widgetLayout: [],  // empty = reset to registry default
-            widgetSettings: [:]  // empty = keep current widget settings
+            widgetLayout: [], // empty = reset to registry default
+            widgetSettings: [:] // empty = keep current widget settings
         )
     }
 
@@ -272,15 +270,20 @@ extension PresetSnapshot {
 
 // MARK: - Preset
 
-struct Preset: Codable, Identifiable, Sendable {
+struct Preset: Codable, Identifiable {
     let id: UUID
     var name: String
     let isBuiltIn: Bool
     let createdAt: Date
     var snapshot: PresetSnapshot
 
-    init(id: UUID = UUID(), name: String, isBuiltIn: Bool = false,
-         createdAt: Date = Date(), snapshot: PresetSnapshot) {
+    init(
+        id: UUID = UUID(),
+        name: String,
+        isBuiltIn: Bool = false,
+        createdAt: Date = Date(),
+        snapshot: PresetSnapshot
+    ) {
         self.id = id
         self.name = name
         self.isBuiltIn = isBuiltIn
@@ -292,8 +295,11 @@ struct Preset: Codable, Identifiable, Sendable {
 // MARK: - Built-in Preset UUIDs
 
 extension UUID {
-    static let presetDefault  = UUID(uuidString: "00000000-0000-0000-0000-000000000001")!
-    static let presetMinimal  = UUID(uuidString: "00000000-0000-0000-0000-000000000002")!
+    // swiftlint:disable:next force_unwrapping
+    static let presetDefault = UUID(uuidString: "00000000-0000-0000-0000-000000000001")!
+    // swiftlint:disable:next force_unwrapping
+    static let presetMinimal = UUID(uuidString: "00000000-0000-0000-0000-000000000002")!
+    // swiftlint:disable:next force_unwrapping
     static let presetColorful = UUID(uuidString: "00000000-0000-0000-0000-000000000003")!
 }
 
@@ -357,13 +363,18 @@ final class PresetStore {
 
     func rename(_ preset: Preset, to newName: String) {
         guard !preset.isBuiltIn,
-              let idx = userPresets.firstIndex(where: { $0.id == preset.id }) else { return }
+              let idx = userPresets.firstIndex(where: { $0.id == preset.id })
+        else {
+            return
+        }
         userPresets[idx].name = newName
         persistToDisk()
     }
 
     func delete(_ preset: Preset) {
-        guard !preset.isBuiltIn else { return }
+        guard !preset.isBuiltIn else {
+            return
+        }
         userPresets.removeAll { $0.id == preset.id }
         persistToDisk()
     }

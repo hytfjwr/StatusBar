@@ -1,10 +1,8 @@
 import Foundation
+@testable import StatusBar
 import StatusBarKit
 import Testing
 
-@testable import StatusBar
-
-@Suite("DylibPluginLoader — manifest validation")
 @MainActor
 struct DylibPluginLoaderTests {
     let loader = DylibPluginLoader.shared

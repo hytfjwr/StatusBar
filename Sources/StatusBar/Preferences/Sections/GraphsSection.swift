@@ -1,5 +1,5 @@
-import SwiftUI
 import StatusBarKit
+import SwiftUI
 
 struct GraphsSection: View {
     @Bindable var model: PreferencesModel
@@ -10,8 +10,8 @@ struct GraphsSection: View {
 
             GroupBox("Dimensions") {
                 VStack(spacing: 10) {
-                    SliderRow(label: "Width", value: $model.graphWidth, range: 20...60)
-                    SliderRow(label: "Height", value: $model.graphHeight, range: 10...30)
+                    SliderRow(label: "Width", value: $model.graphWidth, range: 20 ... 60)
+                    SliderRow(label: "Height", value: $model.graphHeight, range: 10 ... 30)
                     HStack {
                         Text("Data Points")
                             .frame(width: 120, alignment: .leading)
@@ -20,7 +20,7 @@ struct GraphsSection: View {
                                 get: { Double(model.graphDataPoints) },
                                 set: { model.graphDataPoints = Int($0) }
                             ),
-                            in: 20...100,
+                            in: 20 ... 100,
                             step: 5
                         )
                         Text("\(model.graphDataPoints)")
@@ -65,7 +65,7 @@ struct GraphsSection: View {
                     let h = model.graphHeight
                     let points = 10
                     path.move(to: CGPoint(x: 0, y: h * 0.5))
-                    for i in 0...points {
+                    for i in 0 ... points {
                         let x = w * CGFloat(i) / CGFloat(points)
                         let y = h * (0.3 + 0.4 * sin(Double(i) * 0.8))
                         path.addLine(to: CGPoint(x: x, y: y))

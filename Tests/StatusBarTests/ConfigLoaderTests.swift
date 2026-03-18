@@ -1,9 +1,7 @@
 import Foundation
+@testable import StatusBar
 import Testing
 
-@testable import StatusBar
-
-@Suite("ConfigLoader — fixScientificNotation")
 struct FixScientificNotationTests {
     @Test("Converts positive exponent to integer")
     func positiveExponentInteger() {

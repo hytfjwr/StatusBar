@@ -30,7 +30,6 @@ struct WidgetSettingsSheet: View {
         .frame(width: 360, height: 240)
     }
 
-    @ViewBuilder
     private var settingsContent: some View {
         WidgetRegistry.shared.settingsView(for: widgetID)
     }
@@ -40,8 +39,7 @@ struct WidgetSettingsSheet: View {
     }
 }
 
-
-// MARK: - Time Widget Settings
+// MARK: - TimeWidgetSettings
 
 struct TimeWidgetSettings: View {
     @State private var format: String
@@ -71,7 +69,7 @@ struct TimeWidgetSettings: View {
     }
 }
 
-// MARK: - Date Widget Settings
+// MARK: - DateWidgetSettings
 
 struct DateWidgetSettings: View {
     @State private var format: String
@@ -102,7 +100,7 @@ struct DateWidgetSettings: View {
     }
 }
 
-// MARK: - Battery Widget Settings
+// MARK: - BatteryWidgetSettings
 
 struct BatteryWidgetSettings: View {
     @State private var showPercentage: Bool
@@ -125,7 +123,7 @@ struct BatteryWidgetSettings: View {
     }
 }
 
-// MARK: - Interval Settings (shared pattern)
+// MARK: - IntervalSettings
 
 struct IntervalSettings: View {
     let title: String
@@ -134,8 +132,8 @@ struct IntervalSettings: View {
 
     init(title: String, interval: Double, onChange: @escaping (Double) -> Void) {
         self.title = title
-        self._interval = State(initialValue: interval)
-        self.onIntervalChange = onChange
+        _interval = State(initialValue: interval)
+        onIntervalChange = onChange
     }
 
     var body: some View {
@@ -157,7 +155,7 @@ struct IntervalSettings: View {
     }
 }
 
-// MARK: - Network Widget Settings
+// MARK: - NetworkWidgetSettings
 
 struct NetworkWidgetSettings: View {
     var body: some View {
@@ -170,7 +168,7 @@ struct NetworkWidgetSettings: View {
     }
 }
 
-// MARK: - CPU Graph Widget Settings
+// MARK: - CPUGraphWidgetSettings
 
 struct CPUGraphWidgetSettings: View {
     var body: some View {
@@ -183,7 +181,7 @@ struct CPUGraphWidgetSettings: View {
     }
 }
 
-// MARK: - Memory Graph Widget Settings
+// MARK: - MemoryGraphWidgetSettings
 
 struct MemoryGraphWidgetSettings: View {
     var body: some View {

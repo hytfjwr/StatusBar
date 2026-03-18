@@ -1,9 +1,9 @@
 import Foundation
 import StatusBarKit
 
-// MARK: - Top-level Config
+// MARK: - StatusBarConfig
 
-struct StatusBarConfig: Codable, Sendable {
+struct StatusBarConfig: Codable {
     var global: GlobalConfig
     var widgets: [WidgetLayoutConfig]
     var widgetSettings: [String: [String: ConfigValue]]
@@ -15,9 +15,9 @@ struct StatusBarConfig: Codable, Sendable {
     }
 
     @MainActor
-    static func captureCurrentState() -> StatusBarConfig {
+    static func captureCurrentState() -> Self {
         let prefs = PreferencesModel.shared
-        var config = StatusBarConfig()
+        var config = Self()
         config.global = GlobalConfig(from: prefs)
         config.widgets = WidgetRegistry.shared.layout.map { WidgetLayoutConfig(from: $0) }
         config.widgetSettings = WidgetConfigRegistry.shared.exportAll()
@@ -25,9 +25,9 @@ struct StatusBarConfig: Codable, Sendable {
     }
 }
 
-// MARK: - Global Config
+// MARK: - GlobalConfig
 
-struct GlobalConfig: Codable, Sendable {
+struct GlobalConfig: Codable {
     var bar: BarConfig
     var appearance: AppearanceConfig
     var typography: TypographyConfig
@@ -65,9 +65,9 @@ struct GlobalConfig: Codable, Sendable {
     }
 }
 
-// MARK: - Bar
+// MARK: - BarConfig
 
-struct BarConfig: Codable, Sendable {
+struct BarConfig: Codable {
     var height: Double
     var cornerRadius: Double
     var margin: Double
@@ -85,7 +85,8 @@ struct BarConfig: Codable, Sendable {
         widgetPaddingH = Double(d.widgetPaddingH)
     }
 
-    @MainActor init(from p: PreferencesModel) {
+    @MainActor
+    init(from p: PreferencesModel) {
         height = Double(p.barHeight)
         cornerRadius = Double(p.barCornerRadius)
         margin = Double(p.barMargin)
@@ -94,7 +95,8 @@ struct BarConfig: Codable, Sendable {
         widgetPaddingH = Double(p.widgetPaddingH)
     }
 
-    @MainActor func apply(to p: PreferencesModel) {
+    @MainActor
+    func apply(to p: PreferencesModel) {
         p.barHeight = CGFloat(height)
         p.barCornerRadius = CGFloat(cornerRadius)
         p.barMargin = CGFloat(margin)
@@ -104,9 +106,9 @@ struct BarConfig: Codable, Sendable {
     }
 }
 
-// MARK: - Appearance
+// MARK: - AppearanceConfig
 
-struct AppearanceConfig: Codable, Sendable {
+struct AppearanceConfig: Codable {
     var accent: HexColor
     var textPrimaryOpacity: Double
     var textSecondaryOpacity: Double
@@ -140,7 +142,8 @@ struct AppearanceConfig: Codable, Sendable {
         popupPadding = Double(d.popupPadding)
     }
 
-    @MainActor init(from p: PreferencesModel) {
+    @MainActor
+    init(from p: PreferencesModel) {
         accent = HexColor(p.accentHex)
         textPrimaryOpacity = p.textPrimaryOpacity
         textSecondaryOpacity = p.textSecondaryOpacity
@@ -157,7 +160,8 @@ struct AppearanceConfig: Codable, Sendable {
         popupPadding = Double(p.popupPadding)
     }
 
-    @MainActor func apply(to p: PreferencesModel) {
+    @MainActor
+    func apply(to p: PreferencesModel) {
         p.accentHex = accent.rawValue
         p.textPrimaryOpacity = textPrimaryOpacity
         p.textSecondaryOpacity = textSecondaryOpacity
@@ -175,9 +179,9 @@ struct AppearanceConfig: Codable, Sendable {
     }
 }
 
-// MARK: - Typography
+// MARK: - TypographyConfig
 
-struct TypographyConfig: Codable, Sendable {
+struct TypographyConfig: Codable {
     var iconFontSize: Double
     var labelFontSize: Double
     var smallFontSize: Double
@@ -191,14 +195,16 @@ struct TypographyConfig: Codable, Sendable {
         monoFontSize = Double(d.monoFontSize)
     }
 
-    @MainActor init(from p: PreferencesModel) {
+    @MainActor
+    init(from p: PreferencesModel) {
         iconFontSize = Double(p.iconFontSize)
         labelFontSize = Double(p.labelFontSize)
         smallFontSize = Double(p.smallFontSize)
         monoFontSize = Double(p.monoFontSize)
     }
 
-    @MainActor func apply(to p: PreferencesModel) {
+    @MainActor
+    func apply(to p: PreferencesModel) {
         p.iconFontSize = CGFloat(iconFontSize)
         p.labelFontSize = CGFloat(labelFontSize)
         p.smallFontSize = CGFloat(smallFontSize)
@@ -206,9 +212,9 @@ struct TypographyConfig: Codable, Sendable {
     }
 }
 
-// MARK: - Graphs
+// MARK: - GraphsConfig
 
-struct GraphsConfig: Codable, Sendable {
+struct GraphsConfig: Codable {
     var width: Double
     var height: Double
     var dataPoints: Int
@@ -224,7 +230,8 @@ struct GraphsConfig: Codable, Sendable {
         memoryColor = HexColor(d.memoryGraphHex)
     }
 
-    @MainActor init(from p: PreferencesModel) {
+    @MainActor
+    init(from p: PreferencesModel) {
         width = Double(p.graphWidth)
         height = Double(p.graphHeight)
         dataPoints = p.graphDataPoints
@@ -232,7 +239,8 @@ struct GraphsConfig: Codable, Sendable {
         memoryColor = HexColor(p.memoryGraphHex)
     }
 
-    @MainActor func apply(to p: PreferencesModel) {
+    @MainActor
+    func apply(to p: PreferencesModel) {
         p.graphWidth = CGFloat(width)
         p.graphHeight = CGFloat(height)
         p.graphDataPoints = dataPoints
@@ -241,9 +249,9 @@ struct GraphsConfig: Codable, Sendable {
     }
 }
 
-// MARK: - Behavior
+// MARK: - BehaviorConfig
 
-struct BehaviorConfig: Codable, Sendable {
+struct BehaviorConfig: Codable {
     var autoHide: Bool
     var autoHideDwellTime: Double
     var autoHideFadeDuration: Double
@@ -257,14 +265,16 @@ struct BehaviorConfig: Codable, Sendable {
         launchAtLogin = d.launchAtLogin
     }
 
-    @MainActor init(from p: PreferencesModel) {
+    @MainActor
+    init(from p: PreferencesModel) {
         autoHide = p.autoHideEnabled
         autoHideDwellTime = p.autoHideDwellTime
         autoHideFadeDuration = p.autoHideFadeDuration
         launchAtLogin = p.launchAtLogin
     }
 
-    @MainActor func apply(to p: PreferencesModel) {
+    @MainActor
+    func apply(to p: PreferencesModel) {
         p.autoHideEnabled = autoHide
         p.autoHideDwellTime = autoHideDwellTime
         p.autoHideFadeDuration = autoHideFadeDuration
@@ -272,9 +282,9 @@ struct BehaviorConfig: Codable, Sendable {
     }
 }
 
-// MARK: - Notifications
+// MARK: - NotificationsConfig
 
-struct NotificationsConfig: Codable, Sendable {
+struct NotificationsConfig: Codable {
     var batteryLow: Bool
     var batteryThreshold: Double
     var cpuHigh: Bool
@@ -296,7 +306,8 @@ struct NotificationsConfig: Codable, Sendable {
         memorySustainedDuration = d.memorySustainedDuration
     }
 
-    @MainActor init(from p: PreferencesModel) {
+    @MainActor
+    init(from p: PreferencesModel) {
         batteryLow = p.notifyBatteryLow
         batteryThreshold = p.batteryThreshold
         cpuHigh = p.notifyCPUHigh
@@ -307,7 +318,8 @@ struct NotificationsConfig: Codable, Sendable {
         memorySustainedDuration = p.memorySustainedDuration
     }
 
-    @MainActor func apply(to p: PreferencesModel) {
+    @MainActor
+    func apply(to p: PreferencesModel) {
         p.notifyBatteryLow = batteryLow
         p.batteryThreshold = batteryThreshold
         p.notifyCPUHigh = cpuHigh
@@ -319,9 +331,9 @@ struct NotificationsConfig: Codable, Sendable {
     }
 }
 
-// MARK: - Widget Layout
+// MARK: - WidgetLayoutConfig
 
-struct WidgetLayoutConfig: Codable, Sendable {
+struct WidgetLayoutConfig: Codable {
     var id: String
     var section: WidgetPosition
     var sortIndex: Int

@@ -1,6 +1,8 @@
 import ServiceManagement
 import SwiftUI
 
+// MARK: - BehaviorSection
+
 struct BehaviorSection: View {
     @Bindable var model: PreferencesModel
 
@@ -14,7 +16,7 @@ struct BehaviorSection: View {
                     DoubleSliderRow(
                         label: "Dwell Time",
                         value: $model.autoHideDwellTime,
-                        range: 0.1...2.0,
+                        range: 0.1 ... 2.0,
                         step: 0.05,
                         unit: "s",
                         fractionDigits: 2
@@ -23,7 +25,7 @@ struct BehaviorSection: View {
                     DoubleSliderRow(
                         label: "Fade Duration",
                         value: $model.autoHideFadeDuration,
-                        range: 0.05...1.0,
+                        range: 0.05 ... 1.0,
                         step: 0.05,
                         unit: "s",
                         fractionDigits: 2

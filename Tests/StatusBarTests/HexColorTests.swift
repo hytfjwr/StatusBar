@@ -1,10 +1,9 @@
 import Foundation
+@testable import StatusBar
 import Testing
 
-@testable import StatusBar
-
-@Suite("HexColor")
 struct HexColorTests {
+
     // MARK: - Init
 
     @Test("Raw value initializer stores value")
@@ -69,7 +68,7 @@ struct HexColorTests {
     func encodesWithPrefix() throws {
         let color = HexColor(0xFF6B6B)
         let data = try JSONEncoder().encode(color)
-        let string = String(data: data, encoding: .utf8)!
+        let string = try #require(String(data: data, encoding: .utf8))
         #expect(string == ##""#FF6B6B""##)
     }
 
@@ -77,7 +76,7 @@ struct HexColorTests {
     func encodesZeroPadded() throws {
         let color = HexColor(0x000AFF)
         let data = try JSONEncoder().encode(color)
-        let string = String(data: data, encoding: .utf8)!
+        let string = try #require(String(data: data, encoding: .utf8))
         #expect(string == ##""#000AFF""##)
     }
 

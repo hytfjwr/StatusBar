@@ -13,7 +13,9 @@ final class DateSettings: WidgetConfigProvider {
     private var suppressWrite = false
 
     var format: String {
-        didSet { if !suppressWrite { WidgetConfigRegistry.shared.notifySettingsChanged() } }
+        didSet { if !suppressWrite {
+            WidgetConfigRegistry.shared.notifySettingsChanged()
+        } }
     }
 
     private init() {
@@ -29,7 +31,9 @@ final class DateSettings: WidgetConfigProvider {
     func applyConfig(_ values: [String: ConfigValue]) {
         suppressWrite = true
         defer { suppressWrite = false }
-        if let v = values["format"]?.stringValue { format = v }
+        if let v = values["format"]?.stringValue {
+            format = v
+        }
     }
 }
 
@@ -41,7 +45,9 @@ final class DateWidget: StatusBarWidget {
     let id = "date"
     let position: WidgetPosition = .right
     let updateInterval: TimeInterval? = 60
-    var sfSymbolName: String { "calendar" }
+    var sfSymbolName: String {
+        "calendar"
+    }
 
     private var currentDate = ""
     private var timer: AnyCancellable?
@@ -64,7 +70,9 @@ final class DateWidget: StatusBarWidget {
         popupPanel?.hidePopup()
     }
 
-    var hasSettings: Bool { true }
+    var hasSettings: Bool {
+        true
+    }
 
     func settingsBody() -> some View {
         DateWidgetSettings()
@@ -124,7 +132,9 @@ final class DateWidget: StatusBarWidget {
             return s
         }()
 
-        guard let (barFrame, screen) = PopupPanel.barTriggerFrame(width: 120) else { return }
+        guard let (barFrame, screen) = PopupPanel.barTriggerFrame(width: 120) else {
+            return
+        }
 
         let content = CalendarPopupContent(calendarService: service)
         popupPanel?.showPopup(relativeTo: barFrame, on: screen, content: content)
@@ -289,7 +299,7 @@ struct CalendarPopupContent: View {
             calendar.dateComponents([.year, .month, .day], from: date)
         )
 
-        return Button(action: { selectedDate = date }) {
+        return Button(action: { selectedDate = date }, label: {
             VStack(spacing: 1) {
                 Text("\(dayNumber)")
                     .font(.system(size: 12, weight: isToday ? .bold : .regular))
@@ -306,20 +316,28 @@ struct CalendarPopupContent: View {
                     .fill(dayCellBackground(isToday: isToday, isSelected: isSelected))
             )
             .contentShape(Rectangle())
-        }
+        })
         .buttonStyle(.plain)
         .opacity(isCurrentMonth ? 1.0 : 0.3)
     }
 
     private func dayTextColor(isToday: Bool, isSelected: Bool, isCurrentMonth: Bool) -> Color {
-        if isSelected { return .white }
-        if isToday { return Theme.accentBlue }
+        if isSelected {
+            return .white
+        }
+        if isToday {
+            return Theme.accentBlue
+        }
         return isCurrentMonth ? Color(.labelColor) : Theme.tertiary
     }
 
     private func dayCellBackground(isToday: Bool, isSelected: Bool) -> Color {
-        if isSelected { return Theme.accentBlue }
-        if isToday { return Theme.accentBlue.opacity(0.15) }
+        if isSelected {
+            return Theme.accentBlue
+        }
+        if isToday {
+            return Theme.accentBlue.opacity(0.15)
+        }
         return .clear
     }
 
@@ -391,14 +409,17 @@ struct CalendarPopupContent: View {
     // MARK: - Helpers
 
     private var eventsSectionTitle: String {
-        if calendar.isDateInToday(selectedDate) { return "Today" }
+        if calendar.isDateInToday(selectedDate) {
+            return "Today"
+        }
         return Self.shortDateFormatter.string(from: selectedDate)
     }
 
     private func daysInMonth() -> [Date?] {
         let comps = calendar.dateComponents([.year, .month], from: displayedMonth)
         guard let firstOfMonth = calendar.date(from: comps),
-              let range = calendar.range(of: .day, in: .month, for: firstOfMonth) else {
+              let range = calendar.range(of: .day, in: .month, for: firstOfMonth)
+        else {
             return []
         }
 

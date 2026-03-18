@@ -4,6 +4,8 @@ import StatusBarKit
 
 private let logger = Logger(subsystem: "com.statusbar", category: "WidgetLayoutStore")
 
+// MARK: - WidgetLayoutStore
+
 /// Persists widget layout entries via ConfigLoader (YAML).
 @MainActor
 final class WidgetLayoutStore {

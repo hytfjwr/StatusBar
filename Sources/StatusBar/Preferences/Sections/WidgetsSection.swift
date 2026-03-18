@@ -2,6 +2,8 @@ import StatusBarKit
 import SwiftUI
 import UniformTypeIdentifiers
 
+// MARK: - WidgetsSection
+
 struct WidgetsSection: View {
     let registry: WidgetRegistry
     @State private var settingsTarget: WidgetIDWrapper?
@@ -10,9 +12,18 @@ struct WidgetsSection: View {
         VStack(alignment: .leading, spacing: 16) {
             SectionHeader(title: "Widgets", resetAction: registry.resetLayout)
 
-            SectionGroup(position: .left, icon: "sidebar.left", color: .blue, registry: registry, onOpenSettings: openSettings)
-            SectionGroup(position: .center, icon: "align.horizontal.center", color: .purple, registry: registry, onOpenSettings: openSettings)
-            SectionGroup(position: .right, icon: "sidebar.right", color: .orange, registry: registry, onOpenSettings: openSettings)
+            SectionGroup(
+                position: .left, icon: "sidebar.left", color: .blue,
+                registry: registry, onOpenSettings: openSettings
+            )
+            SectionGroup(
+                position: .center, icon: "align.horizontal.center", color: .purple,
+                registry: registry, onOpenSettings: openSettings
+            )
+            SectionGroup(
+                position: .right, icon: "sidebar.right", color: .orange,
+                registry: registry, onOpenSettings: openSettings
+            )
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .sheet(item: $settingsTarget) { wrapper in
@@ -25,11 +36,13 @@ struct WidgetsSection: View {
     }
 }
 
+// MARK: - WidgetIDWrapper
+
 private struct WidgetIDWrapper: Identifiable {
     let id: String
 }
 
-// MARK: - Section Group
+// MARK: - SectionGroup
 
 private struct SectionGroup: View {
     let position: WidgetPosition
@@ -111,8 +124,12 @@ private struct SectionGroup: View {
                 .strokeBorder(.quaternary, lineWidth: isTargeted ? 0 : 1)
         )
         .dropDestination(for: String.self) { items, _ in
-            guard let widgetID = items.first else { return false }
-            guard !entries.contains(where: { $0.id == widgetID }) else { return false }
+            guard let widgetID = items.first else {
+                return false
+            }
+            guard !entries.contains(where: { $0.id == widgetID }) else {
+                return false
+            }
             registry.move(widgetID: widgetID, to: position)
             return true
         } isTargeted: { targeted in
@@ -121,9 +138,11 @@ private struct SectionGroup: View {
     }
 
     private func handleDrop(providers: [NSItemProvider], at index: Int) {
-        guard let provider = providers.first else { return }
+        guard let provider = providers.first else {
+            return
+        }
         _ = provider.loadTransferable(type: String.self) { result in
-            if case .success(let widgetID) = result {
+            if case let .success(widgetID) = result {
                 Task { @MainActor in
                     registry.insertWidget(widgetID, inSection: position, at: index)
                 }
@@ -132,7 +151,7 @@ private struct SectionGroup: View {
     }
 }
 
-// MARK: - Widget Row
+// MARK: - WidgetRow
 
 private struct WidgetRow: View {
     let entry: WidgetLayoutEntry
@@ -207,36 +226,36 @@ private struct WidgetRow: View {
 
 // MARK: - WidgetPosition Helpers
 
-extension WidgetPosition {
-    fileprivate var displayTitle: String {
+private extension WidgetPosition {
+    var displayTitle: String {
         switch self {
-        case .left:   "Left"
+        case .left: "Left"
         case .center: "Center"
-        case .right:  "Right"
+        case .right: "Right"
         }
     }
 
-    fileprivate var shortLabel: String {
+    var shortLabel: String {
         switch self {
-        case .left:   "L"
+        case .left: "L"
         case .center: "C"
-        case .right:  "R"
+        case .right: "R"
         }
     }
 
-    fileprivate var sectionIcon: String {
+    var sectionIcon: String {
         switch self {
-        case .left:   "sidebar.left"
+        case .left: "sidebar.left"
         case .center: "align.horizontal.center"
-        case .right:  "sidebar.right"
+        case .right: "sidebar.right"
         }
     }
 
-    fileprivate var labelColor: Color {
+    var labelColor: Color {
         switch self {
-        case .left:   .blue
+        case .left: .blue
         case .center: .purple
-        case .right:  .orange
+        case .right: .orange
         }
     }
 }
