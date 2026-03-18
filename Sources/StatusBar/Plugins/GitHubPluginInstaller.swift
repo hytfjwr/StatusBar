@@ -140,25 +140,37 @@ final class GitHubPluginInstaller {
             try fm.createDirectory(at: pluginsDirectory, withIntermediateDirectories: true)
         }
 
-        // Copy to plugins directory
-        // Atomic replacement to prevent TOCTOU race
+        // Replace plugin bundle on disk (remove old → move new)
         let destURL = pluginsDirectory.appendingPathComponent(pluginBundle.lastPathComponent)
-        if fm.fileExists(atPath: destURL.path) {
-            _ = try fm.replaceItemAt(destURL, withItemAt: pluginBundle)
-        } else {
-            try fm.copyItem(at: pluginBundle, to: destURL)
-        }
+        do { try fm.removeItem(at: destURL) } catch CocoaError.fileNoSuchFile { /* first install */ }
+        try fm.moveItem(at: pluginBundle, to: destURL)
 
-        // Create and save registry record
+        // Use the release tag version for the registry record.
+        // checkForUpdates() compares against tag versions, so the registry must
+        // store tag-based versions to avoid perpetual "update available" mismatches
+        // (manifest version may lag behind the tag if the plugin author forgets to bump it).
+        let releaseVersion = release.tagName.trimmingCharacters(in: CharacterSet(charactersIn: "vV"))
+
         let normalizedURL = "https://github.com/\(owner)/\(repo)"
-        let record = InstalledPluginRecord(
-            id: manifest.id,
-            name: manifest.name,
-            version: manifest.version,
-            githubURL: normalizedURL,
-            bundleName: pluginBundle.deletingPathExtension().lastPathComponent
-        )
-        try PluginStore.shared.add(record)
+        let bundleName = destURL.deletingPathExtension().lastPathComponent
+        let store = PluginStore.shared
+        let record: InstalledPluginRecord
+        if let existing = store.record(forID: manifest.id, orBundleName: bundleName) {
+            record = existing.updating(
+                name: manifest.name,
+                version: releaseVersion,
+                githubURL: normalizedURL
+            )
+        } else {
+            record = InstalledPluginRecord(
+                id: manifest.id,
+                name: manifest.name,
+                version: releaseVersion,
+                githubURL: normalizedURL,
+                bundleName: bundleName
+            )
+        }
+        try store.add(record)
 
         return record
     }
@@ -196,10 +208,11 @@ final class GitHubPluginInstaller {
                 let (owner, repo) = try parseGitHubURL(url)
                 let release = try await fetchLatestRelease(owner: owner, repo: repo)
                 let latestVersion = release.tagName.trimmingCharacters(in: CharacterSet(charactersIn: "vV"))
-                if latestVersion != plugin.version {
+                let currentVersion = plugin.version.trimmingCharacters(in: CharacterSet(charactersIn: "vV"))
+                if latestVersion != currentVersion {
                     updates.append(UpdateInfo(
                         pluginID: plugin.id,
-                        currentVersion: plugin.version,
+                        currentVersion: currentVersion,
                         latestVersion: latestVersion,
                         githubURL: url
                     ))

@@ -37,6 +37,26 @@ struct InstalledPluginRecord: Codable, Sendable {
         self.isLocal = isLocal
     }
 
+    /// Create an updated copy, preserving fields not explicitly overridden.
+    func updating(
+        name: String? = nil,
+        version: String? = nil,
+        githubURL: String?? = nil,
+        installedAt: Date? = nil,
+        enabled: Bool? = nil
+    ) -> InstalledPluginRecord {
+        InstalledPluginRecord(
+            id: id,
+            name: name ?? self.name,
+            version: version ?? self.version,
+            githubURL: githubURL ?? self.githubURL,
+            bundleName: bundleName,
+            installedAt: installedAt ?? self.installedAt,
+            enabled: enabled ?? self.enabled,
+            isLocal: isLocal
+        )
+    }
+
     init(from decoder: any Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
         id = try container.decode(String.self, forKey: .id)
@@ -101,6 +121,11 @@ final class PluginStore {
 
     func record(forID id: String) -> InstalledPluginRecord? {
         plugins.first { $0.id == id }
+    }
+
+    /// Look up a record by ID first, falling back to bundle name.
+    func record(forID id: String, orBundleName bundleName: String) -> InstalledPluginRecord? {
+        record(forID: id) ?? record(forBundleName: bundleName)
     }
 
     // MARK: - Persistence
