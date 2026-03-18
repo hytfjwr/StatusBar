@@ -59,6 +59,26 @@ final class AppleMenuWidget: StatusBarWidget {
 struct AppleMenuPopupContent: View {
     let dismiss: () -> Void
 
+    @State private var confirmAction: SystemAction?
+
+    private enum SystemAction: String, Identifiable {
+        case lockScreen = "Lock Screen"
+        case sleep = "Sleep"
+        case restart = "Restart"
+        case shutdown = "Shutdown"
+
+        var id: String { rawValue }
+
+        var command: String {
+            switch self {
+            case .lockScreen: "pmset displaysleepnow"
+            case .sleep: "osascript -e 'tell application \"System Events\" to sleep'"
+            case .restart: "osascript -e 'tell application \"System Events\" to restart'"
+            case .shutdown: "osascript -e 'tell application \"System Events\" to shut down'"
+            }
+        }
+    }
+
     var body: some View {
         VStack(spacing: 0) {
             // System section
@@ -69,21 +89,21 @@ struct AppleMenuPopupContent: View {
                     PreferencesWindow.shared.show()
                     dismiss()
                 }
-                PopupRow(icon: "lock.display", label: "Lock Screen") {
-                    Task { try? await ShellCommand.run("pmset displaysleepnow") }
+                PopupRow(icon: "gearshape.2", label: "System Settings") {
+                    NSWorkspace.shared.open(URL(string: "x-apple.systempreferences:")!)
                     dismiss()
+                }
+                PopupRow(icon: "lock.display", label: "Lock Screen") {
+                    confirmAction = .lockScreen
                 }
                 PopupRow(icon: "moon.fill", label: "Sleep") {
-                    Task { try? await ShellCommand.run("osascript -e 'tell application \"System Events\" to sleep'") }
-                    dismiss()
+                    confirmAction = .sleep
                 }
                 PopupRow(icon: "arrow.triangle.2.circlepath", label: "Restart") {
-                    Task { try? await ShellCommand.run("osascript -e 'tell application \"System Events\" to restart'") }
-                    dismiss()
+                    confirmAction = .restart
                 }
                 PopupRow(icon: "power", iconColor: Theme.red, label: "Shutdown") {
-                    Task { try? await ShellCommand.run("osascript -e 'tell application \"System Events\" to shut down'") }
-                    dismiss()
+                    confirmAction = .shutdown
                 }
             }
             .padding(.horizontal, 6)
@@ -112,5 +132,16 @@ struct AppleMenuPopupContent: View {
             .padding(.bottom, 8)
         }
         .frame(width: 230)
+        .alert(item: $confirmAction) { action in
+            Alert(
+                title: Text(action.rawValue),
+                message: Text("Are you sure you want to \(action.rawValue.lowercased())?"),
+                primaryButton: .destructive(Text(action.rawValue)) {
+                    Task { try? await ShellCommand.run(action.command) }
+                    dismiss()
+                },
+                secondaryButton: .cancel()
+            )
+        }
     }
 }
