@@ -147,6 +147,41 @@ final class GitHubPluginInstaller {
         try PluginStore.shared.remove(id: pluginID)
     }
 
+    // MARK: - Update Check
+
+    struct UpdateInfo: Sendable {
+        let pluginID: String
+        let currentVersion: String
+        let latestVersion: String
+        let githubURL: String
+    }
+
+    /// Check all installed plugins for available updates.
+    func checkForUpdates() async -> [UpdateInfo] {
+        var updates: [UpdateInfo] = []
+
+        for plugin in PluginStore.shared.plugins {
+            guard let url = plugin.githubURL else { continue }
+            do {
+                let (owner, repo) = try parseGitHubURL(url)
+                let release = try await fetchLatestRelease(owner: owner, repo: repo)
+                let latestVersion = release.tagName.trimmingCharacters(in: CharacterSet(charactersIn: "vV"))
+                if latestVersion != plugin.version {
+                    updates.append(UpdateInfo(
+                        pluginID: plugin.id,
+                        currentVersion: plugin.version,
+                        latestVersion: latestVersion,
+                        githubURL: url
+                    ))
+                }
+            } catch {
+                print("[GitHubPluginInstaller] Update check failed for \(plugin.name): \(error.localizedDescription)")
+            }
+        }
+
+        return updates
+    }
+
     // MARK: - Private
 
     private func parseGitHubURL(_ urlString: String) throws -> (owner: String, repo: String) {

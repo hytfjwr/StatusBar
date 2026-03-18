@@ -7,6 +7,9 @@ struct PluginsSection: View {
     @State private var installError: String?
     @State private var installSuccess: String?
     @State private var needsRestart = false
+    @State private var isCheckingUpdates = false
+    @State private var availableUpdates: [GitHubPluginInstaller.UpdateInfo] = []
+    @State private var updateCheckDone = false
 
     var store: PluginStore = .shared
 
@@ -15,7 +18,7 @@ struct PluginsSection: View {
             SectionHeader(title: "Plugins") {}
 
             // Installed plugins
-            GroupBox("Installed") {
+            GroupBox {
                 if store.plugins.isEmpty {
                     Text("No plugins installed.")
                         .foregroundStyle(.secondary)
@@ -30,6 +33,25 @@ struct PluginsSection: View {
                             }
                         }
                     }
+                }
+            } label: {
+                HStack {
+                    Text("Installed")
+                    Spacer()
+                    Button(action: checkForUpdates) {
+                        HStack(spacing: 4) {
+                            if isCheckingUpdates {
+                                ProgressView()
+                                    .controlSize(.small)
+                            } else {
+                                Image(systemName: "arrow.clockwise")
+                            }
+                            Text("Check for Updates")
+                        }
+                    }
+                    .buttonStyle(.borderless)
+                    .controlSize(.small)
+                    .disabled(isCheckingUpdates || store.plugins.isEmpty)
                 }
             }
 
@@ -116,6 +138,8 @@ struct PluginsSection: View {
 
     @ViewBuilder
     private func pluginRow(_ plugin: InstalledPluginRecord) -> some View {
+        let update = availableUpdates.first { $0.pluginID == plugin.id }
+
         HStack {
             VStack(alignment: .leading, spacing: 2) {
                 Text(plugin.name)
@@ -124,6 +148,11 @@ struct PluginsSection: View {
                     Text("v\(plugin.version)")
                         .font(.caption)
                         .foregroundStyle(.secondary)
+                    if let update {
+                        Text("v\(update.latestVersion) available")
+                            .font(.caption)
+                            .foregroundStyle(.orange)
+                    }
                     if let url = plugin.githubURL {
                         Text(url)
                             .font(.caption)
@@ -135,6 +164,14 @@ struct PluginsSection: View {
             }
 
             Spacer()
+
+            if let update {
+                Button("Update") {
+                    updatePlugin(update)
+                }
+                .controlSize(.small)
+                .disabled(isInstalling)
+            }
 
             Toggle("", isOn: Binding(
                 get: { plugin.enabled },
@@ -156,6 +193,38 @@ struct PluginsSection: View {
         }
         .padding(.vertical, 6)
         .padding(.horizontal, 4)
+    }
+
+    // MARK: - Update Check
+
+    private func checkForUpdates() {
+        isCheckingUpdates = true
+        availableUpdates = []
+        updateCheckDone = false
+
+        Task {
+            availableUpdates = await GitHubPluginInstaller.shared.checkForUpdates()
+            isCheckingUpdates = false
+            updateCheckDone = true
+        }
+    }
+
+    private func updatePlugin(_ update: GitHubPluginInstaller.UpdateInfo) {
+        isInstalling = true
+        installError = nil
+        installSuccess = nil
+
+        Task {
+            do {
+                let record = try await GitHubPluginInstaller.shared.install(from: update.githubURL)
+                availableUpdates.removeAll { $0.pluginID == update.pluginID }
+                installSuccess = "\(record.name) updated to v\(record.version)."
+                needsRestart = true
+            } catch {
+                installError = "Update failed: \(error.localizedDescription)"
+            }
+            isInstalling = false
+        }
     }
 
     // MARK: - Actions
