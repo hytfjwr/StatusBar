@@ -29,7 +29,12 @@ final class FocusTimerWidget: StatusBarWidget {
     private var customMinutes: Double = 25
 
     func start() {
-        timer = Timer.publish(every: 1, on: .main, in: .common)
+        // Timer only runs when a focus session is active
+    }
+
+    private func startTickTimer() {
+        timer?.cancel()
+        timer = Timer.publish(every: 1, tolerance: 0.1, on: .main, in: .common)
             .autoconnect()
             .sink { [weak self] _ in self?.update() }
     }
@@ -43,11 +48,14 @@ final class FocusTimerWidget: StatusBarWidget {
         state = .running(mode: mode, endTime: Date().addingTimeInterval(duration))
         bounceCounter += 1
         NSSound(named: "Tink")?.play()
+        startTickTimer()
         update()
         refreshPopup()
     }
 
     func stopTimer() {
+        timer?.cancel()
+        timer = nil
         state = .idle
         displayText = "--:--"
         displayColor = Theme.secondary
@@ -106,6 +114,8 @@ final class FocusTimerWidget: StatusBarWidget {
 
         case let .completed(at):
             if Date().timeIntervalSince(at) >= 3 {
+                timer?.cancel()
+                timer = nil
                 state = .idle
                 displayText = "--:--"
                 displayColor = Theme.secondary

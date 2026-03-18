@@ -10,6 +10,7 @@ final class MicCameraService: @unchecked Sendable {
     private let queue = DispatchQueue(label: "com.statusbar.miccamera")
     private var inputDeviceIDs: [AudioDeviceID] = []
     private var listenerBlocks: [AudioDeviceID: AudioObjectPropertyListenerBlock] = [:]
+    private var deviceListBlock: AudioObjectPropertyListenerBlock?
 
     init(onChange: @escaping @Sendable (State) -> Void) {
         self.onChange = onChange
@@ -18,6 +19,7 @@ final class MicCameraService: @unchecked Sendable {
     func start() {
         queue.async { [self] in
             setupMicListeners()
+            installDeviceListListener()
             let state = computeState()
             onChange(state)
         }
@@ -25,6 +27,7 @@ final class MicCameraService: @unchecked Sendable {
 
     func stop() {
         queue.sync {
+            removeDeviceListListener()
             removeMicListeners()
         }
     }
@@ -62,6 +65,40 @@ final class MicCameraService: @unchecked Sendable {
         }
         listenerBlocks = [:]
         inputDeviceIDs = []
+    }
+
+    /// Listen for device additions/removals (e.g. USB mic plug/unplug).
+    /// Rebuilds per-device listeners when the device list changes.
+    private func installDeviceListListener() {
+        var devicesAddress = AudioObjectPropertyAddress(
+            mSelector: kAudioHardwarePropertyDevices,
+            mScope: kAudioObjectPropertyScopeGlobal,
+            mElement: kAudioObjectPropertyElementMain
+        )
+        let block: AudioObjectPropertyListenerBlock = { [weak self] _, _ in
+            guard let self else { return }
+            self.removeMicListeners()
+            self.setupMicListeners()
+            let state = self.computeState()
+            self.onChange(state)
+        }
+        deviceListBlock = block
+        AudioObjectAddPropertyListenerBlock(
+            AudioObjectID(kAudioObjectSystemObject), &devicesAddress, queue, block
+        )
+    }
+
+    private func removeDeviceListListener() {
+        guard let block = deviceListBlock else { return }
+        var devicesAddress = AudioObjectPropertyAddress(
+            mSelector: kAudioHardwarePropertyDevices,
+            mScope: kAudioObjectPropertyScopeGlobal,
+            mElement: kAudioObjectPropertyElementMain
+        )
+        AudioObjectRemovePropertyListenerBlock(
+            AudioObjectID(kAudioObjectSystemObject), &devicesAddress, queue, block
+        )
+        deviceListBlock = nil
     }
 
     private func allInputDeviceIDs() -> [AudioDeviceID] {

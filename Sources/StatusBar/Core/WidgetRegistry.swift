@@ -77,8 +77,11 @@ final class WidgetRegistry: WidgetRegistryProtocol {
     // MARK: - Lifecycle
 
     func startAll() {
-        for widget in allWidgets.values {
-            widget.start()
+        let visibleIDs = Set(layout.filter(\.isVisible).map(\.id))
+        for (id, widget) in allWidgets {
+            if visibleIDs.contains(id) {
+                widget.start()
+            }
         }
     }
 

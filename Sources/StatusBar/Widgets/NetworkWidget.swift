@@ -66,7 +66,7 @@ final class NetworkWidget: StatusBarWidget {
     private func restartTimer() {
         timer?.cancel()
         let interval = NetworkSettings.shared.updateInterval
-        timer = Timer.publish(every: interval, on: .main, in: .common)
+        timer = Timer.publish(every: interval, tolerance: interval * 0.1, on: .main, in: .common)
             .autoconnect()
             .sink { [weak self] _ in self?.update() }
     }

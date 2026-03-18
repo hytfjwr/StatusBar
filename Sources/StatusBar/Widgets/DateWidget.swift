@@ -48,12 +48,12 @@ final class DateWidget: StatusBarWidget {
     private let formatter = DateFormatter()
 
     private var popupPanel: PopupPanel?
-    private let calendarService = CalendarService()
+    private var calendarService: CalendarService?
 
     func start() {
         applyFormat()
         updateDate()
-        timer = Timer.publish(every: 60, on: .main, in: .common)
+        timer = Timer.publish(every: 60, tolerance: 6, on: .main, in: .common)
             .autoconnect()
             .sink { [weak self] _ in self?.updateDate() }
         observeSettings()
@@ -115,10 +115,13 @@ final class DateWidget: StatusBarWidget {
         if popupPanel == nil {
             popupPanel = PopupPanel(contentRect: NSRect(x: 0, y: 0, width: 300, height: 400))
         }
+        if calendarService == nil {
+            calendarService = CalendarService()
+        }
 
         guard let (barFrame, screen) = PopupPanel.barTriggerFrame(width: 120) else { return }
 
-        let content = CalendarPopupContent(calendarService: calendarService)
+        let content = CalendarPopupContent(calendarService: calendarService!)
         popupPanel?.showPopup(relativeTo: barFrame, on: screen, content: content)
     }
 }
