@@ -2,27 +2,27 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
-    <key>CFBundleIdentifier</key>
-    <string>io.github.hytfjwr.StatusBar</string>
-    <key>CFBundleName</key>
-    <string>StatusBar</string>
-    <key>CFBundleShortVersionString</key>
-    <string>1.0.0</string>
-    <key>CFBundleVersion</key>
-    <string>1</string>
-    <key>CFBundleExecutable</key>
-    <string>StatusBar</string>
-    <key>CFBundlePackageType</key>
-    <string>APPL</string>
-    <key>LSUIElement</key>
-    <true/>
-    <key>NSAppleEventsUsageDescription</key>
-    <string>StatusBar needs Apple Events access to control media playback and system functions.</string>
-    <key>NSCalendarsFullAccessUsageDescription</key>
-    <string>StatusBar needs calendar access to display your upcoming events.</string>
-    <key>NSMicrophoneUsageDescription</key>
-    <string>StatusBar monitors microphone state to show an active indicator.</string>
-    <key>NSBluetoothAlwaysUsageDescription</key>
-    <string>StatusBar monitors Bluetooth connections to display device status.</string>
+	<key>CFBundleExecutable</key>
+	<string>StatusBar</string>
+	<key>CFBundleIdentifier</key>
+	<string>io.github.hytfjwr.StatusBar</string>
+	<key>CFBundleName</key>
+	<string>StatusBar</string>
+	<key>CFBundlePackageType</key>
+	<string>APPL</string>
+	<key>CFBundleShortVersionString</key>
+	<string>0.2.0</string>
+	<key>CFBundleVersion</key>
+	<string>0.2.0</string>
+	<key>LSUIElement</key>
+	<true/>
+	<key>NSAppleEventsUsageDescription</key>
+	<string>StatusBar needs Apple Events access to control media playback and system functions.</string>
+	<key>NSBluetoothAlwaysUsageDescription</key>
+	<string>StatusBar monitors Bluetooth connections to display device status.</string>
+	<key>NSCalendarsFullAccessUsageDescription</key>
+	<string>StatusBar needs calendar access to display your upcoming events.</string>
+	<key>NSMicrophoneUsageDescription</key>
+	<string>StatusBar monitors microphone state to show an active indicator.</string>
 </dict>
 </plist>
