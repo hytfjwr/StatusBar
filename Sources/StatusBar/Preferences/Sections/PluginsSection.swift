@@ -10,6 +10,9 @@ struct PluginsSection: View {
     @State private var isCheckingUpdates = false
     @State private var availableUpdates: [GitHubPluginInstaller.UpdateInfo] = []
     @State private var updateCheckDone = false
+    @State private var devPath: String = ""
+    @State private var devPlugins: [(id: String, name: String, path: String)] = []
+    @State private var devError: String?
 
     var store: PluginStore = .shared
 
@@ -89,6 +92,59 @@ struct PluginsSection: View {
                     Label(
                         "Plugins run with full app permissions. Only install from trusted sources.",
                         systemImage: "exclamationmark.shield"
+                    )
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                }
+                .padding(.vertical, 4)
+            }
+
+            // Development
+            GroupBox("Development") {
+                VStack(alignment: .leading, spacing: 12) {
+                    HStack {
+                        TextField("Path to .statusplugin bundle", text: $devPath)
+                            .textFieldStyle(.roundedBorder)
+
+                        Button("Browse...") {
+                            browseForPlugin()
+                        }
+
+                        Button("Load") {
+                            loadDevPlugin()
+                        }
+                        .disabled(devPath.isEmpty)
+                    }
+
+                    if let devError {
+                        Label(devError, systemImage: "exclamationmark.triangle.fill")
+                            .foregroundStyle(.red)
+                            .font(.caption)
+                    }
+
+                    if !devPlugins.isEmpty {
+                        VStack(spacing: 0) {
+                            ForEach(devPlugins, id: \.id) { plugin in
+                                HStack {
+                                    VStack(alignment: .leading, spacing: 2) {
+                                        Text(plugin.name)
+                                            .fontWeight(.medium)
+                                        Text(plugin.path)
+                                            .font(.caption)
+                                            .foregroundStyle(.tertiary)
+                                            .lineLimit(1)
+                                            .truncationMode(.middle)
+                                    }
+                                    Spacer()
+                                }
+                                .padding(.vertical, 4)
+                            }
+                        }
+                    }
+
+                    Label(
+                        "Load plugins directly from a build directory for development. Use `make bundle` then point to the .statusplugin output.",
+                        systemImage: "hammer"
                     )
                     .font(.caption)
                     .foregroundStyle(.secondary)
@@ -334,6 +390,47 @@ struct PluginsSection: View {
             needsRestart = true
         } catch {
             installError = "Failed to uninstall: \(error.localizedDescription)"
+        }
+    }
+
+    // MARK: - Dev Mode
+
+    private func browseForPlugin() {
+        let panel = NSOpenPanel()
+        panel.canChooseDirectories = true
+        panel.canChooseFiles = false
+        panel.allowsMultipleSelection = false
+        panel.message = "Select a .statusplugin bundle"
+
+        if panel.runModal() == .OK, let url = panel.url {
+            devPath = url.path
+        }
+    }
+
+    private func loadDevPlugin() {
+        guard !devPath.isEmpty else { return }
+        devError = nil
+
+        let bundleURL = URL(fileURLWithPath: devPath)
+        let registry = WidgetRegistry.shared
+        let existingIDs = Set(registry.layout.map(\.id))
+
+        do {
+            let manifest = try DylibPluginLoader.shared.loadDev(
+                bundleURL: bundleURL, into: registry
+            )
+            registry.finalizeRegistration()
+
+            // Start new widgets
+            let allWidgets = registry.leftWidgets + registry.centerWidgets + registry.rightWidgets
+            for widget in allWidgets where !existingIDs.contains(widget.id) {
+                widget.start()
+            }
+
+            devPlugins.append((id: manifest.id, name: manifest.name, path: devPath))
+            devPath = ""
+        } catch {
+            devError = error.localizedDescription
         }
     }
 

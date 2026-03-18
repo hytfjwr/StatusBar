@@ -56,6 +56,9 @@ final class DylibPluginLoader {
     /// Retained plugin instances keyed by plugin id.
     private var loadedPlugins: [String: any StatusBarPlugin] = [:]
 
+    /// Dev-loaded plugin IDs, tracked separately from installed plugins.
+    private var devPluginIDs: Set<String> = []
+
     /// Results from the most recent loadAll call.
     private(set) var loadResults: [PluginLoadResult] = []
 
@@ -178,11 +181,68 @@ final class DylibPluginLoader {
         return manifest
     }
 
+    // MARK: - Dev Load
+
+    /// Load a plugin in development mode (skips version compatibility checks).
+    @discardableResult
+    func loadDev(bundleURL: URL, into registry: WidgetRegistry) throws -> DylibPluginManifest {
+        let manifestURL = bundleURL.appendingPathComponent("manifest.json")
+        let manifest = try readManifest(at: manifestURL)
+
+        // Skip version compatibility check for dev mode
+
+        // Find the dylib
+        let dylibURL = findDylib(in: bundleURL, manifest: manifest)
+        guard let dylibURL, FileManager.default.fileExists(atPath: dylibURL.path) else {
+            throw PluginLoadError.dylibNotFound(bundleURL)
+        }
+
+        // dlopen
+        guard let handle = dlopen(dylibURL.path, RTLD_NOW | RTLD_LOCAL) else {
+            let errorMessage = String(cString: dlerror())
+            throw PluginLoadError.dlopenFailed(errorMessage)
+        }
+
+        // dlsym for the factory function
+        let symbolName = manifest.entrySymbol
+        guard let sym = dlsym(handle, symbolName) else {
+            dlclose(handle)
+            throw PluginLoadError.symbolNotFound(symbolName)
+        }
+
+        // Cast to C function pointer and call
+        typealias PluginFactory = @convention(c) () -> UnsafeMutableRawPointer
+        let factory = unsafeBitCast(sym, to: PluginFactory.self)
+        let rawPtr = factory()
+
+        // Extract PluginBox
+        let anyObject = Unmanaged<AnyObject>.fromOpaque(rawPtr).takeRetainedValue()
+        guard let box = anyObject as? PluginBox else {
+            dlclose(handle)
+            throw PluginLoadError.pluginBoxCastFailed
+        }
+
+        let plugin = box.factory()
+        registry.registerPlugin(plugin)
+
+        loadedHandles[manifest.id] = handle
+        loadedPlugins[manifest.id] = plugin
+        devPluginIDs.insert(manifest.id)
+
+        print("[DylibPluginLoader] Dev-loaded plugin: \(manifest.name) v\(manifest.version)")
+        return manifest
+    }
+
     // MARK: - Query
 
     /// Whether a plugin is currently loaded in memory.
     func isLoaded(_ pluginID: String) -> Bool {
         loadedPlugins[pluginID] != nil
+    }
+
+    /// Whether a plugin was loaded in dev mode.
+    func isDevLoaded(_ pluginID: String) -> Bool {
+        devPluginIDs.contains(pluginID)
     }
 
     /// Widget IDs belonging to a loaded plugin.
