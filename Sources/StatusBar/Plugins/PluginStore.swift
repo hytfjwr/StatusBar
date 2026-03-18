@@ -129,5 +129,10 @@ final class PluginStore {
         encoder.dateEncodingStrategy = .iso8601
         let data = try encoder.encode(PluginStoreData(plugins: plugins))
         try data.write(to: registryURL, options: .atomic)
+        // Restrict file permissions to owner-only
+        try FileManager.default.setAttributes(
+            [.posixPermissions: 0o600],
+            ofItemAtPath: registryURL.path
+        )
     }
 }
