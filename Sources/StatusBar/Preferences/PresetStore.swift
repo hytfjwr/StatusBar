@@ -46,15 +46,143 @@ struct PresetSnapshot: Codable, Sendable {
     var cpuGraphHex: UInt32
     var memoryGraphHex: UInt32
 
+    // Notifications
+    var notifyBatteryLow: Bool
+    var batteryThreshold: Double
+    var notifyCPUHigh: Bool
+    var cpuThreshold: Double
+    var cpuSustainedDuration: Double
+    var notifyMemoryHigh: Bool
+    var memoryThreshold: Double
+    var memorySustainedDuration: Double
+
     // Widget Layout
     var widgetLayout: [WidgetLayoutEntry]
+
+    // Per-widget Settings
+    var widgetSettings: [String: [String: ConfigValue]]
+
+    // swiftlint:disable function_body_length
+
+    // MARK: - Memberwise Init (required because custom Decodable init suppresses synthesis)
+
+    init(
+        barHeight: Double, barCornerRadius: Double, barMargin: Double, barYOffset: Double,
+        widgetSpacing: Double, widgetPaddingH: Double,
+        accentHex: UInt32, textPrimaryOpacity: Double, textSecondaryOpacity: Double,
+        textTertiaryOpacity: Double,
+        greenHex: UInt32, yellowHex: UInt32, redHex: UInt32, cyanHex: UInt32, purpleHex: UInt32,
+        barTintHex: UInt32, barTintOpacity: Double, shadowEnabled: Bool,
+        popupCornerRadius: Double, popupPadding: Double,
+        iconFontSize: Double, labelFontSize: Double, smallFontSize: Double, monoFontSize: Double,
+        graphWidth: Double, graphHeight: Double, graphDataPoints: Int,
+        cpuGraphHex: UInt32, memoryGraphHex: UInt32,
+        notifyBatteryLow: Bool, batteryThreshold: Double,
+        notifyCPUHigh: Bool, cpuThreshold: Double, cpuSustainedDuration: Double,
+        notifyMemoryHigh: Bool, memoryThreshold: Double, memorySustainedDuration: Double,
+        widgetLayout: [WidgetLayoutEntry],
+        widgetSettings: [String: [String: ConfigValue]]
+    ) {
+        self.barHeight = barHeight
+        self.barCornerRadius = barCornerRadius
+        self.barMargin = barMargin
+        self.barYOffset = barYOffset
+        self.widgetSpacing = widgetSpacing
+        self.widgetPaddingH = widgetPaddingH
+        self.accentHex = accentHex
+        self.textPrimaryOpacity = textPrimaryOpacity
+        self.textSecondaryOpacity = textSecondaryOpacity
+        self.textTertiaryOpacity = textTertiaryOpacity
+        self.greenHex = greenHex
+        self.yellowHex = yellowHex
+        self.redHex = redHex
+        self.cyanHex = cyanHex
+        self.purpleHex = purpleHex
+        self.barTintHex = barTintHex
+        self.barTintOpacity = barTintOpacity
+        self.shadowEnabled = shadowEnabled
+        self.popupCornerRadius = popupCornerRadius
+        self.popupPadding = popupPadding
+        self.iconFontSize = iconFontSize
+        self.labelFontSize = labelFontSize
+        self.smallFontSize = smallFontSize
+        self.monoFontSize = monoFontSize
+        self.graphWidth = graphWidth
+        self.graphHeight = graphHeight
+        self.graphDataPoints = graphDataPoints
+        self.cpuGraphHex = cpuGraphHex
+        self.memoryGraphHex = memoryGraphHex
+        self.notifyBatteryLow = notifyBatteryLow
+        self.batteryThreshold = batteryThreshold
+        self.notifyCPUHigh = notifyCPUHigh
+        self.cpuThreshold = cpuThreshold
+        self.cpuSustainedDuration = cpuSustainedDuration
+        self.notifyMemoryHigh = notifyMemoryHigh
+        self.memoryThreshold = memoryThreshold
+        self.memorySustainedDuration = memorySustainedDuration
+        self.widgetLayout = widgetLayout
+        self.widgetSettings = widgetSettings
+    }
+
+    // MARK: - Backward-compatible Decoding
+
+    init(from decoder: any Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        barHeight = try c.decode(Double.self, forKey: .barHeight)
+        barCornerRadius = try c.decode(Double.self, forKey: .barCornerRadius)
+        barMargin = try c.decode(Double.self, forKey: .barMargin)
+        barYOffset = try c.decode(Double.self, forKey: .barYOffset)
+        widgetSpacing = try c.decode(Double.self, forKey: .widgetSpacing)
+        widgetPaddingH = try c.decode(Double.self, forKey: .widgetPaddingH)
+        accentHex = try c.decode(UInt32.self, forKey: .accentHex)
+        textPrimaryOpacity = try c.decode(Double.self, forKey: .textPrimaryOpacity)
+        textSecondaryOpacity = try c.decode(Double.self, forKey: .textSecondaryOpacity)
+        textTertiaryOpacity = try c.decode(Double.self, forKey: .textTertiaryOpacity)
+        greenHex = try c.decode(UInt32.self, forKey: .greenHex)
+        yellowHex = try c.decode(UInt32.self, forKey: .yellowHex)
+        redHex = try c.decode(UInt32.self, forKey: .redHex)
+        cyanHex = try c.decode(UInt32.self, forKey: .cyanHex)
+        purpleHex = try c.decode(UInt32.self, forKey: .purpleHex)
+        barTintHex = try c.decode(UInt32.self, forKey: .barTintHex)
+        barTintOpacity = try c.decode(Double.self, forKey: .barTintOpacity)
+        shadowEnabled = try c.decode(Bool.self, forKey: .shadowEnabled)
+        popupCornerRadius = try c.decode(Double.self, forKey: .popupCornerRadius)
+        popupPadding = try c.decode(Double.self, forKey: .popupPadding)
+        iconFontSize = try c.decode(Double.self, forKey: .iconFontSize)
+        labelFontSize = try c.decode(Double.self, forKey: .labelFontSize)
+        smallFontSize = try c.decode(Double.self, forKey: .smallFontSize)
+        monoFontSize = try c.decode(Double.self, forKey: .monoFontSize)
+        graphWidth = try c.decode(Double.self, forKey: .graphWidth)
+        graphHeight = try c.decode(Double.self, forKey: .graphHeight)
+        graphDataPoints = try c.decode(Int.self, forKey: .graphDataPoints)
+        cpuGraphHex = try c.decode(UInt32.self, forKey: .cpuGraphHex)
+        memoryGraphHex = try c.decode(UInt32.self, forKey: .memoryGraphHex)
+        widgetLayout = try c.decode([WidgetLayoutEntry].self, forKey: .widgetLayout)
+
+        // New fields — fall back to defaults when decoding older presets
+        let d = PreferencesModel.Defaults.self
+        notifyBatteryLow = try c.decodeIfPresent(Bool.self, forKey: .notifyBatteryLow) ?? d.notifyBatteryLow
+        batteryThreshold = try c.decodeIfPresent(Double.self, forKey: .batteryThreshold) ?? d.batteryThreshold
+        notifyCPUHigh = try c.decodeIfPresent(Bool.self, forKey: .notifyCPUHigh) ?? d.notifyCPUHigh
+        cpuThreshold = try c.decodeIfPresent(Double.self, forKey: .cpuThreshold) ?? d.cpuThreshold
+        cpuSustainedDuration = try c.decodeIfPresent(Double.self, forKey: .cpuSustainedDuration) ?? d.cpuSustainedDuration
+        notifyMemoryHigh = try c.decodeIfPresent(Bool.self, forKey: .notifyMemoryHigh) ?? d.notifyMemoryHigh
+        memoryThreshold = try c.decodeIfPresent(Double.self, forKey: .memoryThreshold) ?? d.memoryThreshold
+        memorySustainedDuration = try c.decodeIfPresent(Double.self, forKey: .memorySustainedDuration) ?? d.memorySustainedDuration
+        widgetSettings = try c.decodeIfPresent([String: [String: ConfigValue]].self, forKey: .widgetSettings) ?? [:]
+    }
+
+    // swiftlint:enable function_body_length
 }
 
 extension PresetSnapshot {
-    /// Capture current live state from PreferencesModel + WidgetRegistry.
+    /// Capture current live state from PreferencesModel + WidgetRegistry + WidgetConfigRegistry.
     @MainActor
     static func captureCurrentState() -> PresetSnapshot {
-        PreferencesModel.shared.snapshot(layout: WidgetRegistry.shared.layout)
+        PreferencesModel.shared.snapshot(
+            layout: WidgetRegistry.shared.layout,
+            widgetSettings: WidgetConfigRegistry.shared.exportAll()
+        )
     }
 }
 
@@ -93,7 +221,16 @@ extension PresetSnapshot {
             graphDataPoints: d.graphDataPoints,
             cpuGraphHex: d.cpuGraphHex,
             memoryGraphHex: d.memoryGraphHex,
-            widgetLayout: []  // empty = reset to registry default
+            notifyBatteryLow: d.notifyBatteryLow,
+            batteryThreshold: d.batteryThreshold,
+            notifyCPUHigh: d.notifyCPUHigh,
+            cpuThreshold: d.cpuThreshold,
+            cpuSustainedDuration: d.cpuSustainedDuration,
+            notifyMemoryHigh: d.notifyMemoryHigh,
+            memoryThreshold: d.memoryThreshold,
+            memorySustainedDuration: d.memorySustainedDuration,
+            widgetLayout: [],  // empty = reset to registry default
+            widgetSettings: [:]  // empty = keep current widget settings
         )
     }
 
@@ -245,6 +382,10 @@ final class PresetStore {
             WidgetRegistry.shared.resetLayout()
         } else {
             WidgetRegistry.shared.applyLayout(snapshot.widgetLayout)
+        }
+        if !snapshot.widgetSettings.isEmpty {
+            WidgetConfigRegistry.shared.setLoadedConfig(snapshot.widgetSettings)
+            WidgetConfigRegistry.shared.applyToAll()
         }
     }
 
