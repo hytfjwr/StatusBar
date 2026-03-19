@@ -1,4 +1,3 @@
-// swiftlint:disable file_length
 import StatusBarKit
 import SwiftUI
 
@@ -491,12 +490,7 @@ struct PluginsSection: View {
     }
 
     private func restartApp() {
-        // Use bundleURL.path directly instead of absoluteString (which includes file:// scheme)
-        let task = Process()
-        task.executableURL = URL(fileURLWithPath: "/usr/bin/open")
-        task.arguments = ["-n", Bundle.main.bundleURL.path]
-        try? task.run()
-        NSApplication.shared.terminate(nil)
+        AppUpdateService.relaunchApp()
     }
 }
 
