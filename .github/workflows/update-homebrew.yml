@@ -44,7 +44,14 @@ jobs:
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git add Formula/statusbar.rb
           git commit -m "statusbar ${TAG}"
-          git push origin "$BRANCH"
+          git push --force-with-lease origin "$BRANCH"
+
+          # Skip PR creation if one already exists for this branch
+          EXISTING=$(gh pr list --repo hytfjwr/homebrew-statusbar --head "$BRANCH" --json number --jq '.[0].number')
+          if [ -n "$EXISTING" ]; then
+            echo "PR #${EXISTING} already exists for ${BRANCH}, skipping"
+            exit 0
+          fi
 
           gh pr create \
             --repo hytfjwr/homebrew-statusbar \
