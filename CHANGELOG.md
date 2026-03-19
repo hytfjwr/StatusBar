@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.3.3] - 2026-03-19
+
+- Bump github.com/jpsim/yams from 5.4.0 to 6.2.1 (#18)
+- fix: prevent duplicate app instances on login (#13)
+- fix: limit release notes to changes since previous tag
+- Bump github.com/hytfjwr/statusbarkit from 1.0.0 to 1.0.1 (#19)
+- Bump actions/checkout from 4 to 6 (#17)
+- ci: add Dependabot configuration (#16)
+
 ## [0.3.2] - 2026-03-19
 
 - fix: resolve awk newline-in-string error in CHANGELOG generation (#14)
