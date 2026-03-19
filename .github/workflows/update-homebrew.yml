@@ -48,6 +48,7 @@ jobs:
 
           gh pr create \
             --repo hytfjwr/homebrew-statusbar \
+            --head "$BRANCH" \
             --title "statusbar ${TAG}" \
             --body "$(cat <<EOF
           Update \`statusbar\` formula to ${TAG}.
