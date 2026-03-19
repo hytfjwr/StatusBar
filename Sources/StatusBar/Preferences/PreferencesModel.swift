@@ -182,6 +182,10 @@ final class PreferencesModel: ThemeProvider {
         didSet { scheduleFlush(); bump() }
     }
 
+    var hideInFullscreen: Bool {
+        didSet { scheduleFlush(); bump() }
+    }
+
     // MARK: - Notifications
 
     var notifyBatteryLow: Bool {
@@ -330,6 +334,7 @@ final class PreferencesModel: ThemeProvider {
         autoHideDwellTime = d.autoHideDwellTime
         autoHideFadeDuration = d.autoHideFadeDuration
         launchAtLogin = d.launchAtLogin
+        hideInFullscreen = d.hideInFullscreen
 
         notifyBatteryLow = d.notifyBatteryLow
         batteryThreshold = d.batteryThreshold
@@ -403,6 +408,7 @@ final class PreferencesModel: ThemeProvider {
             autoHideDwellTime = d.autoHideDwellTime
             autoHideFadeDuration = d.autoHideFadeDuration
             launchAtLogin = d.launchAtLogin
+            hideInFullscreen = d.hideInFullscreen
         }
     }
 
@@ -581,6 +587,7 @@ extension PreferencesModel {
         static let autoHideDwellTime: Double = 0.3
         static let autoHideFadeDuration: Double = 0.2
         static let launchAtLogin: Bool = false
+        static let hideInFullscreen: Bool = true
 
         // Notifications
         static let notifyBatteryLow: Bool = false

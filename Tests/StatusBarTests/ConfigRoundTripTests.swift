@@ -24,6 +24,7 @@ struct ConfigRoundTripTests {
         #expect(decoded.global.typography.iconFontSize == original.global.typography.iconFontSize)
         #expect(decoded.global.graphs.dataPoints == original.global.graphs.dataPoints)
         #expect(decoded.global.behavior.autoHide == original.global.behavior.autoHide)
+        #expect(decoded.global.behavior.hideInFullscreen == original.global.behavior.hideInFullscreen)
         #expect(decoded.global.notifications.batteryLow == original.global.notifications.batteryLow)
     }
 
@@ -80,6 +81,25 @@ struct ConfigRoundTripTests {
         #expect(decoded.cpuHigh == true)
         #expect(decoded.cpuThreshold == 90.0)
         #expect(decoded.cpuSustainedDuration == 30.0)
+    }
+
+    @Test("BehaviorConfig preserves all fields through YAML")
+    func behaviorConfigRoundTrip() throws {
+        var behavior = BehaviorConfig()
+        behavior.autoHide = true
+        behavior.autoHideDwellTime = 0.5
+        behavior.autoHideFadeDuration = 0.3
+        behavior.launchAtLogin = true
+        behavior.hideInFullscreen = false
+
+        let yaml = try YAMLEncoder().encode(behavior)
+        let decoded = try YAMLDecoder().decode(BehaviorConfig.self, from: yaml)
+
+        #expect(decoded.autoHide == true)
+        #expect(decoded.autoHideDwellTime == 0.5)
+        #expect(decoded.autoHideFadeDuration == 0.3)
+        #expect(decoded.launchAtLogin == true)
+        #expect(decoded.hideInFullscreen == false)
     }
 
     @Test("Empty widget list round-trips correctly")

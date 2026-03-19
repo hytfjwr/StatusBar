@@ -35,6 +35,13 @@ struct BehaviorSection: View {
                 .padding(8)
             }
 
+            GroupBox("Fullscreen") {
+                VStack(spacing: 10) {
+                    ToggleRow(label: "Hide in Fullscreen", value: $model.hideInFullscreen)
+                }
+                .padding(8)
+            }
+
             GroupBox("Launch") {
                 VStack(spacing: 10) {
                     ToggleRow(label: "Launch at Login", value: $model.launchAtLogin)
