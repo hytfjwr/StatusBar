@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.3.4] - 2026-03-19
+
+- fix: app not relaunching after update (#21)
+- ci: add reviewer to release PR
+
 ## [0.3.3] - 2026-03-19
 
 - Bump github.com/jpsim/yams from 5.4.0 to 6.2.1 (#18)
