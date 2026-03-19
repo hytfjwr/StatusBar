@@ -2,6 +2,7 @@
 
 <img width="1803" height="51" alt="image" src="https://github.com/user-attachments/assets/17ff03fd-3c4f-4493-8d73-3fed147de346" />
 
+https://github.com/user-attachments/assets/ff474554-a8e3-4ccc-91ff-edb0f0bb1ed2
 
 > A Swift-native custom status bar for macOS, inspired by [sketchybar](https://github.com/FelixKratz/SketchyBar).
 
