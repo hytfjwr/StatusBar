@@ -53,6 +53,11 @@ struct BehaviorSection: View {
 
 enum LaunchAtLoginService {
     static func setEnabled(_ enabled: Bool) {
+        // Only register with SMAppService when running as a proper .app bundle.
+        // Development builds (.build/debug/StatusBar) should not register as login items.
+        guard Bundle.main.bundleURL.pathExtension == "app" else {
+            return
+        }
         do {
             if enabled {
                 try SMAppService.mainApp.register()
@@ -60,7 +65,7 @@ enum LaunchAtLoginService {
                 try SMAppService.mainApp.unregister()
             }
         } catch {
-            // SPM executables without a proper bundle may fail silently
+            // SMAppService may fail for unsigned or ad-hoc signed bundles
         }
     }
 }
