@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.3.5] - 2026-03-19
+
+- feat: hide status bar when fullscreen app is active (#23)
+- ci: trigger Homebrew update on release PR merge instead of release job
+- docs: add demo video to README
+
 ## [0.3.4] - 2026-03-19
 
 - fix: app not relaunching after update (#21)
