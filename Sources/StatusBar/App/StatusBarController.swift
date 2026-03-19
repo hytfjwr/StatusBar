@@ -11,6 +11,9 @@ final class StatusBarController {
     private var dwellTimer: Timer?
     private var isBarHidden = false
     private var rebuildTask: Task<Void, Never>?
+    private var spaceObserver: NSObjectProtocol?
+    private var appActivationObserver: NSObjectProtocol?
+    private var fullscreenHiddenIndices: Set<Int> = []
 
     func setup() {
         createBarWindows()
@@ -30,11 +33,13 @@ final class StatusBarController {
         observeShadowPreferences()
         observeTintPreferences()
         observeBehaviorPreferences()
+        observeFullscreenPreference()
     }
 
     private func createBarWindows() {
         barWindows.forEach { $0.orderOut(nil) }
         barWindows.removeAll()
+        fullscreenHiddenIndices.removeAll()
 
         for (index, screen) in NSScreen.screens.enumerated() {
             let window = BarWindow(screen: screen)
@@ -43,6 +48,8 @@ final class StatusBarController {
             window.orderFrontRegardless()
             barWindows.append(window)
         }
+
+        updateFullscreenVisibility()
     }
 
     private func handleScreenChange() {
@@ -182,6 +189,106 @@ final class StatusBarController {
         }
     }
 
+    // MARK: - Fullscreen Detection
+
+    private func observeFullscreenPreference() {
+        withObservationTracking {
+            _ = PreferencesModel.shared.hideInFullscreen
+        } onChange: { [weak self] in
+            Task { @MainActor in
+                self?.applyFullscreenState()
+                self?.observeFullscreenPreference()
+            }
+        }
+        applyFullscreenState()
+    }
+
+    private func applyFullscreenState() {
+        let enabled = PreferencesModel.shared.hideInFullscreen
+        if enabled, spaceObserver == nil {
+            installFullscreenObservers()
+            updateFullscreenVisibility()
+        } else if !enabled {
+            removeFullscreenObservers()
+            restoreFullscreenHiddenWindows()
+        }
+    }
+
+    private func installFullscreenObservers() {
+        removeFullscreenObservers()
+        let nc = NSWorkspace.shared.notificationCenter
+        spaceObserver = nc.addObserver(
+            forName: NSWorkspace.activeSpaceDidChangeNotification,
+            object: nil,
+            queue: .main
+        ) { [weak self] _ in
+            Task { @MainActor in
+                self?.updateFullscreenVisibility()
+            }
+        }
+        appActivationObserver = nc.addObserver(
+            forName: NSWorkspace.didActivateApplicationNotification,
+            object: nil,
+            queue: .main
+        ) { [weak self] _ in
+            Task { @MainActor in
+                self?.updateFullscreenVisibility()
+            }
+        }
+    }
+
+    private func removeFullscreenObservers() {
+        if let observer = spaceObserver {
+            NSWorkspace.shared.notificationCenter.removeObserver(observer)
+            spaceObserver = nil
+        }
+        if let observer = appActivationObserver {
+            NSWorkspace.shared.notificationCenter.removeObserver(observer)
+            appActivationObserver = nil
+        }
+    }
+
+    private func restoreFullscreenHiddenWindows() {
+        for index in fullscreenHiddenIndices {
+            guard index < barWindows.count else {
+                continue
+            }
+            showBarWindow(barWindows[index])
+        }
+        fullscreenHiddenIndices.removeAll()
+    }
+
+    private func updateFullscreenVisibility() {
+        guard PreferencesModel.shared.hideInFullscreen else {
+            return
+        }
+
+        let screens = NSScreen.screens
+        let fullscreenIndices = FullscreenDetector.fullscreenScreenIndices(for: screens)
+
+        for index in screens.indices {
+            guard index < barWindows.count else {
+                continue
+            }
+            let window = barWindows[index]
+
+            if fullscreenIndices.contains(index) {
+                if window.isVisible {
+                    window.orderOut(nil)
+                    fullscreenHiddenIndices.insert(index)
+                }
+            } else if fullscreenHiddenIndices.contains(index) {
+                fullscreenHiddenIndices.remove(index)
+                showBarWindow(window)
+            }
+        }
+    }
+
+    private func showBarWindow(_ window: BarWindow) {
+        window.orderFrontRegardless()
+        window.alphaValue = isBarHidden ? 0 : 1
+    }
+
     private func fadeBarWindows(hide: Bool) {
         let duration = PreferencesModel.shared.autoHideFadeDuration
         NSAnimationContext.runAnimationGroup { context in
@@ -205,6 +312,8 @@ final class StatusBarController {
         }
         dwellTimer?.invalidate()
         dwellTimer = nil
+        removeFullscreenObservers()
+        fullscreenHiddenIndices.removeAll()
         registry.stopAll()
         barWindows.forEach { $0.orderOut(nil) }
         barWindows.removeAll()

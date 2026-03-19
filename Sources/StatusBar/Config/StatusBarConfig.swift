@@ -256,6 +256,7 @@ struct BehaviorConfig: Codable {
     var autoHideDwellTime: Double
     var autoHideFadeDuration: Double
     var launchAtLogin: Bool
+    var hideInFullscreen: Bool
 
     init() {
         let d = PreferencesModel.Defaults.self
@@ -263,6 +264,7 @@ struct BehaviorConfig: Codable {
         autoHideDwellTime = d.autoHideDwellTime
         autoHideFadeDuration = d.autoHideFadeDuration
         launchAtLogin = d.launchAtLogin
+        hideInFullscreen = d.hideInFullscreen
     }
 
     @MainActor
@@ -271,6 +273,7 @@ struct BehaviorConfig: Codable {
         autoHideDwellTime = p.autoHideDwellTime
         autoHideFadeDuration = p.autoHideFadeDuration
         launchAtLogin = p.launchAtLogin
+        hideInFullscreen = p.hideInFullscreen
     }
 
     @MainActor
@@ -279,6 +282,7 @@ struct BehaviorConfig: Codable {
         p.autoHideDwellTime = autoHideDwellTime
         p.autoHideFadeDuration = autoHideFadeDuration
         p.launchAtLogin = launchAtLogin
+        p.hideInFullscreen = hideInFullscreen
     }
 }
 
