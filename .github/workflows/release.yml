@@ -147,7 +147,8 @@ jobs:
             --title "chore: release ${TAG}" \
             --body "Update Info.plist and CHANGELOG for ${TAG}." \
             --head "release/${TAG}" \
-            --base main
+            --base main \
+            --reviewer hytfjwr
 
   update-homebrew:
     needs: release
