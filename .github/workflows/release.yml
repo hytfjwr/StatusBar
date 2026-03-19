@@ -36,9 +36,6 @@ jobs:
   release:
     needs: test
     runs-on: macos-26
-    outputs:
-      tag: ${{ steps.version.outputs.tag }}
-      version: ${{ steps.version.outputs.version }}
     steps:
       - uses: actions/checkout@v6
         with:
@@ -80,8 +77,8 @@ jobs:
           DATE=$(date +%Y-%m-%d)
 
           # Collect commits since last tag into a temp file
-          LATEST_TAG=$(git tag -l 'v*' --sort=-v:refname | head -1)
-          if [ -n "$LATEST_TAG" ]; then
+          LATEST_TAG="${{ steps.version.outputs.previous_tag }}"
+          if [ "$LATEST_TAG" != "v0.0.0" ]; then
             git log "${LATEST_TAG}..HEAD" --pretty=format:"- %s" --no-merges | grep -v "^- chore: release " > /tmp/commits.txt || true
           else
             git log --pretty=format:"- %s" --no-merges | grep -v "^- chore: release " > /tmp/commits.txt || true
@@ -149,49 +146,3 @@ jobs:
             --head "release/${TAG}" \
             --base main \
             --reviewer hytfjwr
-
-  update-homebrew:
-    needs: release
-    runs-on: ubuntu-latest
-    steps:
-      - name: Create Homebrew formula PR
-        env:
-          GH_TOKEN: ${{ secrets.HOMEBREW_TAP_TOKEN }}
-          TAG: ${{ needs.release.outputs.tag }}
-          REPO: ${{ github.repository }}
-        run: |
-          if [ -z "$GH_TOKEN" ]; then
-            echo "::warning::HOMEBREW_TAP_TOKEN not set, skipping Homebrew tap update"
-            exit 0
-          fi
-
-          TARBALL_URL="https://github.com/${REPO}/archive/refs/tags/${TAG}.tar.gz"
-          SHA256=$(curl -sL "$TARBALL_URL" | sha256sum | cut -d' ' -f1)
-
-          git clone "https://x-access-token:${GH_TOKEN}@github.com/hytfjwr/homebrew-statusbar.git" tap
-          cd tap
-
-          BRANCH="release/statusbar-${TAG}"
-          git checkout -b "$BRANCH"
-
-          sed -i "s|archive/refs/tags/v[0-9]*\.[0-9]*\.[0-9]*\.tar\.gz|archive/refs/tags/${TAG}.tar.gz|" Formula/statusbar.rb
-          sed -i "s|sha256 \"[a-f0-9]*\"|sha256 \"${SHA256}\"|" Formula/statusbar.rb
-
-          git config user.name "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add Formula/statusbar.rb
-          git commit -m "statusbar ${TAG}"
-          git push origin "$BRANCH"
-
-          gh pr create \
-            --repo hytfjwr/homebrew-statusbar \
-            --title "statusbar ${TAG}" \
-            --body "$(cat <<EOF
-          Update \`statusbar\` formula to ${TAG}.
-
-          - **URL:** \`${TARBALL_URL}\`
-          - **SHA256:** \`${SHA256}\`
-
-          Once CI passes, add the \`pr-pull\` label to publish bottles.
-          EOF
-          )"
