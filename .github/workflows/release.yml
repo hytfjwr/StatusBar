@@ -77,7 +77,30 @@ jobs:
         run: |
           VERSION="${{ steps.version.outputs.version }}"
           DATE=$(date +%Y-%m-%d)
-          perl -pi -e "s/## \[Unreleased\]/## [Unreleased]\n\n## [${VERSION}] - ${DATE}/" CHANGELOG.md
+
+          # Collect commits since last tag
+          LATEST_TAG=$(git tag -l 'v*' --sort=-v:refname | head -1)
+          if [ -n "$LATEST_TAG" ]; then
+            COMMITS=$(git log "${LATEST_TAG}..HEAD" --pretty=format:"- %s" --no-merges | grep -v "^- chore: release ")
+          else
+            COMMITS=$(git log --pretty=format:"- %s" --no-merges | grep -v "^- chore: release ")
+          fi
+
+          # Build new changelog via awk to avoid special-char issues
+          awk -v ver="$VERSION" -v date="$DATE" -v commits="$COMMITS" '
+            /^## \[Unreleased\]/ {
+              print "## [Unreleased]"
+              print ""
+              print "## [" ver "] - " date
+              if (commits != "") {
+                print ""
+                n = split(commits, lines, "\n")
+                for (i = 1; i <= n; i++) print lines[i]
+              }
+              next
+            }
+            { print }
+          ' CHANGELOG.md > CHANGELOG.tmp && mv CHANGELOG.tmp CHANGELOG.md
 
       - name: Commit version bump
         run: |
