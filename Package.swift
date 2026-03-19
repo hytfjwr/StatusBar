@@ -11,7 +11,7 @@ let package = Package(
     platforms: [.macOS(.v26)],
     dependencies: [
         .package(url: "https://github.com/hytfjwr/StatusBarKit", from: "1.0.0"),
-        .package(url: "https://github.com/jpsim/Yams", from: "5.1.0"),
+        .package(url: "https://github.com/jpsim/Yams", from: "6.2.1"),
         .package(url: "https://github.com/SimplyDanny/SwiftLintPlugins", from: "0.58.0"),
     ],
     targets: [
