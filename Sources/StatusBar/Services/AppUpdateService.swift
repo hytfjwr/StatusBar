@@ -1,3 +1,4 @@
+import AppKit
 import Foundation
 import OSLog
 import StatusBarKit
@@ -11,12 +12,28 @@ private let logger = Logger(subsystem: "com.statusbar", category: "AppUpdateServ
 final class AppUpdateService {
     static let shared = AppUpdateService()
 
-    enum UpdateState {
+    enum UpdateState: Equatable {
         case idle
         case checking
         case upToDate
-        case available(version: String, url: URL)
+        case available(version: String)
         case error(String)
+    }
+
+    enum UpdatePhase: Equatable {
+        case preparing
+        case updating
+        case complete
+        case failed(String)
+
+        var label: String {
+            switch self {
+            case .preparing: "Preparing…"
+            case .updating: "Updating via Homebrew…"
+            case .complete: "Update complete!"
+            case .failed(let message): "Failed: \(message)"
+            }
+        }
     }
 
     private(set) var state: UpdateState = .idle
@@ -24,9 +41,16 @@ final class AppUpdateService {
     /// Last time we checked (persisted across launches for auto-check throttling).
     private(set) var lastCheckDate: Date?
 
+    // Update execution state
+    private(set) var updatePhase: UpdatePhase?
+    private(set) var updateLog: String = ""
+    private(set) var updateProgress: Double = 0
+    private var updateProcess: Process?
+
     // GitHub repository for this app
     private static let owner = "hytfjwr"
     private static let repo = "StatusBar"
+    private static let brewFormula = "hytfjwr/statusbar/statusbar"
 
     /// Minimum interval between automatic checks (1 hour).
     private static let autoCheckInterval: TimeInterval = 3_600
@@ -58,10 +82,7 @@ final class AppUpdateService {
             else {
                 // Fallback to string comparison if parsing fails
                 if latestTag != currentVersion {
-                    guard let url = URL(string: "https://github.com/\(Self.owner)/\(Self.repo)/releases/latest") else {
-                        return
-                    }
-                    state = .available(version: latestTag, url: url)
+                    state = .available(version: latestTag)
                 } else {
                     state = .upToDate
                 }
@@ -69,12 +90,7 @@ final class AppUpdateService {
             }
 
             if latest > current {
-                guard let url = URL(
-                    string: "https://github.com/\(Self.owner)/\(Self.repo)/releases/tag/\(release.tagName)"
-                ) else {
-                    return
-                }
-                state = .available(version: latestTag, url: url)
+                state = .available(version: latestTag)
             } else {
                 state = .upToDate
             }
@@ -94,6 +110,82 @@ final class AppUpdateService {
         await checkForUpdates()
     }
 
+    // MARK: - Update Execution
+
+    /// Perform the actual update via Homebrew.
+    func performUpdate() async {
+        updatePhase = .preparing
+        updateLog = ""
+        updateProgress = 0.1
+
+        guard let brewPath = Self.findBrewPath() else {
+            appendLog("Error: Homebrew not found.")
+            appendLog("Install from https://brew.sh or verify your installation.")
+            updatePhase = .failed("Homebrew not found")
+            return
+        }
+
+        appendLog("Found Homebrew at \(brewPath)")
+
+        updatePhase = .updating
+        updateProgress = 0.2
+
+        do {
+            appendLog("$ brew upgrade \(Self.brewFormula)")
+            let exitCode = try await runBrewUpgrade(brewPath: brewPath)
+
+            // Check if cancelled while awaiting
+            guard updatePhase != nil else { return }
+
+            if exitCode == 0 {
+                updateProgress = 1.0
+                appendLog("Update complete!")
+                updatePhase = .complete
+            } else {
+                appendLog("brew exited with code \(exitCode)")
+                updatePhase = .failed("brew exited with code \(exitCode)")
+            }
+        } catch {
+            guard updatePhase != nil else { return }
+            appendLog("Error: \(error.localizedDescription)")
+            updatePhase = .failed(error.localizedDescription)
+        }
+    }
+
+    /// Cancel the running update process.
+    func cancelUpdate() {
+        updateProcess?.terminate()
+        updateProcess = nil
+        updatePhase = nil
+    }
+
+    /// Reset update state for a fresh attempt.
+    func resetUpdateState() {
+        updatePhase = nil
+        updateLog = ""
+        updateProgress = 0
+    }
+
+    /// Relaunch the app after an update.
+    static func relaunchApp() {
+        let bundlePath = Bundle.main.bundlePath
+        let isAppBundle = bundlePath.hasSuffix(".app")
+
+        let task = Process()
+        task.executableURL = URL(fileURLWithPath: "/bin/sh")
+
+        // Use $1 positional argument to safely pass the path without shell interpolation
+        if isAppBundle {
+            task.arguments = ["-c", "sleep 1 && open \"$1\"", "--", bundlePath]
+        } else {
+            let execPath = ProcessInfo.processInfo.arguments[0]
+            task.arguments = ["-c", "sleep 1 && \"$1\" &", "--", execPath]
+        }
+
+        try? task.run()
+        NSApp.terminate(nil)
+    }
+
     // MARK: - Version
 
     static var appVersion: String {
@@ -102,10 +194,62 @@ final class AppUpdateService {
 
     // MARK: - Private
 
+    private func appendLog(_ text: String) {
+        updateLog += text + "\n"
+    }
+
     private func recordCheck() {
         let now = Date()
         lastCheckDate = now
         UserDefaults.standard.set(now.timeIntervalSince1970, forKey: "appUpdate.lastCheckTimestamp")
+    }
+
+    private static func findBrewPath() -> String? {
+        let candidates = [
+            "/opt/homebrew/bin/brew", // Apple Silicon
+            "/usr/local/bin/brew", // Intel
+        ]
+        return candidates.first { FileManager.default.isExecutableFile(atPath: $0) }
+    }
+
+    private func runBrewUpgrade(brewPath: String) async throws -> Int32 {
+        let process = Process()
+        process.executableURL = URL(fileURLWithPath: brewPath)
+        process.arguments = ["upgrade", Self.brewFormula]
+
+        let pipe = Pipe()
+        process.standardOutput = pipe
+        process.standardError = pipe
+
+        let fileHandle = pipe.fileHandleForReading
+
+        fileHandle.readabilityHandler = { [weak self] handle in
+            let data = handle.availableData
+            guard !data.isEmpty else {
+                handle.readabilityHandler = nil
+                return
+            }
+            if let output = String(data: data, encoding: .utf8) {
+                Task { @MainActor [weak self] in
+                    self?.updateLog += output
+                    if let self, self.updateProgress < 0.9 {
+                        self.updateProgress = min(self.updateProgress + 0.02, 0.9)
+                    }
+                }
+            }
+        }
+
+        self.updateProcess = process
+        try process.run()
+
+        let status = await withCheckedContinuation { (continuation: CheckedContinuation<Int32, Never>) in
+            process.terminationHandler = { proc in
+                continuation.resume(returning: proc.terminationStatus)
+            }
+        }
+
+        self.updateProcess = nil
+        return status
     }
 
     private func fetchLatestRelease() async throws -> GitHubRelease {
