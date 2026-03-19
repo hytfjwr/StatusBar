@@ -137,11 +137,11 @@ struct UpdateView: View {
 
     private var actionButtons: some View {
         HStack {
-            if case .failed = updateService.updatePhase {
-                Link("View Releases", destination: URL(
-                    string: "https://github.com/hytfjwr/StatusBar/releases/latest"
-                )!)
-                .font(.system(size: 12))
+            if case .failed = updateService.updatePhase,
+               let releasesURL = URL(string: "https://github.com/hytfjwr/StatusBar/releases/latest")
+            {
+                Link("View Releases", destination: releasesURL)
+                    .font(.system(size: 12))
             }
 
             Spacer()
