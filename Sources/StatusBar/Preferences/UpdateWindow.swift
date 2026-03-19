@@ -172,7 +172,8 @@ struct UpdateView: View {
     @ViewBuilder
     private func phaseIcon(_ phase: AppUpdateService.UpdatePhase) -> some View {
         switch phase {
-        case .preparing, .updating:
+        case .preparing,
+             .updating:
             ProgressView()
                 .controlSize(.small)
         case .complete:
@@ -186,7 +187,8 @@ struct UpdateView: View {
 
     private func phaseColor(_ phase: AppUpdateService.UpdatePhase) -> Color {
         switch phase {
-        case .preparing, .updating: .secondary
+        case .preparing,
+             .updating: .secondary
         case .complete: .green
         case .failed: .red
         }

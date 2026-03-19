@@ -31,7 +31,7 @@ final class AppUpdateService {
             case .preparing: "Preparing…"
             case .updating: "Updating via Homebrew…"
             case .complete: "Update complete!"
-            case .failed(let message): "Failed: \(message)"
+            case let .failed(message): "Failed: \(message)"
             }
         }
     }
@@ -135,7 +135,9 @@ final class AppUpdateService {
             let exitCode = try await runBrewUpgrade(brewPath: brewPath)
 
             // Check if cancelled while awaiting
-            guard updatePhase != nil else { return }
+            guard updatePhase != nil else {
+                return
+            }
 
             if exitCode == 0 {
                 updateProgress = 1.0
@@ -146,7 +148,9 @@ final class AppUpdateService {
                 updatePhase = .failed("brew exited with code \(exitCode)")
             }
         } catch {
-            guard updatePhase != nil else { return }
+            guard updatePhase != nil else {
+                return
+            }
             appendLog("Error: \(error.localizedDescription)")
             updatePhase = .failed(error.localizedDescription)
         }
@@ -232,14 +236,14 @@ final class AppUpdateService {
             if let output = String(data: data, encoding: .utf8) {
                 Task { @MainActor [weak self] in
                     self?.updateLog += output
-                    if let self, self.updateProgress < 0.9 {
-                        self.updateProgress = min(self.updateProgress + 0.02, 0.9)
+                    if let self, updateProgress < 0.9 {
+                        updateProgress = min(updateProgress + 0.02, 0.9)
                     }
                 }
             }
         }
 
-        self.updateProcess = process
+        updateProcess = process
         try process.run()
 
         let status = await withCheckedContinuation { (continuation: CheckedContinuation<Int32, Never>) in
@@ -248,7 +252,7 @@ final class AppUpdateService {
             }
         }
 
-        self.updateProcess = nil
+        updateProcess = nil
         return status
     }
 
