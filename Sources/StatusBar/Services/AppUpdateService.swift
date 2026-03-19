@@ -174,19 +174,31 @@ final class AppUpdateService {
     static func relaunchApp() {
         let bundlePath = Bundle.main.bundlePath
         let isAppBundle = bundlePath.hasSuffix(".app")
+        let pid = ProcessInfo.processInfo.processIdentifier
+
+        // Only the launch command differs between .app and raw binary.
+        let (launchCmd, targetPath): (String, String) = if isAppBundle {
+            ("open \"$2\"", bundlePath)
+        } else {
+            ("\"$2\" &", ProcessInfo.processInfo.arguments[0])
+        }
 
         let task = Process()
         task.executableURL = URL(fileURLWithPath: "/bin/sh")
+        // Wait for the current process to fully exit before relaunching
+        // to avoid the single-instance guard killing the new process.
+        // Timeout after ~10s (50 × 0.2s) to avoid spinning forever.
+        task.arguments = [
+            "-c",
+            "i=0; while kill -0 \"$1\" 2>/dev/null && [ $i -lt 50 ]; do sleep 0.2; i=$((i+1)); done; \(launchCmd)",
+            "--", "\(pid)", targetPath,
+        ]
 
-        // Use $1 positional argument to safely pass the path without shell interpolation
-        if isAppBundle {
-            task.arguments = ["-c", "sleep 1 && open \"$1\"", "--", bundlePath]
-        } else {
-            let execPath = ProcessInfo.processInfo.arguments[0]
-            task.arguments = ["-c", "sleep 1 && \"$1\" &", "--", execPath]
+        do {
+            try task.run()
+        } catch {
+            logger.error("Failed to spawn relaunch process: \(error.localizedDescription)")
         }
-
-        try? task.run()
         NSApp.terminate(nil)
     }
 

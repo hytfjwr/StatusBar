@@ -121,16 +121,7 @@ struct AppleMenuPopupContent: View {
 
             VStack(spacing: 2) {
                 PopupRow(icon: "arrow.clockwise", label: "Reload") {
-                    let relaunchCmd = if Bundle.main.bundleURL.pathExtension == "app" {
-                        "open \"\(Bundle.main.bundleURL.path)\""
-                    } else {
-                        "\"\(Bundle.main.executablePath ?? "")\" &"
-                    }
-                    let task = Process()
-                    task.executableURL = URL(fileURLWithPath: "/bin/sh")
-                    task.arguments = ["-c", "sleep 0.5 && \(relaunchCmd)"]
-                    try? task.run()
-                    NSApp.terminate(nil)
+                    AppUpdateService.relaunchApp()
                 }
             }
             .padding(.horizontal, 6)
