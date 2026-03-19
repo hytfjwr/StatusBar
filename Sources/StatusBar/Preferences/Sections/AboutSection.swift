@@ -155,13 +155,13 @@ struct AboutSection: View {
             Label("Up to date", systemImage: "checkmark.circle.fill")
                 .font(.system(size: 12))
                 .foregroundStyle(.green)
-        case let .available(version, url):
+        case let .available(version):
             HStack(spacing: 6) {
                 Label("v\(version) available", systemImage: "arrow.down.circle.fill")
                     .font(.system(size: 12, weight: .medium))
                     .foregroundStyle(.orange)
-                Button("Download") {
-                    NSWorkspace.shared.open(url)
+                Button("Update") {
+                    UpdateWindow.shared.show(version: version)
                 }
                 .controlSize(.small)
             }
