@@ -78,29 +78,31 @@ jobs:
           VERSION="${{ steps.version.outputs.version }}"
           DATE=$(date +%Y-%m-%d)
 
-          # Collect commits since last tag
+          # Collect commits since last tag into a temp file
           LATEST_TAG=$(git tag -l 'v*' --sort=-v:refname | head -1)
           if [ -n "$LATEST_TAG" ]; then
-            COMMITS=$(git log "${LATEST_TAG}..HEAD" --pretty=format:"- %s" --no-merges | grep -v "^- chore: release ")
+            git log "${LATEST_TAG}..HEAD" --pretty=format:"- %s" --no-merges | grep -v "^- chore: release " > /tmp/commits.txt || true
           else
-            COMMITS=$(git log --pretty=format:"- %s" --no-merges | grep -v "^- chore: release ")
+            git log --pretty=format:"- %s" --no-merges | grep -v "^- chore: release " > /tmp/commits.txt || true
           fi
 
-          # Build new changelog via awk to avoid special-char issues
-          awk -v ver="$VERSION" -v date="$DATE" -v commits="$COMMITS" '
+          # Insert version header and commits via awk (reads commits from file to avoid newline issues)
+          awk -v ver="$VERSION" -v date="$DATE" '
             /^## \[Unreleased\]/ {
               print "## [Unreleased]"
               print ""
               print "## [" ver "] - " date
-              if (commits != "") {
+              if ((getline first < "/tmp/commits.txt") > 0) {
                 print ""
-                n = split(commits, lines, "\n")
-                for (i = 1; i <= n; i++) print lines[i]
+                print first
+                while ((getline line < "/tmp/commits.txt") > 0) print line
               }
+              close("/tmp/commits.txt")
               next
             }
             { print }
           ' CHANGELOG.md > CHANGELOG.tmp && mv CHANGELOG.tmp CHANGELOG.md
+          rm -f /tmp/commits.txt
 
       - name: Commit version bump
         run: |
