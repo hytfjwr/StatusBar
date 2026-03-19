@@ -9,7 +9,7 @@ jobs:
   lint-and-format:
     runs-on: macos-26
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: Install tools
         run: brew install swiftlint swiftformat
@@ -23,7 +23,7 @@ jobs:
   build-and-test:
     runs-on: macos-26
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: Select Xcode 26
         uses: maxim-lobanov/setup-xcode@v1
