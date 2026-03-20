@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.4.1] - 2026-03-20
+
+- fix: replace system alert with inline confirmation to fix border clipping (#30)
+- fix: use IOBluetooth framework for Bluetooth device detection (#29)
+
 ## [0.4.0] - 2026-03-20
 
 - feat: allow plugins to specify settings sheet size (#27)
