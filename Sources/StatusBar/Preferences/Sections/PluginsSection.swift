@@ -173,7 +173,7 @@ struct PluginsSection: View {
                         .font(.callout)
                     Spacer()
                     Button("Restart Now") {
-                        restartApp()
+                        AppUpdateService.relaunchApp()
                     }
                     .controlSize(.small)
                 }
@@ -397,7 +397,7 @@ struct PluginsSection: View {
         alert.addButton(withTitle: "Later")
 
         if alert.runModal() == .alertFirstButtonReturn {
-            restartApp()
+            AppUpdateService.relaunchApp()
         }
     }
 
@@ -487,10 +487,6 @@ struct PluginsSection: View {
         } catch {
             devError = error.localizedDescription
         }
-    }
-
-    private func restartApp() {
-        AppUpdateService.relaunchApp()
     }
 }
 
