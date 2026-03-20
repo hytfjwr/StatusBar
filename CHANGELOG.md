@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.4.0] - 2026-03-20
+
+- feat: allow plugins to specify settings sheet size (#27)
+
 ## [0.3.5] - 2026-03-19
 
 - Revert "chore: release v0.3.5" (#25)
