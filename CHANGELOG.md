@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.4.2] - 2026-03-20
+
+- fix: use posix_spawn with POSIX_SPAWN_SETSID for reliable app relaunch (#32)
+
 ## [0.4.1] - 2026-03-20
 
 - fix: replace system alert with inline confirmation to fix border clipping (#30)
