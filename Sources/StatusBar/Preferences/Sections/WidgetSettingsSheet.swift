@@ -5,7 +5,24 @@ import SwiftUI
 
 struct WidgetSettingsSheet: View {
     let widgetID: String
+    private let sheetSize: CGSize
     @Environment(\.dismiss) private var dismiss
+
+    private static let defaultSize = CGSize(width: 360, height: 240)
+    private static let minSize = CGSize(width: 280, height: 180)
+    private static let maxSize = CGSize(width: 700, height: 600)
+
+    init(widgetID: String) {
+        self.widgetID = widgetID
+        if let preferred = WidgetRegistry.shared.preferredSettingsSize(for: widgetID) {
+            sheetSize = CGSize(
+                width: min(max(preferred.width, Self.minSize.width), Self.maxSize.width),
+                height: min(max(preferred.height, Self.minSize.height), Self.maxSize.height)
+            )
+        } else {
+            sheetSize = Self.defaultSize
+        }
+    }
 
     var body: some View {
         VStack(spacing: 0) {
@@ -27,7 +44,7 @@ struct WidgetSettingsSheet: View {
                     .padding()
             }
         }
-        .frame(width: 360, height: 240)
+        .frame(width: sheetSize.width, height: sheetSize.height)
     }
 
     private var settingsContent: some View {

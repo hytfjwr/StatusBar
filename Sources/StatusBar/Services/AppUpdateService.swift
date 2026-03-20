@@ -199,6 +199,15 @@ final class AppUpdateService {
         } catch {
             logger.error("Failed to spawn relaunch process: \(error.localizedDescription)")
         }
+
+        // Close regular NSWindows (Preferences, Update, Onboarding) before
+        // terminating. NSPanel subclasses (BarWindow, PopupPanel) are left alone.
+        // Without this, NSApp.terminate can stall on SwiftUI hosting-view teardown
+        // inside titled windows, preventing the app from actually exiting.
+        for window in NSApp.windows where !(window is NSPanel) {
+            window.close()
+        }
+
         NSApp.terminate(nil)
     }
 

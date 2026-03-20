@@ -274,6 +274,10 @@ final class WidgetRegistry: WidgetRegistryProtocol {
         allWidgets[widgetID]?.hasSettings ?? false
     }
 
+    func preferredSettingsSize(for widgetID: String) -> CGSize? {
+        allWidgets[widgetID]?.preferredSettingsSize
+    }
+
     func settingsView(for widgetID: String) -> AnyView {
         allWidgets[widgetID]?.settingsBody() ?? AnyView(EmptyView())
     }
