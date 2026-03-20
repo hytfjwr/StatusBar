@@ -1,15 +1,24 @@
+import CoreBluetooth
 import Foundation
+import IOBluetooth
 import IOKit
 import OSLog
-import StatusBarKit
 
 private let logger = Logger(subsystem: "com.statusbar", category: "BluetoothService")
 
 // MARK: - BluetoothService
 
-final class BluetoothService: @unchecked Sendable {
+final class BluetoothService: NSObject, @unchecked Sendable, CBCentralManagerDelegate {
 
-    struct BluetoothDevice: Identifiable {
+    /// Instantiating CBCentralManager triggers the TCC Bluetooth permission dialog.
+    /// Once the user grants permission, `CBCentralManager.authorization` becomes `.allowedAlways`
+    /// and subsequent `poll()` calls can use `IOBluetoothDevice.pairedDevices()`.
+    private lazy var centralManager = CBCentralManager(delegate: self, queue: nil)
+
+    /// Called when Bluetooth authorization changes to `.allowedAlways`.
+    var onAuthorized: (() -> Void)?
+
+    struct BluetoothDevice: Identifiable, Equatable {
         let id: String
         let name: String
         let category: DeviceCategory
@@ -36,43 +45,49 @@ final class BluetoothService: @unchecked Sendable {
         }
     }
 
-    /// Enumerate connected Bluetooth devices via IOKit IORegistry (no TCC permission required).
+    /// Enumerate connected Bluetooth devices via IOBluetooth framework + IORegistry battery lookup.
     func poll() -> [BluetoothDevice] {
+        // IOBluetoothDevice.pairedDevices() requires TCC Bluetooth permission.
+        // Without it (e.g. bare binary outside .app bundle), the process crashes with SIGABRT.
+        let auth = CBCentralManager.authorization
+        if auth == .notDetermined {
+            _ = centralManager // lazy init triggers the TCC permission dialog
+            return []
+        }
+        guard auth == .allowedAlways else {
+            return []
+        }
+
         let batteryMap = queryBatteryLevels()
         return queryConnectedDevices(batteryMap: batteryMap)
     }
 
-    // MARK: - Device Enumeration (IORegistry)
+    // MARK: - CBCentralManagerDelegate
+
+    func centralManagerDidUpdateState(_ central: CBCentralManager) {
+        let auth = CBCentralManager.authorization
+        logger.info("Bluetooth authorization: \(auth.rawValue)")
+        if auth == .allowedAlways {
+            onAuthorized?()
+        }
+    }
+
+    // MARK: - Device Enumeration (IOBluetooth)
 
     private func queryConnectedDevices(batteryMap: [String: Int]) -> [BluetoothDevice] {
-        let matching = IOServiceMatching("IOBluetoothDevice")
-        var iterator: io_iterator_t = 0
-        guard IOServiceGetMatchingServices(kIOMainPortDefault, matching, &iterator) == KERN_SUCCESS else {
+        guard let paired = IOBluetoothDevice.pairedDevices() as? [IOBluetoothDevice] else {
             return []
         }
-        defer { IOObjectRelease(iterator) }
 
         var devices: [BluetoothDevice] = []
-        var service = IOIteratorNext(iterator)
-        while service != 0 {
-            defer {
-                IOObjectRelease(service)
-                service = IOIteratorNext(iterator)
-            }
-
-            guard let props = serviceProperties(service) else {
-                continue
-            }
-
-            // Only include connected devices
-            guard let connected = props["Connected"] as? Bool, connected else {
-                continue
-            }
-
-            let name = props["Name"] as? String ?? "Unknown"
-            let address = (props["DeviceAddress"] as? String) ?? "unknown-\(name.lowercased())"
-            let classOfDevice = props["ClassOfDevice"] as? UInt32 ?? 0
-            let category = classify(classOfDevice: classOfDevice, name: name)
+        for device in paired where device.isConnected() {
+            let name = device.name ?? "Unknown"
+            let address = device.addressString ?? "unknown-\(name.lowercased())"
+            let category = classify(
+                majorClass: UInt32(device.deviceClassMajor),
+                minorClass: UInt32(device.deviceClassMinor),
+                name: name
+            )
             let battery = lookupBattery(address: address, name: name, batteryMap: batteryMap)
 
             devices.append(BluetoothDevice(
@@ -86,35 +101,18 @@ final class BluetoothService: @unchecked Sendable {
         return devices
     }
 
-    private func serviceProperties(_ service: io_object_t) -> [String: Any]? {
-        var propsRef: Unmanaged<CFMutableDictionary>?
-        guard IORegistryEntryCreateCFProperties(service, &propsRef, kCFAllocatorDefault, 0) == KERN_SUCCESS,
-              let cfDict = propsRef?.takeRetainedValue()
-        else {
-            return nil
-        }
-        return cfDict as? [String: Any]
-    }
-
     // MARK: - Classification
 
-    private func classify(classOfDevice: UInt32, name: String) -> BluetoothDevice.DeviceCategory {
-        let majorClass = (classOfDevice >> 8) & 0x1F
-        let minorClass = (classOfDevice >> 2) & 0x3F
-
+    private func classify(majorClass: UInt32, minorClass: UInt32, name: String) -> BluetoothDevice.DeviceCategory {
         switch majorClass {
         case 0x05: // Peripheral
-            let minorUpper = minorClass & 0x3C
-            if minorUpper == 0x10 {
-                return .keyboard
+            switch minorClass & 0x3C {
+            case 0x10: return .keyboard
+            case 0x20: return .mouse
+            case 0x30: return .keyboard // combo keyboard+pointing
+            default: break
             }
-            if minorUpper == 0x20 {
-                return .mouse
-            }
-            if minorUpper == 0x30 {
-                return .keyboard
-            } // combo keyboard+pointing
-            if minorUpper == 0x02 {
+            if minorClass & 0x0F == 0x02 {
                 return .gamepad
             }
             return classifyByName(name)
@@ -182,6 +180,16 @@ final class BluetoothService: @unchecked Sendable {
         }
 
         return result
+    }
+
+    private func serviceProperties(_ service: io_object_t) -> [String: Any]? {
+        var propsRef: Unmanaged<CFMutableDictionary>?
+        guard IORegistryEntryCreateCFProperties(service, &propsRef, kCFAllocatorDefault, 0) == KERN_SUCCESS,
+              let cfDict = propsRef?.takeRetainedValue()
+        else {
+            return nil
+        }
+        return cfDict as? [String: Any]
     }
 
     private func lookupBattery(address: String, name: String, batteryMap: [String: Int]) -> Int? {

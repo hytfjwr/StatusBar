@@ -24,6 +24,11 @@ final class BluetoothWidget: StatusBarWidget {
     }
 
     func start() {
+        service.onAuthorized = { [weak self] in
+            DispatchQueue.main.async {
+                self?.devices = self?.service.poll() ?? []
+            }
+        }
         devices = service.poll()
         let interval = updateInterval ?? 10
         timer = Timer.publish(every: interval, tolerance: interval * 0.1, on: .main, in: .common)
@@ -32,7 +37,11 @@ final class BluetoothWidget: StatusBarWidget {
                 guard let self else {
                     return
                 }
-                devices = service.poll()
+                let updated = service.poll()
+                guard updated != devices else {
+                    return
+                }
+                devices = updated
                 if popupPanel?.isVisible == true {
                     refreshPopup()
                 }
