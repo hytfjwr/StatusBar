@@ -128,6 +128,7 @@ struct AppleMenuPopupContent: View {
             .padding(.bottom, 8)
         }
         .frame(width: 230)
+        .clipShape(RoundedRectangle(cornerRadius: Theme.popupCornerRadius, style: .continuous))
         .alert(item: $confirmAction) { action in
             Alert(
                 title: Text(action.rawValue),
