@@ -88,6 +88,29 @@ struct AboutSection: View {
                 .padding(8)
             }
 
+            GroupBox("Developer") {
+                VStack(spacing: 10) {
+                    HStack {
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text("Developer Mode")
+                                .font(.system(size: 13, weight: .medium))
+                            Text("Shows plugin development tools in the Plugins section.")
+                                .font(.system(size: 11))
+                                .foregroundStyle(.secondary)
+                        }
+                        Spacer()
+                        Toggle("", isOn: Binding(
+                            get: { PreferencesModel.shared.devModeEnabled },
+                            set: { PreferencesModel.shared.devModeEnabled = $0 }
+                        ))
+                        .labelsHidden()
+                        .toggleStyle(.switch)
+                        .controlSize(.small)
+                    }
+                }
+                .padding(8)
+            }
+
             GroupBox("Reset") {
                 VStack(spacing: 10) {
                     HStack {

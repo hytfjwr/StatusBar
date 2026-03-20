@@ -110,58 +110,60 @@ struct PluginsSection: View {
                 .padding(.vertical, 4)
             }
 
-            // Development
-            GroupBox("Development") {
-                VStack(alignment: .leading, spacing: 12) {
-                    HStack {
-                        TextField("Path to .statusplugin bundle", text: $devPath)
-                            .textFieldStyle(.roundedBorder)
+            // Development (visible only in Dev Mode)
+            if PreferencesModel.shared.devModeEnabled {
+                GroupBox("Development") {
+                    VStack(alignment: .leading, spacing: 12) {
+                        HStack {
+                            TextField("Path to .statusplugin bundle", text: $devPath)
+                                .textFieldStyle(.roundedBorder)
 
-                        Button("Browse...") {
-                            browseForPlugin()
+                            Button("Browse...") {
+                                browseForPlugin()
+                            }
+
+                            Button("Load") {
+                                loadDevPlugin()
+                            }
+                            .disabled(devPath.isEmpty)
                         }
 
-                        Button("Load") {
-                            loadDevPlugin()
+                        if let devError {
+                            Label(devError, systemImage: "exclamationmark.triangle.fill")
+                                .foregroundStyle(.red)
+                                .font(.caption)
                         }
-                        .disabled(devPath.isEmpty)
-                    }
 
-                    if let devError {
-                        Label(devError, systemImage: "exclamationmark.triangle.fill")
-                            .foregroundStyle(.red)
-                            .font(.caption)
-                    }
-
-                    if !devPlugins.isEmpty {
-                        VStack(spacing: 0) {
-                            ForEach(devPlugins, id: \.id) { plugin in
-                                HStack {
-                                    VStack(alignment: .leading, spacing: 2) {
-                                        Text(plugin.name)
-                                            .fontWeight(.medium)
-                                        Text(plugin.path)
-                                            .font(.caption)
-                                            .foregroundStyle(.tertiary)
-                                            .lineLimit(1)
-                                            .truncationMode(.middle)
+                        if !devPlugins.isEmpty {
+                            VStack(spacing: 0) {
+                                ForEach(devPlugins, id: \.id) { plugin in
+                                    HStack {
+                                        VStack(alignment: .leading, spacing: 2) {
+                                            Text(plugin.name)
+                                                .fontWeight(.medium)
+                                            Text(plugin.path)
+                                                .font(.caption)
+                                                .foregroundStyle(.tertiary)
+                                                .lineLimit(1)
+                                                .truncationMode(.middle)
+                                        }
+                                        Spacer()
                                     }
-                                    Spacer()
+                                    .padding(.vertical, 4)
                                 }
-                                .padding(.vertical, 4)
                             }
                         }
-                    }
 
-                    Label(
-                        "Load plugins directly from a build directory for development."
-                            + " Use `make bundle` then point to the .statusplugin output.",
-                        systemImage: "hammer"
-                    )
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
+                        Label(
+                            "Load plugins directly from a build directory for development."
+                                + " Use `make bundle` then point to the .statusplugin output.",
+                            systemImage: "hammer"
+                        )
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                    }
+                    .padding(.vertical, 4)
                 }
-                .padding(.vertical, 4)
             }
 
             // Restart prompt
