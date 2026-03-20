@@ -85,60 +85,89 @@ struct AppleMenuPopupContent: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            // System section
-            PopupSectionHeader("System")
+            if let action = confirmAction {
+                // Inline confirmation dialog
+                VStack(spacing: 12) {
+                    Text(action.rawValue)
+                        .font(.headline)
+                        .foregroundStyle(.primary)
 
-            VStack(spacing: 2) {
-                PopupRow(icon: "gearshape", label: "Preferences") {
-                    PreferencesWindow.shared.show()
-                    dismiss()
-                }
-                PopupRow(icon: "gearshape.2", label: "System Settings") {
-                    if let url = URL(string: "x-apple.systempreferences:") {
-                        NSWorkspace.shared.open(url)
+                    Text("Are you sure you want to \(action.rawValue.lowercased())?")
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
+                        .multilineTextAlignment(.center)
+
+                    HStack(spacing: 8) {
+                        Button("Cancel") {
+                            withAnimation(.easeInOut(duration: 0.15)) {
+                                confirmAction = nil
+                            }
+                        }
+                        .buttonStyle(.bordered)
+                        .controlSize(.regular)
+
+                        Button(action.rawValue) {
+                            Task { try? await ShellCommand.run(action.command) }
+                            dismiss()
+                        }
+                        .buttonStyle(.borderedProminent)
+                        .tint(Theme.red)
+                        .controlSize(.regular)
                     }
-                    dismiss()
                 }
-                PopupRow(icon: "lock.display", label: "Lock Screen") {
-                    confirmAction = .lockScreen
+                .padding(20)
+            } else {
+                // System section
+                PopupSectionHeader("System")
+
+                VStack(spacing: 2) {
+                    PopupRow(icon: "gearshape", label: "Preferences") {
+                        PreferencesWindow.shared.show()
+                        dismiss()
+                    }
+                    PopupRow(icon: "gearshape.2", label: "System Settings") {
+                        if let url = URL(string: "x-apple.systempreferences:") {
+                            NSWorkspace.shared.open(url)
+                        }
+                        dismiss()
+                    }
+                    PopupRow(icon: "lock.display", label: "Lock Screen") {
+                        withAnimation(.easeInOut(duration: 0.15)) {
+                            confirmAction = .lockScreen
+                        }
+                    }
+                    PopupRow(icon: "moon.fill", label: "Sleep") {
+                        withAnimation(.easeInOut(duration: 0.15)) {
+                            confirmAction = .sleep
+                        }
+                    }
+                    PopupRow(icon: "arrow.triangle.2.circlepath", label: "Restart") {
+                        withAnimation(.easeInOut(duration: 0.15)) {
+                            confirmAction = .restart
+                        }
+                    }
+                    PopupRow(icon: "power", iconColor: Theme.red, label: "Shutdown") {
+                        withAnimation(.easeInOut(duration: 0.15)) {
+                            confirmAction = .shutdown
+                        }
+                    }
                 }
-                PopupRow(icon: "moon.fill", label: "Sleep") {
-                    confirmAction = .sleep
+                .padding(.horizontal, 6)
+
+                PopupDivider()
+
+                // Utilities section
+                PopupSectionHeader("Utilities")
+
+                VStack(spacing: 2) {
+                    PopupRow(icon: "arrow.clockwise", label: "Reload") {
+                        AppUpdateService.relaunchApp()
+                    }
                 }
-                PopupRow(icon: "arrow.triangle.2.circlepath", label: "Restart") {
-                    confirmAction = .restart
-                }
-                PopupRow(icon: "power", iconColor: Theme.red, label: "Shutdown") {
-                    confirmAction = .shutdown
-                }
+                .padding(.horizontal, 6)
+                .padding(.bottom, 8)
             }
-            .padding(.horizontal, 6)
-
-            PopupDivider()
-
-            // Utilities section
-            PopupSectionHeader("Utilities")
-
-            VStack(spacing: 2) {
-                PopupRow(icon: "arrow.clockwise", label: "Reload") {
-                    AppUpdateService.relaunchApp()
-                }
-            }
-            .padding(.horizontal, 6)
-            .padding(.bottom, 8)
         }
         .frame(width: 230)
-        .clipShape(RoundedRectangle(cornerRadius: Theme.popupCornerRadius, style: .continuous))
-        .alert(item: $confirmAction) { action in
-            Alert(
-                title: Text(action.rawValue),
-                message: Text("Are you sure you want to \(action.rawValue.lowercased())?"),
-                primaryButton: .destructive(Text(action.rawValue)) {
-                    Task { try? await ShellCommand.run(action.command) }
-                    dismiss()
-                },
-                secondaryButton: .cancel()
-            )
-        }
     }
 }
