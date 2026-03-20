@@ -220,6 +220,12 @@ final class PreferencesModel: ThemeProvider {
         didSet { scheduleFlush(); bump() }
     }
 
+    // MARK: - Developer
+
+    var devModeEnabled: Bool {
+        didSet { scheduleFlush(); bump() }
+    }
+
     // MARK: - Computed Colors
 
     var accentColor: Color {
@@ -344,6 +350,8 @@ final class PreferencesModel: ThemeProvider {
         notifyMemoryHigh = d.notifyMemoryHigh
         memoryThreshold = d.memoryThreshold
         memorySustainedDuration = d.memorySustainedDuration
+
+        devModeEnabled = d.devModeEnabled
     }
 
     // MARK: - Reset
@@ -434,6 +442,7 @@ final class PreferencesModel: ThemeProvider {
             resetGraphs()
             resetBehavior()
             resetNotifications()
+            devModeEnabled = Defaults.devModeEnabled
         }
     }
 
@@ -598,6 +607,9 @@ extension PreferencesModel {
         static let notifyMemoryHigh: Bool = false
         static let memoryThreshold: Double = 90.0
         static let memorySustainedDuration: Double = 5.0
+
+        /// Developer
+        static let devModeEnabled: Bool = false
     }
 }
 

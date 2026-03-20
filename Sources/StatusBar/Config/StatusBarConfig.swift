@@ -34,6 +34,7 @@ struct GlobalConfig: Codable {
     var graphs: GraphsConfig
     var behavior: BehaviorConfig
     var notifications: NotificationsConfig
+    var devMode: Bool?
 
     init() {
         bar = BarConfig()
@@ -42,6 +43,7 @@ struct GlobalConfig: Codable {
         graphs = GraphsConfig()
         behavior = BehaviorConfig()
         notifications = NotificationsConfig()
+        devMode = nil
     }
 
     @MainActor
@@ -52,6 +54,7 @@ struct GlobalConfig: Codable {
         graphs = GraphsConfig(from: prefs)
         behavior = BehaviorConfig(from: prefs)
         notifications = NotificationsConfig(from: prefs)
+        devMode = prefs.devModeEnabled ? true : nil
     }
 
     @MainActor
@@ -62,6 +65,7 @@ struct GlobalConfig: Codable {
         graphs.apply(to: prefs)
         behavior.apply(to: prefs)
         notifications.apply(to: prefs)
+        prefs.devModeEnabled = devMode ?? PreferencesModel.Defaults.devModeEnabled
     }
 }
 
