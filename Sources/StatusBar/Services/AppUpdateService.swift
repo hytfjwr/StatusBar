@@ -171,33 +171,55 @@ final class AppUpdateService {
     }
 
     /// Relaunch the app after an update.
+    ///
+    /// Uses `posix_spawn` with `POSIX_SPAWN_SETSID` to place the relaunch
+    /// helper shell in a brand-new session, fully detached from this process.
+    /// A plain `Process()` (NSTask) leaves the child in the same process group,
+    /// which can cause it to be killed when the parent terminates.
     static func relaunchApp() {
         let bundlePath = Bundle.main.bundlePath
         let isAppBundle = bundlePath.hasSuffix(".app")
         let pid = ProcessInfo.processInfo.processIdentifier
 
-        // Only the launch command differs between .app and raw binary.
-        let (launchCmd, targetPath): (String, String) = if isAppBundle {
-            ("open \"$2\"", bundlePath)
-        } else {
-            ("\"$2\" &", ProcessInfo.processInfo.arguments[0])
-        }
+        let targetPath = isAppBundle ? bundlePath : ProcessInfo.processInfo.arguments[0]
+        let launchCmd = isAppBundle ? #"open "$2""# : #""$2" &"#
 
-        let task = Process()
-        task.executableURL = URL(fileURLWithPath: "/bin/sh")
-        // Wait for the current process to fully exit before relaunching
-        // to avoid the single-instance guard killing the new process.
+        // The shell script waits for the current process to fully exit before
+        // relaunching to avoid the single-instance guard killing the new process.
         // Timeout after ~10s (50 × 0.2s) to avoid spinning forever.
-        task.arguments = [
-            "-c",
-            "i=0; while kill -0 \"$1\" 2>/dev/null && [ $i -lt 50 ]; do sleep 0.2; i=$((i+1)); done; \(launchCmd)",
-            "--", "\(pid)", targetPath,
-        ]
+        // Diagnostic output goes to /tmp/statusbar-relaunch.log.
+        let logFile = "/tmp/statusbar-relaunch.log"
+        let script = """
+        exec > "\(logFile)" 2>&1
+        echo "relaunch: started at $(date), waiting for PID $1"
+        i=0; while kill -0 "$1" 2>/dev/null && [ $i -lt 50 ]; do sleep 0.2; i=$((i+1)); done
+        echo "relaunch: PID $1 exited after ${i} polls"
+        \(launchCmd)
+        echo "relaunch: launch exit code $? at $(date)"
+        """
 
-        do {
-            try task.run()
-        } catch {
-            logger.error("Failed to spawn relaunch process: \(error.localizedDescription)")
+        var attr: posix_spawnattr_t?
+        posix_spawnattr_init(&attr)
+        // POSIX_SPAWN_SETSID: create the child in a new session so it is
+        // completely independent of the parent's process group.
+        posix_spawnattr_setflags(&attr, Int16(POSIX_SPAWN_SETSID))
+
+        let argv: [String?] = ["/bin/sh", "-c", script, "--", "\(pid)", targetPath, nil]
+        var cArgv = argv.map { $0.flatMap { strdup($0) } }
+
+        var childPid: pid_t = 0
+        let spawnResult = posix_spawn(
+            &childPid, "/bin/sh", nil, &attr,
+            &cArgv, environ
+        )
+
+        cArgv.compactMap(\.self).forEach { free($0) }
+        posix_spawnattr_destroy(&attr)
+
+        if spawnResult != 0 {
+            logger.error("posix_spawn failed with code \(spawnResult)")
+        } else {
+            logger.info("Spawned relaunch helper (child PID \(childPid))")
         }
 
         // Close regular NSWindows (Preferences, Update, Onboarding) before
