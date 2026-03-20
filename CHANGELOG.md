@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.5.0] - 2026-03-20
+
+- feat: add Developer Mode toggle to gate plugin development UI (#34)
+
 ## [0.4.2] - 2026-03-20
 
 - fix: use posix_spawn with POSIX_SPAWN_SETSID for reliable app relaunch (#32)
