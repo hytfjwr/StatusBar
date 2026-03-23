@@ -26,7 +26,7 @@ https://github.com/user-attachments/assets/ff474554-a8e3-4ccc-91ff-edb0f0bb1ed2
 
 ```bash
 brew tap hytfjwr/statusbar
-brew install statusbar
+brew install --cask statusbar
 ```
 
 ### Build from Source
