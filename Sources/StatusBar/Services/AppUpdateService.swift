@@ -175,14 +175,10 @@ final class AppUpdateService {
         let pid = ProcessInfo.processInfo.processIdentifier
 
         let targetPath = isAppBundle ? bundlePath : ProcessInfo.processInfo.arguments[0]
-        let bundleId = Bundle.main.bundleIdentifier
-        let launchCmd = if isAppBundle, let bundleId {
-            // Use bundle ID instead of path — the Cellar path from
-            // Bundle.main.bundlePath is deleted after `brew upgrade`,
-            // but Launch Services can still locate the app by its ID.
-            #"open -b "\#(bundleId)""#
-        } else if isAppBundle {
-            #"open "$2""#
+        let launchCmd = if isAppBundle {
+            // Prefer /Applications symlink which survives `brew upgrade` path changes.
+            // Fall back to the original path ($2) for non-Homebrew installs.
+            #"if [ -e "/Applications/StatusBar.app" ]; then open "/Applications/StatusBar.app"; else open "$2"; fi"#
         } else {
             #""$2" &"#
         }
