@@ -34,7 +34,8 @@ brew install --cask statusbar
 ```bash
 git clone https://github.com/hytfjwr/StatusBar.git
 cd StatusBar
-make run
+make run-dev   # Debug build
+make run-app   # Release build
 ```
 
 ## Built-in Widgets
