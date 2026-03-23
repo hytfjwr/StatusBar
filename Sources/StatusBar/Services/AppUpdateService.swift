@@ -47,7 +47,7 @@ final class AppUpdateService {
     private(set) var updateProgress: Double = 0
     private var updateProcess: Process?
 
-    private nonisolated static let brewFormula = "hytfjwr/statusbar/statusbar"
+    nonisolated private static let brewFormula = "hytfjwr/statusbar/statusbar"
 
     /// Minimum interval between automatic checks (1 hour).
     private static let autoCheckInterval: TimeInterval = 3_600
@@ -292,7 +292,7 @@ final class AppUpdateService {
         return status
     }
 
-    private nonisolated func fetchBrewLatestVersion() async throws -> String {
+    nonisolated private func fetchBrewLatestVersion() async throws -> String {
         let output = try await ShellCommand.run(
             "brew", arguments: ["info", "--json=v2", Self.brewFormula], timeout: 10
         )
