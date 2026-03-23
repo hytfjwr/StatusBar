@@ -276,14 +276,11 @@ private struct MenuBarSetupPage: View {
                     .font(.title2)
                     .fontWeight(.semibold)
 
-                Text(
-                    "StatusBar works best when the built-in macOS menu bar is hidden."
-                        + "\nSet \"Automatically hide and show the menu bar\" to **Always** in System Settings."
-                )
-                .font(.system(size: 12))
-                .foregroundStyle(.secondary)
-                .multilineTextAlignment(.center)
-                .frame(maxWidth: 420)
+                Text("StatusBar works best when the built-in macOS menu bar is hidden.")
+                    .font(.system(size: 12))
+                    .foregroundStyle(.secondary)
+                    .multilineTextAlignment(.center)
+                    .frame(maxWidth: 420)
             }
 
             stepsView
@@ -300,14 +297,27 @@ private struct MenuBarSetupPage: View {
 
     private var stepsView: some View {
         VStack(alignment: .leading, spacing: 8) {
-            stepRow(number: 1, text: "System Settings → Control Center")
-            stepRow(number: 2, text: "Set \"Automatically hide and show the menu bar\" to **Always**")
+            StepRow(number: 1, text: "System Settings → Control Center")
+            StepRow(number: 2, text: "Set \"Automatically hide and show the menu bar\" to **Always**")
         }
         .padding(16)
         .background(.quaternary.opacity(0.5), in: RoundedRectangle(cornerRadius: 8))
     }
 
-    private func stepRow(number: Int, text: LocalizedStringKey) -> some View {
+    private func openControlCenterSettings() {
+        // swiftlint:disable:next force_unwrapping
+        let url = URL(string: "x-apple.systempreferences:com.apple.ControlCenter-Settings.extension")!
+        NSWorkspace.shared.open(url)
+    }
+}
+
+// MARK: - StepRow
+
+private struct StepRow: View {
+    let number: Int
+    let text: LocalizedStringKey
+
+    var body: some View {
         HStack(alignment: .top, spacing: 10) {
             Text("\(number)")
                 .font(.system(size: 11, weight: .bold, design: .rounded))
@@ -318,12 +328,6 @@ private struct MenuBarSetupPage: View {
             Text(text)
                 .font(.system(size: 12))
                 .foregroundStyle(.secondary)
-        }
-    }
-
-    private func openControlCenterSettings() {
-        if let url = URL(string: "x-apple.systempreferences:com.apple.ControlCenter-Settings.extension") {
-            NSWorkspace.shared.open(url)
         }
     }
 }
