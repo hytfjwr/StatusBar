@@ -299,6 +299,10 @@ final class AppUpdateService {
     }
 
     nonisolated private func fetchBrewLatestVersion() async throws -> String {
+        // Update local tap data so we see newly published versions.
+        // Failures are ignored — the info check still works with cached data.
+        _ = try? await ShellCommand.run("brew", arguments: ["update", "--quiet"], timeout: 30)
+
         let output = try await ShellCommand.run(
             "brew", arguments: ["info", "--json=v2", "--cask", Self.brewCask], timeout: 10
         )
