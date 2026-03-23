@@ -77,6 +77,29 @@ struct GitHubPluginInstallerTests {
         }
     }
 
+    @Test("Rejects non-GitHub host", arguments: [
+        "https://evil.com/owner/repo",
+        "https://gitlab.com/owner/repo",
+        "https://evil.com/github.com/owner/repo",
+    ])
+    func rejectsNonGitHubHost(url: String) {
+        #expect(throws: GitHubPluginError.self) {
+            try installer.parseGitHubURL(url)
+        }
+    }
+
+    @Test("Rejects owner/repo with path traversal or special characters", arguments: [
+        "../../etc/passwd",
+        "owner/../evil/repo",
+        "owner with spaces/repo",
+        "owner;rm -rf/repo",
+    ])
+    func rejectsUnsafeOwnerRepo(url: String) {
+        #expect(throws: GitHubPluginError.self) {
+            try installer.parseGitHubURL(url)
+        }
+    }
+
     // MARK: - needsUpdate — version comparison
 
     @Test("Detects update regardless of v prefix format", arguments: [
@@ -86,6 +109,15 @@ struct GitHubPluginInstallerTests {
         ("0.1.0", "1.0.0", true), // neither prefixed
     ])
     func detectsUpdate(installed: String, latestTag: String, expected: Bool) {
+        #expect(GitHubPluginInstaller.needsUpdate(installed: installed, latestTag: latestTag) == expected)
+    }
+
+    @Test("No update when latest is older (downgrade)", arguments: [
+        ("2.0.0", "v1.0.0", false),
+        ("1.1.0", "1.0.0", false),
+        ("1.0.1", "v1.0.0", false),
+    ])
+    func noDowngradeUpdate(installed: String, latestTag: String, expected: Bool) {
         #expect(GitHubPluginInstaller.needsUpdate(installed: installed, latestTag: latestTag) == expected)
     }
 

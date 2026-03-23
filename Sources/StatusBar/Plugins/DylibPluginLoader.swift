@@ -256,6 +256,9 @@ final class DylibPluginLoader {
         let manifestURL = bundleURL.appendingPathComponent("manifest.json")
         let manifest = try readManifest(at: manifestURL)
 
+        // Validate manifest fields (security: sanitize entrySymbol etc.)
+        try validateManifestFields(manifest)
+
         // Skip version compatibility check for dev mode
 
         // Find the dylib

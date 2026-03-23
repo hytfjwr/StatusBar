@@ -237,12 +237,24 @@ final class GitHubPluginInstaller {
         version.trimmingCharacters(in: CharacterSet(charactersIn: "vV"))
     }
 
-    /// Whether an update is available by comparing normalized version strings.
+    /// Whether an update is available (strict greater-than to avoid treating downgrades as updates).
     static func needsUpdate(installed: String, latestTag: String) -> Bool {
-        normalizeVersion(latestTag) != normalizeVersion(installed)
+        let installedNorm = normalizeVersion(installed)
+        let latestNorm = normalizeVersion(latestTag)
+        if let installedVer = SemanticVersion(installedNorm),
+           let latestVer = SemanticVersion(latestNorm)
+        {
+            return latestVer > installedVer
+        }
+        // Fallback to string comparison for non-semver versions
+        return latestNorm != installedNorm
     }
 
     // MARK: - Private
+
+    /// GitHub owner/repo name pattern: must start with alphanumeric, rest allows hyphens, dots, underscores.
+    /// Rejects "." and ".." (path traversal).
+    private static let ownerRepoPattern = /^[a-zA-Z0-9][a-zA-Z0-9._-]*$/
 
     func parseGitHubURL(_ urlString: String) throws -> (owner: String, repo: String) {
         // Handle formats:
@@ -251,9 +263,20 @@ final class GitHubPluginInstaller {
         //   github.com/owner/repo
         //   owner/repo
         var cleaned = urlString
-            .replacingOccurrences(of: "https://", with: "")
-            .replacingOccurrences(of: "http://", with: "")
-            .replacingOccurrences(of: "github.com/", with: "")
+
+        if let components = URLComponents(string: urlString), components.scheme != nil {
+            guard let host = components.host, host == "github.com" else {
+                throw GitHubPluginError.invalidURL(urlString)
+            }
+            cleaned = components.path
+            if cleaned.hasPrefix("/") {
+                cleaned = String(cleaned.dropFirst())
+            }
+        } else {
+            if cleaned.hasPrefix("github.com/") {
+                cleaned = String(cleaned.dropFirst("github.com/".count))
+            }
+        }
 
         if cleaned.hasSuffix(".git") {
             cleaned = String(cleaned.dropLast(4))
@@ -268,7 +291,16 @@ final class GitHubPluginInstaller {
             throw GitHubPluginError.invalidURL(urlString)
         }
 
-        return (owner: String(parts[0]), repo: String(parts[1]))
+        let owner = String(parts[0])
+        let repo = String(parts[1])
+
+        guard owner.wholeMatch(of: Self.ownerRepoPattern) != nil,
+              repo.wholeMatch(of: Self.ownerRepoPattern) != nil
+        else {
+            throw GitHubPluginError.invalidURL(urlString)
+        }
+
+        return (owner: owner, repo: repo)
     }
 
     private func fetchLatestRelease(owner: String, repo: String) async throws -> GitHubRelease {
@@ -320,7 +352,7 @@ final class GitHubPluginInstaller {
         return data
     }
 
-    private func unzip(_ zipURL: URL, to destination: URL) async throws {
+    private func unzip(_ zipURL: URL, to destination: URL, timeout: TimeInterval = 30) async throws {
         let process = Process()
         process.executableURL = URL(fileURLWithPath: "/usr/bin/unzip")
         process.arguments = ["-o", zipURL.path, "-d", destination.path]
@@ -328,10 +360,25 @@ final class GitHubPluginInstaller {
         process.standardError = FileHandle.nullDevice
         try process.run()
 
-        // Wait asynchronously via terminationHandler to avoid blocking the main thread
-        let status = await withCheckedContinuation { (continuation: CheckedContinuation<Int32, Never>) in
+        let status: Int32 = try await withCheckedThrowingContinuation { continuation in
+            nonisolated(unsafe) let workItem = DispatchWorkItem {
+                if process.isRunning {
+                    process.terminate()
+                }
+            }
+            DispatchQueue.global().asyncAfter(deadline: .now() + timeout, execute: workItem)
+
             process.terminationHandler = { proc in
-                continuation.resume(returning: proc.terminationStatus)
+                workItem.cancel()
+                if proc.terminationReason == .uncaughtSignal {
+                    continuation.resume(throwing: GitHubPluginError.extractionFailed(
+                        NSError(domain: "unzip", code: -1, userInfo: [
+                            NSLocalizedDescriptionKey: "Unzip timed out after \(Int(timeout))s",
+                        ])
+                    ))
+                } else {
+                    continuation.resume(returning: proc.terminationStatus)
+                }
             }
         }
 
