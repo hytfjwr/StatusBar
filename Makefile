@@ -1,7 +1,8 @@
-.PHONY: build clean run bundle test set-version package
+.PHONY: build clean run-dev run-app bundle test set-version package
 
 APP_NAME = StatusBar
 APP_BUNDLE = $(APP_NAME).app
+DEBUG_BUNDLE = .build/debug/$(APP_BUNDLE)
 
 build:
 	swift build
@@ -11,13 +12,25 @@ release:
 
 clean:
 	swift package clean
-	rm -rf $(APP_BUNDLE)
+	rm -rf $(APP_BUNDLE) $(DEBUG_BUNDLE)
 
 test:
 	swift test
 
-run: build
-	.build/debug/$(APP_NAME)
+run-dev: build
+	@rm -rf $(DEBUG_BUNDLE)
+	@mkdir -p $(DEBUG_BUNDLE)/Contents/MacOS
+	@mkdir -p $(DEBUG_BUNDLE)/Contents/Frameworks
+	@cp .build/debug/$(APP_NAME) $(DEBUG_BUNDLE)/Contents/MacOS/
+	@cp .build/debug/libStatusBarKit.dylib $(DEBUG_BUNDLE)/Contents/Frameworks/
+	@cp Resources/Info.plist $(DEBUG_BUNDLE)/Contents/
+	@if [ -f StatusBar.entitlements ]; then \
+		codesign --force --deep --entitlements StatusBar.entitlements -s - $(DEBUG_BUNDLE); \
+	fi
+	open $(DEBUG_BUNDLE)
+
+run-app: bundle
+	open $(APP_BUNDLE)
 
 bundle: release
 	@echo "Creating $(APP_BUNDLE)..."
@@ -40,6 +53,3 @@ set-version:
 	@if [ -z "$(VERSION)" ]; then echo "Usage: make set-version VERSION=x.y.z"; exit 1; fi
 	/usr/libexec/PlistBuddy -c "Set :CFBundleShortVersionString $(VERSION)" Resources/Info.plist
 	/usr/libexec/PlistBuddy -c "Set :CFBundleVersion $(VERSION)" Resources/Info.plist
-
-run-app: bundle
-	open $(APP_BUNDLE)
