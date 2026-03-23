@@ -189,12 +189,14 @@ struct NetworkWidgetSettings: View {
 
 struct CPUGraphWidgetSettings: View {
     var body: some View {
-        IntervalSettings(
-            title: "Update Interval",
-            interval: CPUGraphSettings.shared.updateInterval
-        ) { newValue in
-            CPUGraphSettings.shared.updateInterval = newValue
-        }
+        GraphWidgetSettingsContent(
+            displayMode: CPUGraphSettings.shared.displayMode,
+            thresholds: CPUGraphSettings.shared.thresholds,
+            interval: CPUGraphSettings.shared.updateInterval,
+            onModeChange: { CPUGraphSettings.shared.displayMode = $0 },
+            onThresholdsChange: { CPUGraphSettings.shared.thresholds = $0 },
+            onIntervalChange: { CPUGraphSettings.shared.updateInterval = $0 }
+        )
     }
 }
 
@@ -202,12 +204,168 @@ struct CPUGraphWidgetSettings: View {
 
 struct MemoryGraphWidgetSettings: View {
     var body: some View {
-        IntervalSettings(
-            title: "Update Interval",
-            interval: MemoryGraphSettings.shared.updateInterval
-        ) { newValue in
-            MemoryGraphSettings.shared.updateInterval = newValue
+        GraphWidgetSettingsContent(
+            displayMode: MemoryGraphSettings.shared.displayMode,
+            thresholds: MemoryGraphSettings.shared.thresholds,
+            interval: MemoryGraphSettings.shared.updateInterval,
+            onModeChange: { MemoryGraphSettings.shared.displayMode = $0 },
+            onThresholdsChange: { MemoryGraphSettings.shared.thresholds = $0 },
+            onIntervalChange: { MemoryGraphSettings.shared.updateInterval = $0 }
+        )
+    }
+}
+
+// MARK: - GraphWidgetSettingsContent
+
+struct GraphWidgetSettingsContent: View {
+    @State private var displayMode: GraphDisplayMode
+    @State private var thresholds: [ThresholdEntry]
+    private let initialInterval: Double
+
+    let onModeChange: (GraphDisplayMode) -> Void
+    let onThresholdsChange: ([ThresholdEntry]) -> Void
+    let onIntervalChange: (Double) -> Void
+
+    init(
+        displayMode: GraphDisplayMode,
+        thresholds: [ThresholdEntry],
+        interval: Double,
+        onModeChange: @escaping (GraphDisplayMode) -> Void,
+        onThresholdsChange: @escaping ([ThresholdEntry]) -> Void,
+        onIntervalChange: @escaping (Double) -> Void
+    ) {
+        _displayMode = State(initialValue: displayMode)
+        _thresholds = State(initialValue: thresholds)
+        initialInterval = interval
+        self.onModeChange = onModeChange
+        self.onThresholdsChange = onThresholdsChange
+        self.onIntervalChange = onIntervalChange
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 16) {
+            VStack(alignment: .leading, spacing: 8) {
+                Text("Display Mode")
+                    .font(.system(size: 12, weight: .semibold))
+                    .foregroundStyle(.secondary)
+
+                Picker("Display Mode", selection: $displayMode) {
+                    ForEach(GraphDisplayMode.allCases, id: \.self) { mode in
+                        Text(mode.label).tag(mode)
+                    }
+                }
+                .pickerStyle(.segmented)
+                .onChange(of: displayMode) { _, newValue in
+                    onModeChange(newValue)
+                }
+            }
+
+            Divider()
+
+            IntervalSettings(
+                title: "Update Interval",
+                interval: initialInterval,
+                onChange: onIntervalChange
+            )
+
+            Divider()
+
+            ThresholdEditorSection(thresholds: $thresholds)
         }
+        .onChange(of: thresholds) { _, newValue in
+            onThresholdsChange(newValue)
+        }
+    }
+}
+
+// MARK: - ThresholdEditorSection
+
+private struct ThresholdEditorSection: View {
+    @Binding var thresholds: [ThresholdEntry]
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            HStack {
+                Text("Threshold Colors")
+                    .font(.system(size: 12, weight: .semibold))
+                    .foregroundStyle(.secondary)
+                Spacer()
+                Button {
+                    thresholds.append(ThresholdEntry(above: 0.50, hex: 0xFF9F0A))
+                    thresholds.sort { $0.above < $1.above }
+                } label: {
+                    Image(systemName: "plus.circle")
+                }
+                .buttonStyle(.borderless)
+            }
+
+            Text("Color applies when usage \u{2265} threshold")
+                .font(.system(size: 11))
+                .foregroundStyle(.tertiary)
+
+            ForEach(thresholds) { entry in
+                ThresholdRow(
+                    entry: entry,
+                    onUpdate: { updated in
+                        if let idx = thresholds.firstIndex(where: { $0.id == entry.id }) {
+                            thresholds[idx] = updated
+                            thresholds.sort { $0.above < $1.above }
+                        }
+                    },
+                    onDelete: {
+                        thresholds.removeAll { $0.id == entry.id }
+                    }
+                )
+            }
+        }
+    }
+}
+
+// MARK: - ThresholdRow
+
+private struct ThresholdRow: View {
+    @State private var percentage: Double
+    @State private var selectedColor: Color
+    let onUpdate: (ThresholdEntry) -> Void
+    let onDelete: () -> Void
+
+    init(entry: ThresholdEntry, onUpdate: @escaping (ThresholdEntry) -> Void, onDelete: @escaping () -> Void) {
+        _percentage = State(initialValue: entry.above * 100)
+        _selectedColor = State(initialValue: Color(hex: entry.hex))
+        self.onUpdate = onUpdate
+        self.onDelete = onDelete
+    }
+
+    var body: some View {
+        HStack(spacing: 8) {
+            Text("\(Int(percentage))%")
+                .font(.system(size: 12, design: .monospaced))
+                .frame(width: 36, alignment: .trailing)
+
+            Slider(value: $percentage, in: 0 ... 100, step: 5)
+                .onChange(of: percentage) { _, _ in
+                    syncToParent()
+                }
+
+            ColorPicker("", selection: $selectedColor, supportsOpacity: false)
+                .labelsHidden()
+                .frame(width: 24)
+                .onChange(of: selectedColor) { _, _ in
+                    syncToParent()
+                }
+
+            Button {
+                onDelete()
+            } label: {
+                Image(systemName: "minus.circle")
+                    .foregroundStyle(.secondary)
+            }
+            .buttonStyle(.borderless)
+        }
+    }
+
+    private func syncToParent() {
+        onUpdate(ThresholdEntry(above: percentage / 100.0, hex: selectedColor.toHex()))
     }
 }
 
