@@ -47,7 +47,7 @@ final class AppUpdateService {
     private(set) var updateProgress: Double = 0
     private var updateProcess: Process?
 
-    nonisolated private static let brewFormula = "hytfjwr/statusbar/statusbar"
+    nonisolated private static let brewCask = "statusbar"
 
     /// Minimum interval between automatic checks (1 hour).
     private static let autoCheckInterval: TimeInterval = 3_600
@@ -124,7 +124,7 @@ final class AppUpdateService {
         updateProgress = 0.2
 
         do {
-            appendLog("$ brew upgrade \(Self.brewFormula)")
+            appendLog("$ brew upgrade --cask \(Self.brewCask)")
             let exitCode = try await runBrewUpgrade(brewPath: brewPath)
 
             // Check if cancelled while awaiting
@@ -261,7 +261,7 @@ final class AppUpdateService {
     private func runBrewUpgrade(brewPath: String) async throws -> Int32 {
         let process = Process()
         process.executableURL = URL(fileURLWithPath: brewPath)
-        process.arguments = ["upgrade", Self.brewFormula]
+        process.arguments = ["upgrade", "--cask", Self.brewCask]
 
         let pipe = Pipe()
         process.standardOutput = pipe
@@ -300,13 +300,13 @@ final class AppUpdateService {
 
     nonisolated private func fetchBrewLatestVersion() async throws -> String {
         let output = try await ShellCommand.run(
-            "brew", arguments: ["info", "--json=v2", Self.brewFormula], timeout: 10
+            "brew", arguments: ["info", "--json=v2", "--cask", Self.brewCask], timeout: 10
         )
         let data = Data(output.utf8)
         let json = try JSONDecoder().decode(BrewInfoResponse.self, from: data)
 
         guard let cask = json.casks.first else {
-            throw UpdateError.formulaNotFound
+            throw UpdateError.caskNotFound
         }
 
         return cask.version
@@ -317,11 +317,11 @@ final class AppUpdateService {
 
 extension AppUpdateService {
     enum UpdateError: LocalizedError {
-        case formulaNotFound
+        case caskNotFound
 
         var errorDescription: String? {
             switch self {
-            case .formulaNotFound: "Homebrew formula not found"
+            case .caskNotFound: "Homebrew cask not found"
             }
         }
     }
