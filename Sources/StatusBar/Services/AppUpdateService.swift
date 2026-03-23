@@ -182,7 +182,17 @@ final class AppUpdateService {
         let pid = ProcessInfo.processInfo.processIdentifier
 
         let targetPath = isAppBundle ? bundlePath : ProcessInfo.processInfo.arguments[0]
-        let launchCmd = isAppBundle ? #"open "$2""# : #""$2" &"#
+        let bundleId = Bundle.main.bundleIdentifier
+        let launchCmd = if isAppBundle, let bundleId {
+            // Use bundle ID instead of path — the Cellar path from
+            // Bundle.main.bundlePath is deleted after `brew upgrade`,
+            // but Launch Services can still locate the app by its ID.
+            #"open -b "\#(bundleId)""#
+        } else if isAppBundle {
+            #"open "$2""#
+        } else {
+            #""$2" &"#
+        }
 
         // The shell script waits for the current process to fully exit before
         // relaunching to avoid the single-instance guard killing the new process.
