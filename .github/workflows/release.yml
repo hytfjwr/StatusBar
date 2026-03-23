@@ -41,11 +41,6 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Select Xcode 26
-        uses: maxim-lobanov/setup-xcode@v1
-        with:
-          xcode-version: '26'
-
       - name: Calculate next version
         id: version
         run: |
@@ -110,30 +105,8 @@ jobs:
           git add Resources/Info.plist CHANGELOG.md
           git commit -m "chore: release ${TAG}"
 
-      - name: Build & Package
-        run: make package
-
-      - name: Push branch and tag
-        run: |
-          TAG="${{ steps.version.outputs.tag }}"
-          BRANCH="release/${TAG}"
-          git tag "$TAG"
-          git push origin "$BRANCH" "$TAG"
-
-      - name: Create GitHub release
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: |
-          TAG="${{ steps.version.outputs.tag }}"
-          PREV="${{ steps.version.outputs.previous_tag }}"
-          NOTES_FLAG="--generate-notes"
-          if [ "$PREV" != "v0.0.0" ]; then
-            NOTES_FLAG="--generate-notes --notes-start-tag ${PREV}"
-          fi
-          gh release create "$TAG" \
-            StatusBar.zip \
-            --title "$TAG" \
-            $NOTES_FLAG
+      - name: Push branch
+        run: git push origin release/${{ steps.version.outputs.tag }}
 
       - name: Create version bump PR
         env:
