@@ -5,8 +5,14 @@ import IOKit.ps
 final class BatteryService {
     static let shared = BatteryService()
 
+    /// Opaque token returned by `addObserver` for later removal.
+    struct ObserverToken: Equatable {
+        fileprivate let id: UInt64
+    }
+
     private var runLoopSource: CFRunLoopSource?
-    private var observers: [(Int, Bool, Bool) -> Void] = []
+    private var observers: [(id: UInt64, handler: (Int, Bool, Bool) -> Void)] = []
+    private var nextObserverID: UInt64 = 0
     private var started = false
 
     /// Whether the machine has a battery. False on desktop Macs (Mac Mini, Mac Pro, etc.).
@@ -14,8 +20,16 @@ final class BatteryService {
 
     private init() {}
 
-    func addObserver(_ handler: @escaping (_ capacity: Int, _ isCharging: Bool, _ hasBattery: Bool) -> Void) {
-        observers.append(handler)
+    @discardableResult
+    func addObserver(_ handler: @escaping (_ capacity: Int, _ isCharging: Bool, _ hasBattery: Bool) -> Void) -> ObserverToken {
+        let token = ObserverToken(id: nextObserverID)
+        nextObserverID += 1
+        observers.append((id: token.id, handler: handler))
+        return token
+    }
+
+    func removeObserver(_ token: ObserverToken) {
+        observers.removeAll { $0.id == token.id }
     }
 
     func removeAllObservers() {
@@ -80,7 +94,7 @@ final class BatteryService {
 
     private func notifyObservers(_ capacity: Int, _ isCharging: Bool, _ hasBattery: Bool) {
         for observer in observers {
-            observer(capacity, isCharging, hasBattery)
+            observer.handler(capacity, isCharging, hasBattery)
         }
     }
 }
