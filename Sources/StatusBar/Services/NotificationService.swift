@@ -15,6 +15,7 @@ final class NotificationService {
     private(set) var permissionStatus: String = "Unknown"
 
     private var timer: AnyCancellable?
+    private var batteryObserverToken: BatteryService.ObserverToken?
     private let monitorService = SystemMonitorService.shared
 
     // Battery state
@@ -41,7 +42,7 @@ final class NotificationService {
     func start() {
         stop()
 
-        BatteryService.shared.addObserver { [weak self] pct, charging, _ in
+        batteryObserverToken = BatteryService.shared.addObserver { [weak self] pct, charging, _ in
             self?.currentBatteryPct = pct
             self?.currentBatteryCharging = charging
         }
@@ -54,6 +55,10 @@ final class NotificationService {
     func stop() {
         timer?.cancel()
         timer = nil
+        if let token = batteryObserverToken {
+            BatteryService.shared.removeObserver(token)
+            batteryObserverToken = nil
+        }
     }
 
     private func updateTimerState() {
