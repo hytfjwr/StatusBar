@@ -17,6 +17,8 @@ struct OnboardingView: View {
                     WelcomePage()
                 case .widgets:
                     WidgetPickerPage(registry: WidgetRegistry.shared)
+                case .menuBarSetup:
+                    MenuBarSetupPage()
                 case .tips:
                     TipsPage()
                 }
@@ -74,6 +76,7 @@ struct OnboardingView: View {
 private enum OnboardingPage: String, CaseIterable, Identifiable {
     case welcome
     case widgets
+    case menuBarSetup
     case tips
 
     var id: Self {
@@ -83,7 +86,8 @@ private enum OnboardingPage: String, CaseIterable, Identifiable {
     var next: Self {
         switch self {
         case .welcome: .widgets
-        case .widgets: .tips
+        case .widgets: .menuBarSetup
+        case .menuBarSetup: .tips
         case .tips: .tips
         }
     }
@@ -92,7 +96,8 @@ private enum OnboardingPage: String, CaseIterable, Identifiable {
         switch self {
         case .welcome: .welcome
         case .widgets: .welcome
-        case .tips: .widgets
+        case .menuBarSetup: .widgets
+        case .tips: .menuBarSetup
         }
     }
 }
@@ -252,6 +257,74 @@ private struct WidgetToggleRow: View {
             entry.isVisible ? Color.clear : Color(nsColor: .controlBackgroundColor).opacity(0.3),
             in: RoundedRectangle(cornerRadius: 6)
         )
+    }
+}
+
+// MARK: - MenuBarSetupPage
+
+private struct MenuBarSetupPage: View {
+    var body: some View {
+        VStack(spacing: 20) {
+            Spacer()
+
+            Image(systemName: "menubar.arrow.up.rectangle")
+                .font(.system(size: 48))
+                .foregroundStyle(.secondary)
+
+            VStack(spacing: 8) {
+                Text("Hide the macOS Menu Bar")
+                    .font(.title2)
+                    .fontWeight(.semibold)
+
+                Text(
+                    "StatusBar works best when the built-in macOS menu bar is hidden."
+                        + "\nSet \"Automatically hide and show the menu bar\" to **Always** in System Settings."
+                )
+                .font(.system(size: 12))
+                .foregroundStyle(.secondary)
+                .multilineTextAlignment(.center)
+                .frame(maxWidth: 420)
+            }
+
+            stepsView
+
+            Button(action: openControlCenterSettings) {
+                Label("Open System Settings", systemImage: "gear")
+            }
+            .controlSize(.large)
+
+            Spacer()
+        }
+        .padding(24)
+    }
+
+    private var stepsView: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            stepRow(number: 1, text: "System Settings → Control Center")
+            stepRow(number: 2, text: "\"Automatically hide and show the menu bar\" を **Always** に変更")
+        }
+        .padding(16)
+        .background(.quaternary.opacity(0.5), in: RoundedRectangle(cornerRadius: 8))
+    }
+
+    private func stepRow(number: Int, text: LocalizedStringKey) -> some View {
+        HStack(alignment: .top, spacing: 10) {
+            Text("\(number)")
+                .font(.system(size: 11, weight: .bold, design: .rounded))
+                .foregroundStyle(.white)
+                .frame(width: 20, height: 20)
+                .background(Color.accentColor, in: Circle())
+
+            Text(text)
+                .font(.system(size: 12))
+                .foregroundStyle(.secondary)
+        }
+    }
+
+    private func openControlCenterSettings() {
+        if let url = URL(string: "x-apple.systempreferences:com.apple.ControlCenter-Settings.extension") {
+            NSWorkspace.shared.open(url)
+        }
     }
 }
 
