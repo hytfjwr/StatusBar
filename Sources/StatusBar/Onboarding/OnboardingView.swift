@@ -301,7 +301,7 @@ private struct MenuBarSetupPage: View {
     private var stepsView: some View {
         VStack(alignment: .leading, spacing: 8) {
             stepRow(number: 1, text: "System Settings → Control Center")
-            stepRow(number: 2, text: "\"Automatically hide and show the menu bar\" を **Always** に変更")
+            stepRow(number: 2, text: "Set \"Automatically hide and show the menu bar\" to **Always**")
         }
         .padding(16)
         .background(.quaternary.opacity(0.5), in: RoundedRectangle(cornerRadius: 8))
