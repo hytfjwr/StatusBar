@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.5.1] - 2026-03-23
+
+- refactor: defer tag/release creation to after PR merge (#37)
+- fix: harden plugin security and fix observer leak (#36)
+
 ## [0.5.0] - 2026-03-20
 
 - feat: add Developer Mode toggle to gate plugin development UI (#34)
