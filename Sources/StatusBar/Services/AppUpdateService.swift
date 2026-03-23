@@ -47,10 +47,7 @@ final class AppUpdateService {
     private(set) var updateProgress: Double = 0
     private var updateProcess: Process?
 
-    // GitHub repository for this app
-    private static let owner = "hytfjwr"
-    private static let repo = "StatusBar"
-    private static let brewFormula = "hytfjwr/statusbar/statusbar"
+    nonisolated private static let brewFormula = "hytfjwr/statusbar/statusbar"
 
     /// Minimum interval between automatic checks (1 hour).
     private static let autoCheckInterval: TimeInterval = 3_600
@@ -69,20 +66,16 @@ final class AppUpdateService {
         state = .checking
 
         do {
-            let release = try await fetchLatestRelease()
-            let latestTag = release.tagName
-                .trimmingCharacters(in: CharacterSet(charactersIn: "vV"))
-
+            let latestVersion = try await fetchBrewLatestVersion()
             let currentVersion = Self.appVersion
 
             recordCheck()
 
-            guard let latest = SemanticVersion(latestTag),
+            guard let latest = SemanticVersion(latestVersion),
                   let current = SemanticVersion(currentVersion)
             else {
-                // Fallback to string comparison if parsing fails
-                if latestTag != currentVersion {
-                    state = .available(version: latestTag)
+                if latestVersion != currentVersion {
+                    state = .available(version: latestVersion)
                 } else {
                     state = .upToDate
                 }
@@ -90,7 +83,7 @@ final class AppUpdateService {
             }
 
             if latest > current {
-                state = .available(version: latestTag)
+                state = .available(version: latestVersion)
             } else {
                 state = .upToDate
             }
@@ -309,34 +302,18 @@ final class AppUpdateService {
         return status
     }
 
-    private func fetchLatestRelease() async throws -> GitHubRelease {
-        let urlString = "https://api.github.com/repos/\(Self.owner)/\(Self.repo)/releases/latest"
-        guard let url = URL(string: urlString) else {
-            throw UpdateError.networkError
+    nonisolated private func fetchBrewLatestVersion() async throws -> String {
+        let output = try await ShellCommand.run(
+            "brew", arguments: ["info", "--json=v2", Self.brewFormula], timeout: 10
+        )
+        let data = Data(output.utf8)
+        let json = try JSONDecoder().decode(BrewInfoResponse.self, from: data)
+
+        guard let cask = json.casks.first else {
+            throw UpdateError.formulaNotFound
         }
 
-        var request = URLRequest(url: url)
-        request.setValue("application/vnd.github+json", forHTTPHeaderField: "Accept")
-
-        let (data, response) = try await URLSession.shared.data(for: request)
-
-        guard let httpResponse = response as? HTTPURLResponse else {
-            throw UpdateError.networkError
-        }
-
-        if httpResponse.statusCode == 403 || httpResponse.statusCode == 429 {
-            throw UpdateError.rateLimited
-        }
-
-        if httpResponse.statusCode == 404 {
-            throw UpdateError.noRelease
-        }
-
-        guard httpResponse.statusCode == 200 else {
-            throw UpdateError.networkError
-        }
-
-        return try JSONDecoder().decode(GitHubRelease.self, from: data)
+        return cask.version
     }
 }
 
@@ -344,26 +321,22 @@ final class AppUpdateService {
 
 extension AppUpdateService {
     enum UpdateError: LocalizedError {
-        case networkError
-        case rateLimited
-        case noRelease
+        case formulaNotFound
 
         var errorDescription: String? {
             switch self {
-            case .networkError: "Network error"
-            case .rateLimited: "GitHub API rate limited. Try again later."
-            case .noRelease: "No releases found"
+            case .formulaNotFound: "Homebrew formula not found"
             }
         }
     }
 }
 
-// MARK: - GitHubRelease
+// MARK: - BrewInfoResponse
 
-private struct GitHubRelease: Decodable {
-    let tagName: String
-
-    enum CodingKeys: String, CodingKey {
-        case tagName = "tag_name"
+private struct BrewInfoResponse: Decodable {
+    struct Cask: Decodable {
+        let version: String
     }
+
+    let casks: [Cask]
 }

@@ -56,3 +56,4 @@
 --disable environmentEntry
 --disable sortSwitchCases
 --disable wrapSwitchCases
+--disable modifierOrder        # defer to SwiftLint modifier_order
