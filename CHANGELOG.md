@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.6.0] - 2026-03-23
+
+- feat: add menu bar auto-hide recommendation to onboarding (#46)
+- feat: add display mode switching and threshold color coding for CPU/MEM widgets (#47)
+
 ## [0.5.6] - 2026-03-23
 
 ## [0.5.5] - 2026-03-23
