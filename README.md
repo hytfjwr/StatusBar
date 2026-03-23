@@ -15,9 +15,14 @@ https://github.com/user-attachments/assets/ff474554-a8e3-4ccc-91ff-edb0f0bb1ed2
 
 ---
 
-## Getting Started
+## Requirements
 
-### Install via Homebrew
+- **macOS 26** or later
+- **Xcode 26** or later ([download](https://developer.apple.com/download/)) — only for building from source
+
+## Installation
+
+### Homebrew (recommended)
 
 ```bash
 brew tap hytfjwr/statusbar
@@ -26,19 +31,60 @@ brew install statusbar
 
 ### Build from Source
 
-Requirements: macOS 26+, Xcode 26+ ([download](https://developer.apple.com/download/)), Swift 6.2
-
 ```bash
 git clone https://github.com/hytfjwr/StatusBar.git
 cd StatusBar
 make run
 ```
 
+## Built-in Widgets
+
+| Widget | Description | Update |
+|--------|-------------|--------|
+| Apple Menu | System actions & preferences | Event |
+| Front App | Currently focused application | Event |
+| CPU Graph | Real-time CPU usage mini-graph | 2s |
+| Memory Graph | RAM usage mini-graph | 2s |
+| Network | Upload / download speeds | 2s |
+| Battery | Charge level & charging state | 60s |
+| Volume | Volume level with popup control | Event |
+| Bluetooth | Connected device count | 5s |
+| Disk Usage | Disk utilization percentage | 30s |
+| Mic / Camera | Active mic/camera indicator | Event |
+| Input Source | Keyboard input source | Event |
+| Time | Clock (customizable format) | 2s |
+| Date | Date & calendar events | Event |
+| Focus Timer | Pomodoro-style timer | Event |
+| Chevron | Section separator | — |
+
+## Plugins
+
+StatusBar supports third-party plugins distributed as `.statusplugin.zip` archives via GitHub Releases. Install and manage plugins entirely through the Preferences UI — no CLI required.
+
+<img width="722" height="673" alt="Plugin Management UI" src="https://github.com/user-attachments/assets/9eed1e64-fda5-48d9-88a6-03f885442770" />
+
+### Official Plugins
+
+| Plugin | Description | Update |
+|--------|-------------|--------|
+| [AeroSpace](https://github.com/hytfjwr/statusbar-plugin-aerospace) | Tiling window manager workspace indicator | Event |
+| [Spotify](https://github.com/hytfjwr/statusbar-plugin-spotify) | Now playing track title & artist | Event |
+| [Docker](https://github.com/hytfjwr/statusbar-plugin-docker) | Running container count | 10s |
+| [VPN](https://github.com/hytfjwr/statusbar-plugin-vpn) | VPN connection status | 5s |
+| [Claude](https://github.com/hytfjwr/statusbar-plugin-claude) | Claude API usage & status | Event |
+
+Install from Preferences > Plugins > Add Plugin using `hytfjwr/<plugin-name>`.
+
+### Create Your Own
+
+Use the [plugin template](https://github.com/hytfjwr/statusbar-plugin-template) to get started.
+
 ## Configuration
 
 A default config is generated at `~/.config/statusbar/config.yml` on first launch. The file is hot-reloaded — edits are applied instantly without restarting. All settings are also available through the Preferences window (Apple Menu > Preferences).
 
-### Bar
+<details>
+<summary>Bar</summary>
 
 | Key | Type | Default | Description |
 |-----|------|---------|-------------|
@@ -49,7 +95,10 @@ A default config is generated at `~/.config/statusbar/config.yml` on first launc
 | `widgetSpacing` | number | 6 | Space between widgets |
 | `widgetPaddingH` | number | 6 | Horizontal padding inside each widget |
 
-### Appearance
+</details>
+
+<details>
+<summary>Appearance</summary>
 
 | Key | Type | Default | Description |
 |-----|------|---------|-------------|
@@ -68,7 +117,10 @@ A default config is generated at `~/.config/statusbar/config.yml` on first launc
 | `popupCornerRadius` | number | 10 | Popup corner radius |
 | `popupPadding` | number | 12 | Popup internal padding |
 
-### Typography
+</details>
+
+<details>
+<summary>Typography</summary>
 
 | Key | Type | Default | Description |
 |-----|------|---------|-------------|
@@ -77,7 +129,10 @@ A default config is generated at `~/.config/statusbar/config.yml` on first launc
 | `smallFontSize` | number | 11 | Small text font size (pt) |
 | `monoFontSize` | number | 12 | Monospace font size (pt) |
 
-### Graphs
+</details>
+
+<details>
+<summary>Graphs</summary>
 
 | Key | Type | Default | Description |
 |-----|------|---------|-------------|
@@ -87,7 +142,10 @@ A default config is generated at `~/.config/statusbar/config.yml` on first launc
 | `cpuColor` | hex color | `#007AFF` | CPU graph color |
 | `memoryColor` | hex color | `#34C759` | Memory graph color |
 
-### Behavior
+</details>
+
+<details>
+<summary>Behavior</summary>
 
 | Key | Type | Default | Description |
 |-----|------|---------|-------------|
@@ -96,7 +154,10 @@ A default config is generated at `~/.config/statusbar/config.yml` on first launc
 | `autoHideFadeDuration` | number | 0.2 | Fade animation duration (s) |
 | `launchAtLogin` | bool | false | Launch at system startup |
 
-### Notifications
+</details>
+
+<details>
+<summary>Notifications</summary>
 
 | Key | Type | Default | Description |
 |-----|------|---------|-------------|
@@ -109,7 +170,10 @@ A default config is generated at `~/.config/statusbar/config.yml` on first launc
 | `memoryThreshold` | number | 90.0 | Memory usage (%) to trigger |
 | `memorySustainedDuration` | number | 5.0 | Seconds above threshold before alert |
 
-### Widget Layout
+</details>
+
+<details>
+<summary>Widget Layout</summary>
 
 Each widget entry in the `widgets` array:
 
@@ -119,6 +183,8 @@ Each widget entry in the `widgets` array:
 | `section` | string | Position: `"left"`, `"center"`, or `"right"` |
 | `sortIndex` | integer | Order within the section |
 | `visible` | bool | Whether the widget is displayed |
+
+</details>
 
 <details>
 <summary>Example config</summary>
@@ -161,45 +227,6 @@ widgets:
 ```
 
 </details>
-
-## Built-in Widgets
-
-| Widget | Description | Update |
-|--------|-------------|--------|
-| Apple Menu | System actions & preferences | Event |
-| Front App | Currently focused application | Event |
-| CPU Graph | Real-time CPU usage mini-graph | 2s |
-| Memory Graph | RAM usage mini-graph | 2s |
-| Network | Upload / download speeds | 2s |
-| Battery | Charge level & charging state | 60s |
-| Volume | Volume level with popup control | Event |
-| Bluetooth | Connected device count | 5s |
-| Disk Usage | Disk utilization percentage | 30s |
-| Mic / Camera | Active mic/camera indicator | Event |
-| Input Source | Keyboard input source | Event |
-| Time | Clock (customizable format) | 2s |
-| Date | Date & calendar events | Event |
-| Focus Timer | Pomodoro-style timer | Event |
-| Chevron | Section separator | — |
-
-## Plugins
-
-StatusBar supports third-party plugins distributed as `.statusplugin.zip` archives via GitHub Releases. Install and manage plugins entirely through the Preferences UI — no CLI required.
-
-### Official Plugins
-
-| Plugin | Description | Update |
-|--------|-------------|--------|
-| [AeroSpace](https://github.com/hytfjwr/statusbar-plugin-aerospace) | Tiling window manager workspace indicator | Event |
-| [Spotify](https://github.com/hytfjwr/statusbar-plugin-spotify) | Now playing track title & artist | Event |
-| [Docker](https://github.com/hytfjwr/statusbar-plugin-docker) | Running container count | 10s |
-| [VPN](https://github.com/hytfjwr/statusbar-plugin-vpn) | VPN connection status | 5s |
-
-Install from Preferences > Plugins > Add Plugin using `hytfjwr/<plugin-name>`.
-
-### Create Your Own
-
-Use the [plugin template](https://github.com/hytfjwr/statusbar-plugin-template) to get started.
 
 ## License
 
