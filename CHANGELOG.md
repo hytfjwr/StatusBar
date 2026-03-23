@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.6.1] - 2026-03-23
+
+- fix: use Homebrew Cask commands for update detection and upgrade (#52)
+
 ## [0.6.0] - 2026-03-23
 
 - feat: add menu bar auto-hide recommendation to onboarding (#46)
