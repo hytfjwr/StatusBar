@@ -66,7 +66,7 @@ jobs:
     needs: publish
     runs-on: ubuntu-latest
     steps:
-      - name: Update Homebrew formula
+      - name: Update Homebrew cask
         env:
           GH_TOKEN: ${{ secrets.HOMEBREW_TAP_TOKEN }}
           TAG: ${{ needs.publish.outputs.tag }}
@@ -77,8 +77,9 @@ jobs:
             exit 0
           fi
 
-          TARBALL_URL="https://github.com/${REPO}/archive/refs/tags/${TAG}.tar.gz"
-          SHA256=$(curl -fsSL --retry 3 --retry-delay 2 "$TARBALL_URL" | sha256sum | cut -d' ' -f1)
+          ZIP_URL="https://github.com/${REPO}/releases/download/${TAG}/StatusBar.zip"
+          SHA256=$(curl -fsSL --retry 3 --retry-delay 2 "$ZIP_URL" | sha256sum | cut -d' ' -f1)
+          VERSION="${TAG#v}"
 
           git clone --depth 1 "https://x-access-token:${GH_TOKEN}@github.com/hytfjwr/homebrew-statusbar.git" tap
           cd tap
@@ -86,12 +87,12 @@ jobs:
           BRANCH="release/statusbar-${TAG}"
           git checkout -b "$BRANCH"
 
-          sed -i "s|archive/refs/tags/v[0-9]*\.[0-9]*\.[0-9]*\.tar\.gz|archive/refs/tags/${TAG}.tar.gz|" Formula/statusbar.rb
-          sed -i "s|sha256 \"[a-f0-9]*\"|sha256 \"${SHA256}\"|" Formula/statusbar.rb
+          sed -i "s|version \"[0-9]*\.[0-9]*\.[0-9]*\"|version \"${VERSION}\"|" Casks/statusbar.rb
+          sed -i "s|sha256 \"[a-f0-9]*\"|sha256 \"${SHA256}\"|" Casks/statusbar.rb
 
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add Formula/statusbar.rb
+          git add Casks/statusbar.rb
           git commit -m "statusbar ${TAG}"
           git push --force-with-lease origin "$BRANCH"
 
@@ -107,11 +108,9 @@ jobs:
             --head "$BRANCH" \
             --title "statusbar ${TAG}" \
             --body "$(cat <<EOF
-          Update \`statusbar\` formula to ${TAG}.
+          Update \`statusbar\` cask to ${TAG}.
 
-          - **URL:** \`${TARBALL_URL}\`
+          - **URL:** \`${ZIP_URL}\`
           - **SHA256:** \`${SHA256}\`
-
-          Once CI passes, add the \`pr-pull\` label to publish bottles.
           EOF
           )"
