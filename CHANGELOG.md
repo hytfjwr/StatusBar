@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.5.2] - 2026-03-23
+
+- fix: use bundle ID for relaunch to survive brew upgrade path changes (#40)
+
 ## [0.5.1] - 2026-03-23
 
 - refactor: defer tag/release creation to after PR merge (#37)
