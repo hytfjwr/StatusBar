@@ -12,20 +12,40 @@ final class CPUGraphSettings: WidgetConfigProvider {
     let configID = "cpuGraph"
     private var suppressWrite = false
 
+    static let defaultThresholds: [ThresholdEntry] = [
+        ThresholdEntry(above: 0.60, hex: 0xFF9F0A), // yellow
+        ThresholdEntry(above: 0.85, hex: 0xFF3B30), // red
+    ]
+
     var updateInterval: Double {
-        didSet { if !suppressWrite {
-            WidgetConfigRegistry.shared.notifySettingsChanged()
-        } }
+        didSet { notifyIfLive() }
+    }
+
+    var displayMode: GraphDisplayMode {
+        didSet { notifyIfLive() }
+    }
+
+    var thresholds: [ThresholdEntry] {
+        didSet { notifyIfLive() }
     }
 
     private init() {
         let cfg = WidgetConfigRegistry.shared.values(for: "cpuGraph")
         updateInterval = cfg?["updateInterval"]?.doubleValue ?? 2.0
+        displayMode = cfg?["displayMode"]?.stringValue
+            .flatMap(GraphDisplayMode.init(rawValue:)) ?? .graphOnly
+        let decoded = cfg?["thresholds"]?.stringValue
+            .map([ThresholdEntry].decoded(from:)) ?? []
+        thresholds = decoded.isEmpty ? Self.defaultThresholds : decoded
         WidgetConfigRegistry.shared.register(self)
     }
 
     func exportConfig() -> [String: ConfigValue] {
-        ["updateInterval": .double(updateInterval)]
+        [
+            "updateInterval": .double(updateInterval),
+            "displayMode": .string(displayMode.rawValue),
+            "thresholds": .string(thresholds.encoded()),
+        ]
     }
 
     func applyConfig(_ values: [String: ConfigValue]) {
@@ -33,6 +53,19 @@ final class CPUGraphSettings: WidgetConfigProvider {
         defer { suppressWrite = false }
         if let v = values["updateInterval"]?.doubleValue {
             updateInterval = v
+        }
+        if let v = values["displayMode"]?.stringValue {
+            displayMode = GraphDisplayMode(rawValue: v) ?? displayMode
+        }
+        if let v = values["thresholds"]?.stringValue {
+            let decoded = [ThresholdEntry].decoded(from: v)
+            thresholds = decoded.isEmpty ? Self.defaultThresholds : decoded
+        }
+    }
+
+    private func notifyIfLive() {
+        if !suppressWrite {
+            WidgetConfigRegistry.shared.notifySettingsChanged()
         }
     }
 }
@@ -56,7 +89,8 @@ final class CPUGraphWidget: StatusBarWidget {
 
     func start() {
         restartTimer()
-        observeSettings()
+        observeTimerSettings()
+        observeRenderSettings()
     }
 
     func stop() {
@@ -65,6 +99,10 @@ final class CPUGraphWidget: StatusBarWidget {
 
     var hasSettings: Bool {
         true
+    }
+
+    var preferredSettingsSize: CGSize? {
+        CGSize(width: 400, height: 400)
     }
 
     func settingsBody() -> some View {
@@ -79,13 +117,24 @@ final class CPUGraphWidget: StatusBarWidget {
             .sink { [weak self] _ in self?.update() }
     }
 
-    private func observeSettings() {
+    private func observeTimerSettings() {
         withObservationTracking {
             _ = CPUGraphSettings.shared.updateInterval
         } onChange: { [weak self] in
             Task { @MainActor in
                 self?.restartTimer()
-                self?.observeSettings()
+                self?.observeTimerSettings()
+            }
+        }
+    }
+
+    private func observeRenderSettings() {
+        withObservationTracking {
+            _ = CPUGraphSettings.shared.displayMode
+            _ = CPUGraphSettings.shared.thresholds
+        } onChange: { [weak self] in
+            Task { @MainActor in
+                self?.observeRenderSettings()
             }
         }
     }
@@ -101,13 +150,31 @@ final class CPUGraphWidget: StatusBarWidget {
     }
 
     func body() -> some View {
-        MiniGraphView(
-            values: graphValues,
-            strokeColor: Theme.cpuGraph,
-            fillColor: Theme.cpuGraph.opacity(0.08)
+        let settings = CPUGraphSettings.shared
+        let activeColor = settings.thresholds.resolveColor(
+            for: graphValues.last ?? 0,
+            fallback: Theme.cpuGraph
         )
+
+        HStack(spacing: 4) {
+            if settings.displayMode != .numericOnly {
+                MiniGraphView(
+                    values: graphValues,
+                    strokeColor: activeColor,
+                    fillColor: activeColor.opacity(0.08)
+                )
+            }
+            if settings.displayMode != .graphOnly {
+                Text("\(latestUsagePercent)%")
+                    .font(Theme.monoFont)
+                    .foregroundStyle(activeColor)
+                    .frame(minWidth: 32, alignment: .trailing)
+            }
+        }
         .onTapGesture {
-            NSWorkspace.shared.open(URL(fileURLWithPath: "/System/Applications/Utilities/Activity Monitor.app"))
+            NSWorkspace.shared.open(
+                URL(fileURLWithPath: "/System/Applications/Utilities/Activity Monitor.app")
+            )
         }
         .accessibilityElement(children: .combine)
         .accessibilityLabel("CPU Usage")
