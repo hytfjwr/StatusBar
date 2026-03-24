@@ -1,5 +1,8 @@
 import Foundation
+import OSLog
 import StatusBarKit
+
+private let logger = Logger(subsystem: "com.statusbar", category: "GitHubPluginInstaller")
 
 // MARK: - GitHubPluginError
 
@@ -68,17 +71,21 @@ final class GitHubPluginInstaller {
     func install(from urlString: String) async throws -> InstalledPluginRecord {
         // Parse owner/repo from URL
         let (owner, repo) = try parseGitHubURL(urlString)
+        logger.info("Installing plugin from \(owner)/\(repo)")
 
         // Fetch latest release
         let release = try await fetchLatestRelease(owner: owner, repo: repo)
+        logger.info("Found release \(release.tagName) for \(owner)/\(repo)")
 
         // Find .statusplugin.zip asset
         guard let asset = release.assets.first(where: { $0.name.hasSuffix(".statusplugin.zip") }) else {
+            logger.error("No .statusplugin.zip asset in release \(release.tagName) for \(owner)/\(repo)")
             throw GitHubPluginError.noPluginAsset
         }
 
         // Download and extract
         let zipData = try await downloadAsset(url: asset.browserDownloadURL)
+        logger.info("Downloaded \(asset.name) (\(zipData.count) bytes)")
         let (pluginBundle, tempDir) = try await extractAndValidate(zipData: zipData, assetName: asset.name)
         defer { try? FileManager.default.removeItem(at: tempDir) }
 
@@ -90,10 +97,12 @@ final class GitHubPluginInstaller {
 
         // Register in plugin store
         let releaseVersion = Self.normalizeVersion(release.tagName)
-        return try registerRecord(
+        let record = try registerRecord(
             manifest: manifest, destURL: destURL,
             owner: owner, repo: repo, releaseVersion: releaseVersion
         )
+        logger.info("Installed plugin \(manifest.name) v\(releaseVersion)")
+        return record
     }
 
     /// Extract zip data to a temp directory and validate the extracted contents.
@@ -126,6 +135,7 @@ final class GitHubPluginInstaller {
             at: tempDir, includingPropertiesForKeys: nil
         )
         guard let pluginBundle = contents.first(where: { $0.pathExtension == "statusplugin" }) else {
+            logger.error("No .statusplugin bundle found in extracted archive")
             throw GitHubPluginError.manifestMissing
         }
 
@@ -136,15 +146,25 @@ final class GitHubPluginInstaller {
     private func readAndValidateManifest(in pluginBundle: URL) throws -> DylibPluginManifest {
         let manifestURL = pluginBundle.appendingPathComponent("manifest.json")
         guard FileManager.default.fileExists(atPath: manifestURL.path) else {
+            logger.error("manifest.json not found in \(pluginBundle.lastPathComponent)")
             throw GitHubPluginError.manifestMissing
         }
         let manifestData = try Data(contentsOf: manifestURL)
-        let manifest = try JSONDecoder().decode(DylibPluginManifest.self, from: manifestData)
+        let manifest: DylibPluginManifest
+        do {
+            manifest = try JSONDecoder().decode(DylibPluginManifest.self, from: manifestData)
+        } catch {
+            logger.error("Failed to decode manifest in \(pluginBundle.lastPathComponent): \(error.localizedDescription)")
+            throw error
+        }
 
         if let pluginVersion = SemanticVersion(manifest.statusBarKitVersion),
            let hostVersion = SemanticVersion(statusBarKitVersion)
         {
             guard hostVersion.isCompatible(with: pluginVersion) else {
+                logger.error(
+                    "Incompatible StatusBarKit version for \(manifest.name): requires \(manifest.statusBarKitVersion), app has \(statusBarKitVersion)"
+                )
                 throw GitHubPluginError.incompatibleVersion(
                     required: manifest.statusBarKitVersion,
                     current: statusBarKitVersion
@@ -207,8 +227,11 @@ final class GitHubPluginInstaller {
     /// Remove a plugin by ID.
     func uninstall(pluginID: String) throws {
         guard let record = PluginStore.shared.record(forID: pluginID) else {
+            logger.warning("Uninstall requested for unknown plugin ID: \(pluginID)")
             return
         }
+
+        logger.info("Uninstalling plugin \(record.name) (\(pluginID))")
 
         let bundleURL = pluginsDirectory.appendingPathComponent("\(record.bundleName).statusplugin")
         if FileManager.default.fileExists(atPath: bundleURL.path) {
@@ -216,6 +239,7 @@ final class GitHubPluginInstaller {
         }
 
         try PluginStore.shared.remove(id: pluginID)
+        logger.info("Uninstalled plugin \(record.name)")
     }
 
     // MARK: - Update Check
@@ -249,7 +273,7 @@ final class GitHubPluginInstaller {
                     ))
                 }
             } catch {
-                print("[GitHubPluginInstaller] Update check failed for \(plugin.name): \(error.localizedDescription)")
+                logger.warning("Update check failed for \(plugin.name): \(error.localizedDescription)")
             }
         }
 
@@ -339,7 +363,14 @@ final class GitHubPluginInstaller {
         var request = URLRequest(url: url)
         request.setValue("application/vnd.github+json", forHTTPHeaderField: "Accept")
 
-        let (data, response) = try await URLSession.shared.data(for: request)
+        let data: Data
+        let response: URLResponse
+        do {
+            (data, response) = try await URLSession.shared.data(for: request)
+        } catch {
+            logger.error("Network request failed for \(owner)/\(repo): \(error.localizedDescription)")
+            throw GitHubPluginError.networkError(error)
+        }
 
         guard let httpResponse = response as? HTTPURLResponse else {
             throw GitHubPluginError.noReleaseFound
@@ -347,10 +378,12 @@ final class GitHubPluginInstaller {
 
         // Distinguish rate limiting from "no release"
         if httpResponse.statusCode == 403 || httpResponse.statusCode == 429 {
+            logger.warning("GitHub API rate limited (HTTP \(httpResponse.statusCode)) for \(owner)/\(repo)")
             throw GitHubPluginError.rateLimited
         }
 
         guard httpResponse.statusCode == 200 else {
+            logger.error("GitHub API returned HTTP \(httpResponse.statusCode) for \(owner)/\(repo)")
             throw GitHubPluginError.noReleaseFound
         }
 
@@ -359,6 +392,7 @@ final class GitHubPluginInstaller {
 
     private func downloadAsset(url: String) async throws -> Data {
         guard let downloadURL = URL(string: url) else {
+            logger.error("Invalid download URL: \(url)")
             throw GitHubPluginError.downloadFailed
         }
 
@@ -367,13 +401,24 @@ final class GitHubPluginInstaller {
               let host = downloadURL.host,
               Self.allowedDownloadHosts.contains(host)
         else {
+            logger.error("Untrusted download host rejected: \(downloadURL.host ?? "unknown")")
             throw GitHubPluginError.untrustedDownloadURL(url)
         }
 
-        let (data, response) = try await URLSession.shared.data(from: downloadURL)
+        let data: Data
+        let response: URLResponse
+        do {
+            (data, response) = try await URLSession.shared.data(from: downloadURL)
+        } catch {
+            logger.error("Download failed for asset \(downloadURL.lastPathComponent): \(error.localizedDescription)")
+            throw GitHubPluginError.networkError(error)
+        }
+
         guard let httpResponse = response as? HTTPURLResponse,
               httpResponse.statusCode == 200
         else {
+            let statusCode = (response as? HTTPURLResponse)?.statusCode ?? -1
+            logger.error("Download returned HTTP \(statusCode) for asset \(downloadURL.lastPathComponent)")
             throw GitHubPluginError.downloadFailed
         }
         return data
@@ -410,6 +455,7 @@ final class GitHubPluginInstaller {
         }
 
         guard status == 0 else {
+            logger.error("Unzip exited with status \(status) for \(zipURL.lastPathComponent)")
             throw GitHubPluginError.extractionFailed(
                 NSError(domain: "unzip", code: Int(status))
             )
