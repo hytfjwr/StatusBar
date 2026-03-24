@@ -229,6 +229,55 @@ widgets:
 
 </details>
 
+## CLI (`sbar`)
+
+StatusBar includes a command-line tool `sbar` for controlling the app from the terminal or scripts. It communicates with the running app via Unix domain socket.
+
+When installed via Homebrew, `sbar` is automatically available on your PATH. For development builds, run `make install-cli`.
+
+### Commands
+
+```bash
+# List all widgets
+sbar list
+sbar list --json
+
+# Get widget details
+sbar get battery
+sbar get cpu-graph --json
+
+# Set widget settings
+sbar set battery showPercentage=true
+sbar set cpu-graph visible=false
+sbar set time format="HH:mm:ss"
+
+# Set global preferences
+sbar set --global bar.height=44
+sbar set --global appearance.accent=#FF0000
+sbar set --global behavior.autoHide=false
+
+# Reload configuration from disk
+sbar reload
+```
+
+Use `--json` for machine-readable output (pipe to `jq` for filtering).
+
+<details>
+<summary>Global key paths</summary>
+
+The `sbar set --global` command uses dot-separated key paths matching the YAML config structure:
+
+| Category | Key paths |
+|----------|-----------|
+| Bar | `bar.height`, `bar.cornerRadius`, `bar.margin`, `bar.yOffset`, `bar.widgetSpacing`, `bar.widgetPaddingH` |
+| Appearance | `appearance.accent`, `appearance.barTint`, `appearance.barTintOpacity`, `appearance.shadowEnabled`, `appearance.popupCornerRadius`, `appearance.popupPadding` |
+| Typography | `typography.iconFontSize`, `typography.labelFontSize`, `typography.smallFontSize`, `typography.monoFontSize` |
+| Graphs | `graphs.width`, `graphs.height`, `graphs.dataPoints`, `graphs.cpuColor`, `graphs.memoryColor` |
+| Behavior | `behavior.autoHide`, `behavior.autoHideDwellTime`, `behavior.autoHideFadeDuration`, `behavior.launchAtLogin`, `behavior.hideInFullscreen` |
+| Notifications | `notifications.batteryLow`, `notifications.batteryThreshold`, `notifications.cpuHigh`, `notifications.cpuThreshold`, `notifications.memoryHigh`, `notifications.memoryThreshold` |
+
+</details>
+
 ## License
 
 [MIT](LICENSE)
