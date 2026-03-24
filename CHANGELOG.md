@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.7.1] - 2026-03-24
+
+- refactor: remove unnecessary swiftlint:disable comments (#59)
+- feat: add in-app changelog viewer (#58)
+- fix: kill running StatusBar process before launching new instance (#57)
+
 ## [0.7.0] - 2026-03-24
 
 - fix: update popup tint when preferences change (#55)
