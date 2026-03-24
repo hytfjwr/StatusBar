@@ -69,6 +69,15 @@ struct AboutSection: View {
                         }
                         .controlSize(.small)
                     }
+                    HStack {
+                        Text("Changelog")
+                            .frame(width: 120, alignment: .leading)
+                        Spacer()
+                        Button("View Changelog") {
+                            ChangelogWindow.shared.show()
+                        }
+                        .controlSize(.small)
+                    }
                 }
                 .padding(8)
             }
