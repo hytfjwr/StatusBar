@@ -101,6 +101,7 @@ final class StatusBarController {
         } onChange: { [weak self] in
             Task { @MainActor in
                 self?.barWindows.forEach { $0.updateTint() }
+                PopupManager.shared.updateTint()
                 self?.observeTintPreferences()
             }
         }
