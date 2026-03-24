@@ -12,6 +12,7 @@ disabled_rules:
   - trailing_comma            # trailing commas are preferred in this project
   - todo
   - opening_brace             # conflicts with SwiftFormat
+  - file_length
 
 opt_in_rules:
   - array_init
@@ -58,10 +59,6 @@ line_length:
 type_body_length:
   warning: 500
   error: 800
-
-file_length:
-  warning: 700
-  error: 1000
 
 function_body_length:
   warning: 60
