@@ -22,7 +22,13 @@ struct TextFormatter: OutputFormatter {
     }
 
     private func formatRow(_ id: String, _ section: String, _ visible: String, _ settings: String) -> String {
-        "\(id.padding(toLength: 20, withPad: " ", startingAt: 0)) \(section.padding(toLength: 8, withPad: " ", startingAt: 0)) \(visible.padding(toLength: 8, withPad: " ", startingAt: 0)) \(settings)"
+        let cols = [
+            id.padding(toLength: 20, withPad: " ", startingAt: 0),
+            section.padding(toLength: 8, withPad: " ", startingAt: 0),
+            visible.padding(toLength: 8, withPad: " ", startingAt: 0),
+            settings,
+        ]
+        return cols.joined(separator: " ")
     }
 
     func formatWidgetDetail(_ widget: WidgetInfoDTO) -> String {
