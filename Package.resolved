@@ -1,6 +1,15 @@
 {
-  "originHash" : "3f80b2f3e6a0c5f72918e8554c8b41c45472f5560a86455b31fe916f8e0fa557",
+  "originHash" : "3ecdd1546d84af584f1fd7aa06abde0732ac15e09b267f18e04d4dffb59c6d84",
   "pins" : [
+    {
+      "identity" : "statusbarkit",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/hytfjwr/StatusBarKit",
+      "state" : {
+        "revision" : "7bca55852b6df02ef832bb60e1379a0304543bb6",
+        "version" : "1.4.0"
+      }
+    },
     {
       "identity" : "swiftlintplugins",
       "kind" : "remoteSourceControl",
