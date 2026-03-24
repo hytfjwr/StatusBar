@@ -6,13 +6,11 @@ private let logger = Logger(subsystem: "com.statusbar", category: "IPC")
 
 // MARK: - CommandDispatcher
 
-/// Decodes incoming IPC requests, routes them to the appropriate handler,
-/// and encodes responses. Bridges socket I/O into @MainActor territory.
+/// Routes incoming IPC requests to the appropriate handler and encodes responses.
 @MainActor
 final class CommandDispatcher {
     private let handlers: [String: any CommandHandling]
     private let encoder = JSONEncoder()
-    private let decoder = JSONDecoder()
 
     init() {
         let all: [any CommandHandling] = [
@@ -25,29 +23,16 @@ final class CommandDispatcher {
         handlers = Dictionary(uniqueKeysWithValues: all.map { ($0.commandKey, $0) })
     }
 
-    /// Process raw request data and return encoded response data.
-    func dispatch(requestData: Data) -> Data {
-        let request: IPCRequest
-        do {
-            request = try decoder.decode(IPCRequest.self, from: requestData)
-        } catch {
-            logger.error("Failed to decode IPC request: \(error.localizedDescription)")
-            let response = IPCResponse(
-                requestID: "unknown",
-                result: .failure(.internalError("Invalid request: \(error.localizedDescription)"))
-            )
-            return (try? encoder.encode(response)) ?? Data()
-        }
-
+    /// Process an IPC request and return the framed response (length-prefixed JSON).
+    func dispatch(_ request: IPCRequest) -> Data {
         if request.version != ipcProtocolVersion {
-            let response = IPCResponse(
+            return encode(IPCResponse(
                 requestID: request.requestID,
                 result: .failure(.versionMismatch(
                     serverVersion: ipcProtocolVersion,
                     clientVersion: request.version
                 ))
-            )
-            return (try? encoder.encode(response)) ?? Data()
+            ))
         }
 
         let result: IPCResult
@@ -67,7 +52,11 @@ final class CommandDispatcher {
 
         let response = IPCResponse(requestID: request.requestID, result: result)
         logger.debug("IPC \(handlerKey) → \(String(describing: result))")
-        return (try? encoder.encode(response)) ?? Data()
+        return encode(response)
+    }
+
+    private func encode(_ response: IPCResponse) -> Data {
+        (try? encoder.encode(response)) ?? Data()
     }
 }
 

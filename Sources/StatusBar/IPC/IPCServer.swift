@@ -109,27 +109,28 @@ final class IPCServer {
     // MARK: - Client handling
 
     /// Read request, dispatch on MainActor, write response.
-    /// Uses a single detached Task with one MainActor.run hop.
     nonisolated private func handleClientAsync(fd: Int32) {
         Task.detached {
             defer { close(fd) }
 
-            // Read framed request (off MainActor)
-            guard let request = try? IPCFraming.readFrame(fd: fd, as: IPCRequest.self),
-                  let requestData = try? JSONEncoder().encode(request)
-            else {
+            // Set read timeout to prevent stalled clients from blocking tasks indefinitely
+            var timeout = timeval(tv_sec: 5, tv_usec: 0)
+            setsockopt(fd, SOL_SOCKET, SO_RCVTIMEO, &timeout, socklen_t(MemoryLayout<timeval>.size))
+
+            guard let request = try? IPCFraming.readFrame(fd: fd, as: IPCRequest.self) else {
+                logger.debug("IPC client disconnected or sent invalid frame")
                 return
             }
 
-            // Dispatch on MainActor
-            let responseData = await MainActor.run {
-                self.dispatcher.dispatch(requestData: requestData)
+            // Dispatch on MainActor — returns JSON-encoded response bytes
+            let responseJSON = await MainActor.run {
+                self.dispatcher.dispatch(request)
             }
 
-            // Write framed response (off MainActor)
-            var length = UInt32(responseData.count).bigEndian
+            // Write length-prefixed response
+            var length = UInt32(responseJSON.count).bigEndian
             var frame = Data(bytes: &length, count: 4)
-            frame.append(responseData)
+            frame.append(responseJSON)
             _ = IPCFraming.writeFrame(fd: fd, data: frame)
         }
     }

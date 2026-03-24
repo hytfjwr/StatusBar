@@ -16,14 +16,4 @@ struct JSONFormatter: OutputFormatter {
     func formatWidgetDetail(_ widget: WidgetInfoDTO) -> String {
         (try? String(data: encoder.encode(widget), encoding: .utf8)) ?? "{}"
     }
-
-    func formatOK() -> String {
-        #"{"status":"ok"}"#
-    }
-
-    func formatError(_ error: String) -> String {
-        struct Payload: Encodable { let error: String }
-        return (try? String(data: encoder.encode(Payload(error: error)), encoding: .utf8))
-            ?? #"{"error":"unknown"}"#
-    }
 }

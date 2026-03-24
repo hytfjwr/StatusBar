@@ -13,7 +13,6 @@ struct SetWidgetCommandHandler: CommandHandling {
             throw IPCError.widgetNotFound(id: id)
         }
 
-        // Handle visibility toggle via WidgetRegistry
         if key == "visible" {
             guard let visible = value.boolValue else {
                 throw IPCError.invalidValue(key: "visible", reason: "expected boolean")
@@ -22,17 +21,11 @@ struct SetWidgetCommandHandler: CommandHandling {
             return .ok
         }
 
-        // Handle widget-specific settings via WidgetConfigRegistry
         let configRegistry = WidgetConfigRegistry.shared
-        let existing = configRegistry.exportAll()[id] ?? [:]
-
-        // Merge the new key into existing settings
-        var merged = existing
-        merged[key] = value
-
-        // Update only this widget's config, preserving all other widgets
         var allConfig = configRegistry.exportAll()
-        allConfig[id] = merged
+        var widgetConfig = allConfig[id] ?? [:]
+        widgetConfig[key] = value
+        allConfig[id] = widgetConfig
         configRegistry.setLoadedConfig(allConfig)
         configRegistry.applyToAll()
         configRegistry.notifySettingsChanged()

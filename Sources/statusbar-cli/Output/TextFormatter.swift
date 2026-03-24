@@ -48,14 +48,6 @@ struct TextFormatter: OutputFormatter {
         return lines.joined(separator: "\n")
     }
 
-    func formatOK() -> String {
-        "OK"
-    }
-
-    func formatError(_ error: String) -> String {
-        "Error: \(error)"
-    }
-
     private func formatValue(_ value: ConfigValue) -> String {
         switch value {
         case let .string(v): v
