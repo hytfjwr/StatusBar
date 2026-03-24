@@ -33,11 +33,11 @@ final class ChangelogService {
 
     private static let changelogURL = URL(
         string: "https://raw.githubusercontent.com/hytfjwr/StatusBar/main/CHANGELOG.md"
-    )!
+    )! // swiftlint:disable:this force_unwrapping
 
     static let githubChangelogURL = URL(
         string: "https://github.com/hytfjwr/StatusBar/blob/main/CHANGELOG.md"
-    )!
+    )! // swiftlint:disable:this force_unwrapping
 
     private init() {}
 
@@ -60,7 +60,9 @@ final class ChangelogService {
 
     nonisolated private static func fetchAndParse() async throws -> [ChangelogRelease] {
         let (data, _) = try await URLSession.shared.data(from: changelogURL)
-        let text = String(decoding: data, as: UTF8.self)
+        guard let text = String(bytes: data, encoding: .utf8) else {
+            return []
+        }
         return parse(text)
     }
 
