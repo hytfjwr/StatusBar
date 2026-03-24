@@ -254,14 +254,7 @@ final class ConfigLoader {
         do {
             let newConfig = try loadConfigFromDisk()
             lastKnownConfigModDate = modDate
-            currentConfig = newConfig
-            applyToLiveModels()
-
-            if !newConfig.widgets.isEmpty {
-                let entries = newConfig.widgets.map(\.asEntry)
-                WidgetRegistry.shared.applyLayout(entries)
-            }
-
+            applyNewConfig(newConfig)
             logger.info("Config hot-reloaded")
         } catch let error as NSError where error.domain == NSCocoaErrorDomain
             && error.code == NSFileReadNoSuchFileError
@@ -274,6 +267,36 @@ final class ConfigLoader {
                 object: nil,
                 userInfo: ["message": error.localizedDescription]
             )
+        }
+    }
+
+    // MARK: - Reload (called by IPC)
+
+    /// Reload configuration from disk.
+    func reloadFromDisk() {
+        let fm = FileManager.default
+        do {
+            let newConfig = try loadConfigFromDisk()
+            if let attrs = try? fm.attributesOfItem(atPath: fileURL.path),
+               let modDate = attrs[.modificationDate] as? Date
+            {
+                lastKnownConfigModDate = modDate
+            }
+            applyNewConfig(newConfig)
+            logger.info("Config reloaded via IPC")
+        } catch {
+            logger.error("Config reload via IPC failed: \(error.localizedDescription)")
+        }
+    }
+
+    /// Shared logic for applying a newly loaded config.
+    private func applyNewConfig(_ newConfig: StatusBarConfig) {
+        currentConfig = newConfig
+        applyToLiveModels()
+
+        if !newConfig.widgets.isEmpty {
+            let entries = newConfig.widgets.map(\.asEntry)
+            WidgetRegistry.shared.applyLayout(entries)
         }
     }
 

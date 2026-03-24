@@ -1,13 +1,22 @@
 {
-  "originHash" : "a9ad9bd54b7ca0e791751151030a41716a1b58d6f6eda380c5088dd37304c93d",
+  "originHash" : "13fe19d809e864204fec23d622d69aef4733a87f01dd0b5c23a702fe8ebacb8c",
   "pins" : [
     {
       "identity" : "statusbarkit",
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/hytfjwr/StatusBarKit",
       "state" : {
-        "revision" : "272cef2f9f734f6826434a7c3f6ce501563a8ec9",
-        "version" : "1.3.0"
+        "revision" : "5d32877b0e41d6116d1bd6491f804c468932d06d",
+        "version" : "1.4.1"
+      }
+    },
+    {
+      "identity" : "swift-argument-parser",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/apple/swift-argument-parser",
+      "state" : {
+        "revision" : "626b5b7b2f45e1b0b1c6f4a309296d1d21d7311b",
+        "version" : "1.7.1"
       }
     },
     {

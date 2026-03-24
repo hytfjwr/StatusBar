@@ -50,6 +50,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
         NotificationService.shared.start()
 
+        IPCServer.shared.start()
+
         // Show onboarding on first launch
         if ConfigLoader.shared.isFirstLaunch
             || !UserDefaults.standard.bool(forKey: OnboardingKeys.hasCompleted)
@@ -105,6 +107,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             NotificationCenter.default.removeObserver(observer)
             configErrorObserver = nil
         }
+        IPCServer.shared.stop()
         NotificationService.shared.stop()
         controller?.teardown()
         ConfigLoader.shared.teardown()
