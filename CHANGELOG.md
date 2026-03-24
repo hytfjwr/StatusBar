@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.7.0] - 2026-03-24
+
+- fix: update popup tint when preferences change (#55)
+- fix: build .app bundle for debug runs to avoid TCC privacy crash (#54)
+
 ## [0.6.1] - 2026-03-23
 
 - fix: use Homebrew Cask commands for update detection and upgrade (#52)
