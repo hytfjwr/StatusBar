@@ -65,7 +65,7 @@ final class GitHubPluginInstaller {
 
     /// Install a plugin from a GitHub repository URL.
     /// The URL should be like: https://github.com/owner/repo
-    func install(from urlString: String) async throws -> InstalledPluginRecord { // swiftlint:disable:this function_body_length
+    func install(from urlString: String) async throws -> InstalledPluginRecord {
         // Parse owner/repo from URL
         let (owner, repo) = try parseGitHubURL(urlString)
 
@@ -77,19 +77,34 @@ final class GitHubPluginInstaller {
             throw GitHubPluginError.noPluginAsset
         }
 
-        // Download asset
+        // Download and extract
         let zipData = try await downloadAsset(url: asset.browserDownloadURL)
+        let (pluginBundle, tempDir) = try await extractAndValidate(zipData: zipData, assetName: asset.name)
+        defer { try? FileManager.default.removeItem(at: tempDir) }
 
-        // Extract to temp directory
+        // Read and validate manifest
+        let manifest = try readAndValidateManifest(in: pluginBundle)
+
+        // Place bundle on disk
+        let destURL = try placeBundle(pluginBundle, in: pluginsDirectory)
+
+        // Register in plugin store
+        let releaseVersion = Self.normalizeVersion(release.tagName)
+        return try registerRecord(
+            manifest: manifest, destURL: destURL,
+            owner: owner, repo: repo, releaseVersion: releaseVersion
+        )
+    }
+
+    /// Extract zip data to a temp directory and validate the extracted contents.
+    /// Returns the plugin bundle URL and the temp directory (caller must clean up).
+    private func extractAndValidate(zipData: Data, assetName: String) async throws -> (URL, URL) {
         let tempDir = FileManager.default.temporaryDirectory
             .appendingPathComponent(UUID().uuidString)
         try FileManager.default.createDirectory(at: tempDir, withIntermediateDirectories: true)
-        defer { try? FileManager.default.removeItem(at: tempDir) }
 
-        let zipPath = tempDir.appendingPathComponent(asset.name)
+        let zipPath = tempDir.appendingPathComponent(assetName)
         try zipData.write(to: zipPath)
-
-        // Unzip
         try await unzip(zipPath, to: tempDir)
 
         // Validate no path traversal in extracted files
@@ -108,14 +123,17 @@ final class GitHubPluginInstaller {
 
         // Find the .statusplugin directory
         let contents = try FileManager.default.contentsOfDirectory(
-            at: tempDir,
-            includingPropertiesForKeys: nil
+            at: tempDir, includingPropertiesForKeys: nil
         )
         guard let pluginBundle = contents.first(where: { $0.pathExtension == "statusplugin" }) else {
             throw GitHubPluginError.manifestMissing
         }
 
-        // Read and validate manifest
+        return (pluginBundle, tempDir)
+    }
+
+    /// Read manifest.json from the plugin bundle and check version compatibility.
+    private func readAndValidateManifest(in pluginBundle: URL) throws -> DylibPluginManifest {
         let manifestURL = pluginBundle.appendingPathComponent("manifest.json")
         guard FileManager.default.fileExists(atPath: manifestURL.path) else {
             throw GitHubPluginError.manifestMissing
@@ -123,7 +141,6 @@ final class GitHubPluginInstaller {
         let manifestData = try Data(contentsOf: manifestURL)
         let manifest = try JSONDecoder().decode(DylibPluginManifest.self, from: manifestData)
 
-        // Version check
         if let pluginVersion = SemanticVersion(manifest.statusBarKitVersion),
            let hostVersion = SemanticVersion(statusBarKitVersion)
         {
@@ -135,23 +152,34 @@ final class GitHubPluginInstaller {
             }
         }
 
-        // Create plugins directory if needed
+        return manifest
+    }
+
+    /// Move the plugin bundle to the plugins directory, replacing any existing version.
+    private func placeBundle(_ pluginBundle: URL, in pluginsDirectory: URL) throws -> URL {
         let fm = FileManager.default
         if !fm.fileExists(atPath: pluginsDirectory.path) {
             try fm.createDirectory(at: pluginsDirectory, withIntermediateDirectories: true)
         }
 
-        // Replace plugin bundle on disk (remove old → move new)
         let destURL = pluginsDirectory.appendingPathComponent(pluginBundle.lastPathComponent)
         do { try fm.removeItem(at: destURL) } catch CocoaError.fileNoSuchFile { /* first install */ }
         try fm.moveItem(at: pluginBundle, to: destURL)
+        return destURL
+    }
 
+    /// Create or update the plugin store record.
+    private func registerRecord(
+        manifest: DylibPluginManifest,
+        destURL: URL,
+        owner: String,
+        repo: String,
+        releaseVersion: String
+    ) throws -> InstalledPluginRecord {
         // Use the release tag version for the registry record.
         // checkForUpdates() compares against tag versions, so the registry must
         // store tag-based versions to avoid perpetual "update available" mismatches
         // (manifest version may lag behind the tag if the plugin author forgets to bump it).
-        let releaseVersion = Self.normalizeVersion(release.tagName)
-
         let normalizedURL = "https://github.com/\(owner)/\(repo)"
         let bundleName = destURL.deletingPathExtension().lastPathComponent
         let store = PluginStore.shared
@@ -171,7 +199,6 @@ final class GitHubPluginInstaller {
             )
         }
         try store.add(record)
-
         return record
     }
 

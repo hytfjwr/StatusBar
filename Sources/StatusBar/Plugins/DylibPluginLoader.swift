@@ -94,7 +94,7 @@ final class DylibPluginLoader {
     // MARK: - Load All
 
     /// Scan the plugins directory and load all valid .statusplugin bundles.
-    func loadAll(into registry: WidgetRegistry) { // swiftlint:disable:this function_body_length
+    func loadAll(into registry: WidgetRegistry) {
         let fm = FileManager.default
         let dir = pluginsDirectory
 
@@ -122,62 +122,77 @@ final class DylibPluginLoader {
         var results: [PluginLoadResult] = []
 
         for bundleURL in contents where bundleURL.pathExtension == "statusplugin" {
-            // Skip disabled plugins
             let bundleName = bundleURL.deletingPathExtension().lastPathComponent
             if let record = store.record(forBundleName: bundleName), !record.enabled {
                 continue
             }
-
-            do {
-                let manifest = try load(bundleURL: bundleURL, into: registry)
-                results.append(PluginLoadResult(manifest: manifest, error: nil))
-
-                if let existing = store.record(forBundleName: bundleName) {
-                    // Sync name from disk manifest; sync version only for local plugins
-                    // (GitHub-installed plugins use tag-based versions which may differ from manifest)
-                    let newName = existing.name != manifest.name ? manifest.name : nil
-                    let newVersion = existing.isLocal && existing.version != manifest.version
-                        ? manifest.version : nil
-                    if newName != nil || newVersion != nil {
-                        let synced = existing.updating(name: newName, version: newVersion)
-                        do {
-                            try store.add(synced)
-                            logger.info("Synced registry for \(bundleName): \(existing.version) → \(synced.version)")
-                        } catch {
-                            logger.warning("Failed to sync registry for \(bundleName): \(error.localizedDescription)")
-                        }
-                    }
-                } else {
-                    // Auto-register in PluginStore if not already tracked (e.g. make dev)
-                    let record = InstalledPluginRecord(
-                        id: manifest.id,
-                        name: manifest.name,
-                        version: manifest.version,
-                        githubURL: manifest.homepage,
-                        bundleName: bundleName,
-                        isLocal: true
-                    )
-                    try? store.add(record)
-                }
-            } catch let error as PluginLoadError {
-                // Try to read manifest for error reporting
-                let manifestURL = bundleURL.appendingPathComponent("manifest.json")
-                let manifest = try? readManifest(at: manifestURL)
-                let fallback = manifest ?? DylibPluginManifest(
-                    id: bundleName,
-                    name: bundleName,
-                    version: "unknown",
-                    statusBarKitVersion: "unknown",
-                    swiftVersion: "unknown"
-                )
-                results.append(PluginLoadResult(manifest: fallback, error: error))
-                logger.error("Failed to load \(bundleName): \(error.localizedDescription)")
-            } catch {
-                logger.error("Unexpected error loading \(bundleURL.lastPathComponent): \(error.localizedDescription)")
+            if let result = loadBundle(at: bundleURL, into: registry, store: store) {
+                results.append(result)
             }
         }
 
         loadResults = results
+    }
+
+    /// Load a single bundle during `loadAll`, syncing or registering the plugin store record.
+    /// Returns `nil` for unexpected (non-plugin) errors, which are only logged.
+    private func loadBundle(
+        at bundleURL: URL,
+        into registry: WidgetRegistry,
+        store: PluginStore
+    ) -> PluginLoadResult? {
+        let bundleName = bundleURL.deletingPathExtension().lastPathComponent
+        do {
+            let manifest = try load(bundleURL: bundleURL, into: registry)
+            syncStoreRecord(for: bundleName, manifest: manifest, store: store)
+            return PluginLoadResult(manifest: manifest, error: nil)
+        } catch let error as PluginLoadError {
+            let manifestURL = bundleURL.appendingPathComponent("manifest.json")
+            let manifest = try? readManifest(at: manifestURL)
+            let fallback = manifest ?? DylibPluginManifest(
+                id: bundleName,
+                name: bundleName,
+                version: "unknown",
+                statusBarKitVersion: "unknown",
+                swiftVersion: "unknown"
+            )
+            logger.error("Failed to load \(bundleName): \(error.localizedDescription)")
+            return PluginLoadResult(manifest: fallback, error: error)
+        } catch {
+            logger.error("Unexpected error loading \(bundleURL.lastPathComponent): \(error.localizedDescription)")
+            return nil
+        }
+    }
+
+    /// Sync or auto-register a plugin store record after successful loading.
+    private func syncStoreRecord(for bundleName: String, manifest: DylibPluginManifest, store: PluginStore) {
+        if let existing = store.record(forBundleName: bundleName) {
+            // Sync name from disk manifest; sync version only for local plugins
+            // (GitHub-installed plugins use tag-based versions which may differ from manifest)
+            let newName = existing.name != manifest.name ? manifest.name : nil
+            let newVersion = existing.isLocal && existing.version != manifest.version
+                ? manifest.version : nil
+            if newName != nil || newVersion != nil {
+                let synced = existing.updating(name: newName, version: newVersion)
+                do {
+                    try store.add(synced)
+                    logger.info("Synced registry for \(bundleName): \(existing.version) → \(synced.version)")
+                } catch {
+                    logger.warning("Failed to sync registry for \(bundleName): \(error.localizedDescription)")
+                }
+            }
+        } else {
+            // Auto-register in PluginStore if not already tracked (e.g. make dev)
+            let record = InstalledPluginRecord(
+                id: manifest.id,
+                name: manifest.name,
+                version: manifest.version,
+                githubURL: manifest.homepage,
+                bundleName: bundleName,
+                isLocal: true
+            )
+            try? store.add(record)
+        }
     }
 
     // MARK: - Load Single

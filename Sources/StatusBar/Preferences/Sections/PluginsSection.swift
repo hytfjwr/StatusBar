@@ -11,7 +11,6 @@ private struct DevPluginInfo: Identifiable {
 
 // MARK: - PluginsSection
 
-// swiftlint:disable type_body_length
 struct PluginsSection: View {
     @State private var githubURL: String = ""
     @State private var isInstalling = false
@@ -112,139 +111,30 @@ struct PluginsSection: View {
 
             // Development (visible only in Dev Mode)
             if PreferencesModel.shared.devModeEnabled {
-                GroupBox("Development") {
-                    VStack(alignment: .leading, spacing: 12) {
-                        HStack {
-                            TextField("Path to .statusplugin bundle", text: $devPath)
-                                .textFieldStyle(.roundedBorder)
-
-                            Button("Browse...") {
-                                browseForPlugin()
-                            }
-
-                            Button("Load") {
-                                loadDevPlugin()
-                            }
-                            .disabled(devPath.isEmpty)
-                        }
-
-                        if let devError {
-                            Label(devError, systemImage: "exclamationmark.triangle.fill")
-                                .foregroundStyle(.red)
-                                .font(.caption)
-                        }
-
-                        if !devPlugins.isEmpty {
-                            VStack(spacing: 0) {
-                                ForEach(devPlugins, id: \.id) { plugin in
-                                    HStack {
-                                        VStack(alignment: .leading, spacing: 2) {
-                                            Text(plugin.name)
-                                                .fontWeight(.medium)
-                                            Text(plugin.path)
-                                                .font(.caption)
-                                                .foregroundStyle(.tertiary)
-                                                .lineLimit(1)
-                                                .truncationMode(.middle)
-                                        }
-                                        Spacer()
-                                    }
-                                    .padding(.vertical, 4)
-                                }
-                            }
-                        }
-
-                        Label(
-                            "Load plugins directly from a build directory for development."
-                                + " Use `make bundle` then point to the .statusplugin output.",
-                            systemImage: "hammer"
-                        )
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                    }
-                    .padding(.vertical, 4)
-                }
+                developmentSection
             }
 
             // Restart prompt
             if needsRestart {
-                HStack {
-                    Image(systemName: "arrow.clockwise.circle.fill")
-                        .foregroundStyle(.orange)
-                    Text("Restart required for changes to take effect.")
-                        .font(.callout)
-                    Spacer()
-                    Button("Restart Now") {
-                        AppUpdateService.relaunchApp()
-                    }
-                    .controlSize(.small)
-                }
-                .padding(12)
-                .background(.orange.opacity(0.1), in: RoundedRectangle(cornerRadius: 8))
+                restartPrompt
             }
 
             // Plugin load results
             let failedResults = DylibPluginLoader.shared.loadResults.filter { !$0.isSuccess }
             if !failedResults.isEmpty {
-                GroupBox("Load Errors") {
-                    VStack(alignment: .leading, spacing: 4) {
-                        ForEach(failedResults, id: \.manifest.id) { result in
-                            Label {
-                                Text("\(result.manifest.name): \(result.error?.localizedDescription ?? "Unknown error")")
-                                    .font(.caption)
-                            } icon: {
-                                Image(systemName: "xmark.circle.fill")
-                                    .foregroundStyle(.red)
-                            }
-                        }
-                    }
-                    .padding(.vertical, 4)
-                }
+                loadErrorsSection(failedResults)
             }
         }
     }
 
-    // MARK: - Plugin Row
+    // MARK: - Subviews
 
     @ViewBuilder
-    private func pluginRow(_ plugin: InstalledPluginRecord) -> some View { // swiftlint:disable:this function_body_length
+    private func pluginRow(_ plugin: InstalledPluginRecord) -> some View {
         let update = availableUpdates.first { $0.pluginID == plugin.id }
 
         HStack {
-            VStack(alignment: .leading, spacing: 2) {
-                HStack(spacing: 6) {
-                    Text(plugin.name)
-                        .fontWeight(.medium)
-                    if plugin.isLocal {
-                        Text("Local")
-                            .font(.caption2)
-                            .fontWeight(.semibold)
-                            .padding(.horizontal, 5)
-                            .padding(.vertical, 1)
-                            .background(.purple.opacity(0.15), in: Capsule())
-                            .foregroundStyle(.purple)
-                    }
-                }
-                HStack(spacing: 8) {
-                    Text("v\(plugin.version)")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                    if let update {
-                        Text("v\(update.latestVersion) available")
-                            .font(.caption)
-                            .foregroundStyle(.orange)
-                    }
-                    if let url = plugin.githubURL, let link = URL(string: url) {
-                        Link(destination: link) {
-                            Text(url)
-                                .font(.caption)
-                                .foregroundStyle(.link)
-                                .lineLimit(1)
-                                .truncationMode(.middle)
-                        }
-                    }
-                }
-            }
+            pluginInfoColumn(plugin, update: update)
 
             Spacer()
 
@@ -278,8 +168,138 @@ struct PluginsSection: View {
         .padding(.horizontal, 4)
     }
 
-    // MARK: - Update Check
+    private func pluginInfoColumn(
+        _ plugin: InstalledPluginRecord,
+        update: GitHubPluginInstaller.UpdateInfo?
+    ) -> some View {
+        VStack(alignment: .leading, spacing: 2) {
+            HStack(spacing: 6) {
+                Text(plugin.name)
+                    .fontWeight(.medium)
+                if plugin.isLocal {
+                    Text("Local")
+                        .font(.caption2)
+                        .fontWeight(.semibold)
+                        .padding(.horizontal, 5)
+                        .padding(.vertical, 1)
+                        .background(.purple.opacity(0.15), in: Capsule())
+                        .foregroundStyle(.purple)
+                }
+            }
+            HStack(spacing: 8) {
+                Text("v\(plugin.version)")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                if let update {
+                    Text("v\(update.latestVersion) available")
+                        .font(.caption)
+                        .foregroundStyle(.orange)
+                }
+                if let url = plugin.githubURL, let link = URL(string: url) {
+                    Link(destination: link) {
+                        Text(url)
+                            .font(.caption)
+                            .foregroundStyle(.link)
+                            .lineLimit(1)
+                            .truncationMode(.middle)
+                    }
+                }
+            }
+        }
+    }
 
+    private var developmentSection: some View {
+        GroupBox("Development") {
+            VStack(alignment: .leading, spacing: 12) {
+                HStack {
+                    TextField("Path to .statusplugin bundle", text: $devPath)
+                        .textFieldStyle(.roundedBorder)
+
+                    Button("Browse...") {
+                        browseForPlugin()
+                    }
+
+                    Button("Load") {
+                        loadDevPlugin()
+                    }
+                    .disabled(devPath.isEmpty)
+                }
+
+                if let devError {
+                    Label(devError, systemImage: "exclamationmark.triangle.fill")
+                        .foregroundStyle(.red)
+                        .font(.caption)
+                }
+
+                if !devPlugins.isEmpty {
+                    VStack(spacing: 0) {
+                        ForEach(devPlugins, id: \.id) { plugin in
+                            HStack {
+                                VStack(alignment: .leading, spacing: 2) {
+                                    Text(plugin.name)
+                                        .fontWeight(.medium)
+                                    Text(plugin.path)
+                                        .font(.caption)
+                                        .foregroundStyle(.tertiary)
+                                        .lineLimit(1)
+                                        .truncationMode(.middle)
+                                }
+                                Spacer()
+                            }
+                            .padding(.vertical, 4)
+                        }
+                    }
+                }
+
+                Label(
+                    "Load plugins directly from a build directory for development."
+                        + " Use `make bundle` then point to the .statusplugin output.",
+                    systemImage: "hammer"
+                )
+                .font(.caption)
+                .foregroundStyle(.secondary)
+            }
+            .padding(.vertical, 4)
+        }
+    }
+
+    private var restartPrompt: some View {
+        HStack {
+            Image(systemName: "arrow.clockwise.circle.fill")
+                .foregroundStyle(.orange)
+            Text("Restart required for changes to take effect.")
+                .font(.callout)
+            Spacer()
+            Button("Restart Now") {
+                AppUpdateService.relaunchApp()
+            }
+            .controlSize(.small)
+        }
+        .padding(12)
+        .background(.orange.opacity(0.1), in: RoundedRectangle(cornerRadius: 8))
+    }
+
+    private func loadErrorsSection(_ failedResults: [PluginLoadResult]) -> some View {
+        GroupBox("Load Errors") {
+            VStack(alignment: .leading, spacing: 4) {
+                ForEach(failedResults, id: \.manifest.id) { result in
+                    Label {
+                        Text("\(result.manifest.name): \(result.error?.localizedDescription ?? "Unknown error")")
+                            .font(.caption)
+                    } icon: {
+                        Image(systemName: "xmark.circle.fill")
+                            .foregroundStyle(.red)
+                    }
+                }
+            }
+            .padding(.vertical, 4)
+        }
+    }
+}
+
+// MARK: - Actions
+
+extension PluginsSection {
     private func checkForUpdates() {
         isCheckingUpdates = true
         availableUpdates = []
@@ -335,8 +355,6 @@ struct PluginsSection: View {
             isInstalling = false
         }
     }
-
-    // MARK: - Actions
 
     private func installPlugin() {
         guard !githubURL.isEmpty else {
@@ -491,5 +509,3 @@ struct PluginsSection: View {
         }
     }
 }
-
-// swiftlint:enable type_body_length

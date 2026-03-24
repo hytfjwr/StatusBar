@@ -4,7 +4,6 @@ import SwiftUI
 
 // MARK: - PreferencesModel
 
-// swiftlint:disable type_body_length file_length
 @MainActor
 @Observable
 final class PreferencesModel: ThemeProvider {
@@ -612,5 +611,3 @@ extension PreferencesModel {
         static let devModeEnabled: Bool = false
     }
 }
-
-// swiftlint:enable type_body_length file_length
