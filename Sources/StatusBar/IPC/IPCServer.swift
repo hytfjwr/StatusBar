@@ -4,6 +4,73 @@ import StatusBarKit
 
 private let logger = Logger(subsystem: "com.statusbar", category: "IPCServer")
 
+// MARK: - Accept Loop
+
+/// Build and start the DispatchSource accept loop.
+/// Must be a free function — closures formed inside a @MainActor context
+/// inherit MainActor isolation, causing a Swift 6 runtime SIGTRAP when
+/// GCD executes them on a background queue.
+private func makeAcceptSource(
+    fd: Int32,
+    dispatcher: CommandDispatcher
+) -> DispatchSourceRead {
+    let source = DispatchSource.makeReadSource(
+        fileDescriptor: fd,
+        queue: DispatchQueue(label: "com.statusbar.ipc.accept", qos: .utility)
+    )
+    source.setEventHandler {
+        let clientFD = accept(fd, nil, nil)
+        guard clientFD >= 0 else {
+            logger.debug("IPC accept returned invalid fd")
+            return
+        }
+        logger.debug("IPC accepted client (fd=\(clientFD))")
+        handleClient(fd: clientFD, dispatcher: dispatcher)
+    }
+    source.setCancelHandler {
+        close(fd)
+    }
+    source.resume()
+    return source
+}
+
+/// Handle a single IPC client connection on a detached task.
+private func handleClient(fd: Int32, dispatcher: CommandDispatcher) {
+    Task.detached {
+        defer { close(fd) }
+
+        var timeout = timeval(tv_sec: 5, tv_usec: 0)
+        setsockopt(fd, SOL_SOCKET, SO_RCVTIMEO, &timeout, socklen_t(MemoryLayout<timeval>.size))
+
+        let request: IPCRequest
+        do {
+            guard let req = try IPCFraming.readFrame(fd: fd, as: IPCRequest.self) else {
+                logger.warning("IPC client disconnected before sending request")
+                return
+            }
+            request = req
+        } catch {
+            logger.error("IPC failed to read request: \(error)")
+            return
+        }
+
+        logger.debug("IPC received command: \(request.command.handlerKey)")
+
+        let response = await MainActor.run {
+            dispatcher.dispatch(request)
+        }
+
+        do {
+            let frame = try IPCFraming.encode(response)
+            if !IPCFraming.writeFrame(fd: fd, data: frame) {
+                logger.error("IPC failed to write response frame")
+            }
+        } catch {
+            logger.error("IPC failed to encode response: \(error)")
+        }
+    }
+}
+
 // MARK: - IPCServer
 
 /// Unix domain socket server for IPC.
@@ -46,7 +113,7 @@ final class IPCServer {
             return
         }
 
-        startAcceptLoop()
+        acceptSource = makeAcceptSource(fd: serverFD, dispatcher: dispatcher)
 
         // swiftformat:disable:next redundantSelf
         logger.info("IPC server listening on \(self.socketPath)")
@@ -55,6 +122,7 @@ final class IPCServer {
     func stop() {
         acceptSource?.cancel()
         acceptSource = nil
+        serverFD = -1
         unlink(socketPath)
         logger.info("IPC server stopped")
     }
@@ -89,58 +157,5 @@ final class IPCServer {
             return false
         }
         return true
-    }
-
-    private func startAcceptLoop() {
-        let source = DispatchSource.makeReadSource(
-            fileDescriptor: serverFD,
-            queue: DispatchQueue(label: "com.statusbar.ipc.accept", qos: .utility)
-        )
-        source.setEventHandler { [weak self] in
-            guard let self else {
-                return
-            }
-            let clientFD = accept(serverFD, nil, nil)
-            guard clientFD >= 0 else {
-                return
-            }
-            handleClientAsync(fd: clientFD)
-        }
-        source.setCancelHandler { [weak self] in
-            guard let self else {
-                return
-            }
-            if serverFD >= 0 {
-                close(serverFD)
-                serverFD = -1
-            }
-        }
-        source.resume()
-        acceptSource = source
-    }
-
-    // MARK: - Client handling
-
-    nonisolated private func handleClientAsync(fd: Int32) {
-        Task.detached {
-            defer { close(fd) }
-
-            var timeout = timeval(tv_sec: 5, tv_usec: 0)
-            setsockopt(fd, SOL_SOCKET, SO_RCVTIMEO, &timeout, socklen_t(MemoryLayout<timeval>.size))
-
-            guard let request = try? IPCFraming.readFrame(fd: fd, as: IPCRequest.self) else {
-                logger.debug("IPC client disconnected or sent invalid frame")
-                return
-            }
-
-            let responseJSON = await MainActor.run {
-                self.dispatcher.dispatch(request)
-            }
-
-            var length = UInt32(responseJSON.count).bigEndian
-            var frame = Data(bytes: &length, count: 4)
-            frame.append(responseJSON)
-            _ = IPCFraming.writeFrame(fd: fd, data: frame)
-        }
     }
 }

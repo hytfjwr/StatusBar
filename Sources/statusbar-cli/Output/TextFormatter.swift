@@ -7,26 +7,22 @@ struct TextFormatter: OutputFormatter {
             return "No widgets registered."
         }
 
-        // Column headers
-        let header = String(format: "%-20s %-8s %-8s %s", "ID", "SECTION", "VISIBLE", "SETTINGS")
-        let separator = String(repeating: "─", count: 60)
-
         let rows = widgets
             .sorted { $0.sortIndex < $1.sortIndex }
             .map { w in
                 let settingsStr = w.settings.isEmpty
                     ? "–"
                     : w.settings.map { "\($0.key)=\(formatValue($0.value))" }.joined(separator: ", ")
-                return String(
-                    format: "%-20s %-8s %-8s %s",
-                    String(w.id.prefix(20)),
-                    w.position.rawValue,
-                    w.isVisible ? "yes" : "no",
-                    settingsStr
-                )
+                return formatRow(String(w.id.prefix(20)), w.position.rawValue, w.isVisible ? "yes" : "no", settingsStr)
             }
 
+        let header = formatRow("ID", "SECTION", "VISIBLE", "SETTINGS")
+        let separator = String(repeating: "─", count: 60)
         return ([header, separator] + rows).joined(separator: "\n")
+    }
+
+    private func formatRow(_ id: String, _ section: String, _ visible: String, _ settings: String) -> String {
+        "\(id.padding(toLength: 20, withPad: " ", startingAt: 0)) \(section.padding(toLength: 8, withPad: " ", startingAt: 0)) \(visible.padding(toLength: 8, withPad: " ", startingAt: 0)) \(settings)"
     }
 
     func formatWidgetDetail(_ widget: WidgetInfoDTO) -> String {
