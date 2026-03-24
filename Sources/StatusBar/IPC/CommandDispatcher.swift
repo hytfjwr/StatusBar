@@ -10,7 +10,6 @@ private let logger = Logger(subsystem: "com.statusbar", category: "IPC")
 @MainActor
 final class CommandDispatcher {
     private let handlers: [String: any CommandHandling]
-    private let encoder = JSONEncoder()
 
     init() {
         let all: [any CommandHandling] = [
@@ -23,16 +22,16 @@ final class CommandDispatcher {
         handlers = Dictionary(uniqueKeysWithValues: all.map { ($0.commandKey, $0) })
     }
 
-    /// Process an IPC request and return the framed response (length-prefixed JSON).
-    func dispatch(_ request: IPCRequest) -> Data {
+    /// Process an IPC request and return the response.
+    func dispatch(_ request: IPCRequest) -> IPCResponse {
         if request.version != ipcProtocolVersion {
-            return encode(IPCResponse(
+            return IPCResponse(
                 requestID: request.requestID,
                 result: .failure(.versionMismatch(
                     serverVersion: ipcProtocolVersion,
                     clientVersion: request.version
                 ))
-            ))
+            )
         }
 
         let result: IPCResult
@@ -52,11 +51,7 @@ final class CommandDispatcher {
 
         let response = IPCResponse(requestID: request.requestID, result: result)
         logger.debug("IPC \(handlerKey) → \(String(describing: result))")
-        return encode(response)
-    }
-
-    private func encode(_ response: IPCResponse) -> Data {
-        (try? encoder.encode(response)) ?? Data()
+        return response
     }
 }
 
