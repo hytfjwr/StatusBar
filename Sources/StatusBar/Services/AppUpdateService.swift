@@ -303,17 +303,29 @@ final class AppUpdateService {
         // Failures are ignored — the info check still works with cached data.
         _ = try? await ShellCommand.run("brew", arguments: ["update", "--quiet"], timeout: 30)
 
-        let output = try await ShellCommand.run(
+        let result = try await ShellCommand.runWithResult(
             "brew", arguments: ["info", "--json=v2", "--cask", Self.brewCask], timeout: 10
         )
-        let data = Data(output.utf8)
-        let json = try JSONDecoder().decode(BrewInfoResponse.self, from: data)
 
-        guard let cask = json.casks.first else {
-            throw UpdateError.caskNotFound
+        if !result.stderr.isEmpty {
+            logger.warning("brew info stderr: \(result.stderr)")
         }
 
-        return cask.version
+        guard result.exitCode == 0 else {
+            logger.error("brew info failed (exit \(result.exitCode)): \(result.stderr)")
+            throw UpdateError.brewFailed(result.stderr)
+        }
+
+        do {
+            let json = try JSONDecoder().decode(BrewInfoResponse.self, from: Data(result.stdout.utf8))
+            guard let cask = json.casks.first else {
+                throw UpdateError.caskNotFound
+            }
+            return cask.version
+        } catch {
+            logger.error("Failed to decode brew info JSON: \(error)\nRaw output: \(result.stdout.prefix(500))")
+            throw error
+        }
     }
 }
 
@@ -322,10 +334,12 @@ final class AppUpdateService {
 extension AppUpdateService {
     enum UpdateError: LocalizedError {
         case caskNotFound
+        case brewFailed(String)
 
         var errorDescription: String? {
             switch self {
             case .caskNotFound: "Homebrew cask not found"
+            case let .brewFailed(stderr): "Homebrew command failed: \(stderr)"
             }
         }
     }
