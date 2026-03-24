@@ -162,8 +162,9 @@ final class GitHubPluginInstaller {
            let hostVersion = SemanticVersion(statusBarKitVersion)
         {
             guard hostVersion.isCompatible(with: pluginVersion) else {
+                let required = manifest.statusBarKitVersion
                 logger.error(
-                    "Incompatible StatusBarKit version for \(manifest.name): requires \(manifest.statusBarKitVersion), app has \(statusBarKitVersion)"
+                    "Incompatible StatusBarKit for \(manifest.name): requires \(required), app has \(statusBarKitVersion)"
                 )
                 throw GitHubPluginError.incompatibleVersion(
                     required: manifest.statusBarKitVersion,
