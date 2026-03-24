@@ -85,24 +85,37 @@ final class PluginStore {
 
     private(set) var plugins: [InstalledPluginRecord] = []
 
-    private var registryURL: URL {
-        FileManager.default.homeDirectoryForCurrentUser
+    private let registryURL: URL
+
+    private init() {
+        registryURL = FileManager.default.homeDirectoryForCurrentUser
             .appendingPathComponent(".config/statusbar/plugins/registry.json")
     }
 
-    private init() {}
+    /// Testable initializer that accepts a custom registry URL.
+    init(registryURL: URL) {
+        self.registryURL = registryURL
+    }
 
     // MARK: - CRUD
 
     func add(_ record: InstalledPluginRecord) throws {
+        let isUpdate = plugins.contains { $0.id == record.id }
         plugins.removeAll { $0.id == record.id }
         plugins.append(record)
         try save()
+        if isUpdate {
+            logger.info("Updated plugin record: \(record.name) (\(record.id))")
+        } else {
+            logger.info("Added plugin record: \(record.name) (\(record.id))")
+        }
     }
 
     func remove(id: String) throws {
+        let name = plugins.first { $0.id == id }?.name ?? id
         plugins.removeAll { $0.id == id }
         try save()
+        logger.info("Removed plugin record: \(name)")
     }
 
     func setEnabled(_ enabled: Bool, for id: String) {
@@ -136,6 +149,7 @@ final class PluginStore {
         let fm = FileManager.default
         guard fm.fileExists(atPath: registryURL.path) else {
             plugins = []
+            logger.info("No plugin registry found — starting with empty plugin list")
             return
         }
         let data = try Data(contentsOf: registryURL)
@@ -143,6 +157,7 @@ final class PluginStore {
         decoder.dateDecodingStrategy = .iso8601
         let store = try decoder.decode(PluginStoreData.self, from: data)
         plugins = store.plugins
+        logger.info("Loaded \(store.plugins.count) plugin record(s) from registry")
     }
 
     func save() throws {

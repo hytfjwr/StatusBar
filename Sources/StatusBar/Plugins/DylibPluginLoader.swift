@@ -112,10 +112,14 @@ final class DylibPluginLoader {
             return
         }
 
-        guard let contents = try? fm.contentsOfDirectory(
-            at: dir,
-            includingPropertiesForKeys: nil
-        ) else {
+        let contents: [URL]
+        do {
+            contents = try fm.contentsOfDirectory(
+                at: dir,
+                includingPropertiesForKeys: nil
+            )
+        } catch {
+            logger.error("Failed to read plugins directory: \(error.localizedDescription)")
             return
         }
 
@@ -176,7 +180,7 @@ final class DylibPluginLoader {
                 let synced = existing.updating(name: newName, version: newVersion)
                 do {
                     try store.add(synced)
-                    logger.info("Synced registry for \(bundleName): \(existing.version) → \(synced.version)")
+                    logger.info("Synced registry for \(bundleName): name=\(synced.name), version=\(synced.version)")
                 } catch {
                     logger.warning("Failed to sync registry for \(bundleName): \(error.localizedDescription)")
                 }
@@ -191,7 +195,11 @@ final class DylibPluginLoader {
                 bundleName: bundleName,
                 isLocal: true
             )
-            try? store.add(record)
+            do {
+                try store.add(record)
+            } catch {
+                logger.warning("Failed to auto-register plugin \(bundleName): \(error.localizedDescription)")
+            }
         }
     }
 
