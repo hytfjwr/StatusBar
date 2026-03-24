@@ -9,7 +9,9 @@ struct ReloadCommand: ParsableCommand {
 
     func run() throws {
         let payload = try IPCClient.send(.reload)
-        guard case .ok = payload else { throw ExitCode.failure }
+        guard case .ok = payload else {
+            throw ExitCode.failure
+        }
         print("OK")
     }
 }

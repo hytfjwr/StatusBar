@@ -1,5 +1,7 @@
 import ArgumentParser
 
+// MARK: - SbarCLI
+
 @main
 struct SbarCLI: ParsableCommand {
     static let configuration = CommandConfiguration(
@@ -13,6 +15,8 @@ struct SbarCLI: ParsableCommand {
         ]
     )
 }
+
+// MARK: - GlobalOptions
 
 /// Shared options available to all subcommands.
 struct GlobalOptions: ParsableArguments {

@@ -1,6 +1,8 @@
 import ArgumentParser
 import StatusBarIPC
 
+// MARK: - SetCommand
+
 struct SetCommand: ParsableCommand {
     static let configuration = CommandConfiguration(
         commandName: "set",
@@ -38,7 +40,9 @@ struct SetCommand: ParsableCommand {
         let (key, rawValue) = try parseAssignment(args[0])
         let value = parseConfigValue(rawValue)
         let payload = try IPCClient.send(.setGlobal(keyPath: key, value: value))
-        guard case .ok = payload else { throw ExitCode.failure }
+        guard case .ok = payload else {
+            throw ExitCode.failure
+        }
         print("OK")
     }
 
@@ -50,7 +54,9 @@ struct SetCommand: ParsableCommand {
         let (key, rawValue) = try parseAssignment(args[1])
         let value = parseConfigValue(rawValue)
         let payload = try IPCClient.send(.setWidget(id: widgetID, key: key, value: value))
-        guard case .ok = payload else { throw ExitCode.failure }
+        guard case .ok = payload else {
+            throw ExitCode.failure
+        }
         print("OK")
     }
 }
@@ -73,12 +79,20 @@ private func parseAssignment(_ string: String) throws -> (key: String, value: St
 /// Priority: Bool → Int → Double → String (matches ConfigValue's Codable decode order).
 func parseConfigValue(_ string: String) -> ConfigValue {
     // Bool
-    if string.lowercased() == "true" { return .bool(true) }
-    if string.lowercased() == "false" { return .bool(false) }
+    if string.lowercased() == "true" {
+        return .bool(true)
+    }
+    if string.lowercased() == "false" {
+        return .bool(false)
+    }
     // Int
-    if let v = Int(string) { return .int(v) }
+    if let v = Int(string) {
+        return .int(v)
+    }
     // Double
-    if let v = Double(string) { return .double(v) }
+    if let v = Double(string) {
+        return .double(v)
+    }
     // String
     return .string(string)
 }
