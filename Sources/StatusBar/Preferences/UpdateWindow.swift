@@ -26,7 +26,7 @@ final class UpdateWindow {
         let hostingView = NSHostingView(rootView: view)
 
         let window = NSWindow(
-            contentRect: NSRect(x: 0, y: 0, width: 480, height: 360),
+            contentRect: NSRect(x: 0, y: 0, width: 480, height: 440),
             styleMask: [.titled, .closable],
             backing: .buffered,
             defer: false
@@ -50,19 +50,102 @@ struct UpdateView: View {
 
     private let updateService = AppUpdateService.shared
 
+    private let changelogService = ChangelogService.shared
+
     var body: some View {
-        VStack(alignment: .leading, spacing: 16) {
+        VStack(alignment: .leading, spacing: 0) {
             header
+                .padding(.horizontal, 20)
+                .padding(.top, 20)
+                .padding(.bottom, 12)
             Divider()
+            TabView {
+                Tab("Update", systemImage: "arrow.triangle.2.circlepath") {
+                    updateTab
+                }
+                Tab("What's New", systemImage: "sparkles") {
+                    whatsNewTab
+                }
+            }
+        }
+        .frame(width: 480, height: 440)
+        .task {
+            await updateService.performUpdate()
+        }
+        .task {
+            await changelogService.fetchIfNeeded()
+        }
+    }
+
+    // MARK: - Update Tab
+
+    private var updateTab: some View {
+        VStack(alignment: .leading, spacing: 16) {
             phaseIndicator
             progressBar
             logOutput
             actionButtons
         }
         .padding(20)
-        .frame(width: 480, height: 360)
-        .task {
-            await updateService.performUpdate()
+    }
+
+    // MARK: - What's New Tab
+
+    private var whatsNewTab: some View {
+        Group {
+            switch changelogService.state {
+            case .idle,
+                 .loading:
+                VStack(spacing: 12) {
+                    ProgressView()
+                    Text("Loading…")
+                        .font(.system(size: 13))
+                        .foregroundStyle(.secondary)
+                }
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+
+            case .loaded:
+                if let release = changelogService.release(for: version) {
+                    ScrollView {
+                        VStack(alignment: .leading, spacing: 8) {
+                            ForEach(
+                                Array(release.entries.enumerated()), id: \.offset
+                            ) { _, entry in
+                                Text("• \(entry)")
+                                    .font(.system(size: 13))
+                            }
+                        }
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .padding(20)
+                    }
+                } else {
+                    VStack(spacing: 8) {
+                        Text("No release notes found for v\(version)")
+                            .font(.system(size: 13))
+                            .foregroundStyle(.secondary)
+                    }
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                }
+
+            case let .failed(message):
+                VStack(spacing: 12) {
+                    Image(systemName: "exclamationmark.triangle")
+                        .font(.system(size: 24))
+                        .foregroundStyle(.orange)
+                    Text(message)
+                        .font(.system(size: 12))
+                        .foregroundStyle(.secondary)
+                    HStack(spacing: 12) {
+                        Button("Retry") {
+                            Task { await changelogService.retry() }
+                        }
+                        .controlSize(.small)
+                        Link("Open on GitHub", destination: ChangelogService.githubChangelogURL)
+                            .font(.system(size: 12))
+                    }
+                }
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+            }
         }
     }
 
