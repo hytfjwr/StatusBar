@@ -1,6 +1,8 @@
 import Foundation
 import StatusBarIPC
 
+// MARK: - IPCClient
+
 /// Synchronous IPC client that connects to the StatusBar app via Unix domain socket.
 enum IPCClient {
     /// Send a command and return the response payload.
@@ -20,7 +22,10 @@ enum IPCClient {
         let pathBytes = socketPath.utf8CString
         withUnsafeMutablePointer(to: &addr.sun_path) { sunPath in
             pathBytes.withUnsafeBufferPointer { buf in
-                _ = memcpy(sunPath, buf.baseAddress!, buf.count)
+                guard let base = buf.baseAddress else {
+                    return
+                }
+                _ = memcpy(sunPath, base, buf.count)
             }
         }
 
@@ -59,6 +64,8 @@ enum IPCClient {
         }
     }
 }
+
+// MARK: - IPCClientError
 
 enum IPCClientError: Error, CustomStringConvertible {
     case appNotRunning

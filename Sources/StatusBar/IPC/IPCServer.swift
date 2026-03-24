@@ -23,7 +23,6 @@ final class IPCServer {
     // MARK: - Lifecycle
 
     func start() {
-        // Clean up stale socket from a previous crash
         unlink(socketPath)
 
         serverFD = socket(AF_UNIX, SOCK_STREAM, 0)
@@ -32,29 +31,7 @@ final class IPCServer {
             return
         }
 
-        var addr = sockaddr_un()
-        addr.sun_family = sa_family_t(AF_UNIX)
-        let pathBytes = socketPath.utf8CString
-        guard pathBytes.count <= MemoryLayout.size(ofValue: addr.sun_path) else {
-            // swiftformat:disable:next redundantSelf
-            logger.error("Socket path too long: \(self.socketPath)")
-            close(serverFD)
-            serverFD = -1
-            return
-        }
-        withUnsafeMutablePointer(to: &addr.sun_path) { sunPath in
-            pathBytes.withUnsafeBufferPointer { buf in
-                _ = memcpy(sunPath, buf.baseAddress!, buf.count)
-            }
-        }
-
-        let bindResult = withUnsafePointer(to: &addr) { ptr in
-            ptr.withMemoryRebound(to: sockaddr.self, capacity: 1) { sockPtr in
-                bind(serverFD, sockPtr, socklen_t(MemoryLayout<sockaddr_un>.size))
-            }
-        }
-        guard bindResult == 0 else {
-            logger.error("Failed to bind socket: \(String(cString: strerror(errno)))")
+        guard bindSocket() else {
             close(serverFD)
             serverFD = -1
             return
@@ -69,6 +46,52 @@ final class IPCServer {
             return
         }
 
+        startAcceptLoop()
+
+        // swiftformat:disable:next redundantSelf
+        logger.info("IPC server listening on \(self.socketPath)")
+    }
+
+    func stop() {
+        acceptSource?.cancel()
+        acceptSource = nil
+        unlink(socketPath)
+        logger.info("IPC server stopped")
+    }
+
+    // MARK: - Socket setup
+
+    private func bindSocket() -> Bool {
+        var addr = sockaddr_un()
+        addr.sun_family = sa_family_t(AF_UNIX)
+        let pathBytes = socketPath.utf8CString
+        guard pathBytes.count <= MemoryLayout.size(ofValue: addr.sun_path) else {
+            // swiftformat:disable:next redundantSelf
+            logger.error("Socket path too long: \(self.socketPath)")
+            return false
+        }
+        withUnsafeMutablePointer(to: &addr.sun_path) { sunPath in
+            pathBytes.withUnsafeBufferPointer { buf in
+                guard let base = buf.baseAddress else {
+                    return
+                }
+                _ = memcpy(sunPath, base, buf.count)
+            }
+        }
+
+        let result = withUnsafePointer(to: &addr) { ptr in
+            ptr.withMemoryRebound(to: sockaddr.self, capacity: 1) { sockPtr in
+                bind(serverFD, sockPtr, socklen_t(MemoryLayout<sockaddr_un>.size))
+            }
+        }
+        guard result == 0 else {
+            logger.error("Failed to bind socket: \(String(cString: strerror(errno)))")
+            return false
+        }
+        return true
+    }
+
+    private func startAcceptLoop() {
         let source = DispatchSource.makeReadSource(
             fileDescriptor: serverFD,
             queue: DispatchQueue(label: "com.statusbar.ipc.accept", qos: .utility)
@@ -94,26 +117,14 @@ final class IPCServer {
         }
         source.resume()
         acceptSource = source
-
-        // swiftformat:disable:next redundantSelf
-        logger.info("IPC server listening on \(self.socketPath)")
-    }
-
-    func stop() {
-        acceptSource?.cancel()
-        acceptSource = nil
-        unlink(socketPath)
-        logger.info("IPC server stopped")
     }
 
     // MARK: - Client handling
 
-    /// Read request, dispatch on MainActor, write response.
     nonisolated private func handleClientAsync(fd: Int32) {
         Task.detached {
             defer { close(fd) }
 
-            // Set read timeout to prevent stalled clients from blocking tasks indefinitely
             var timeout = timeval(tv_sec: 5, tv_usec: 0)
             setsockopt(fd, SOL_SOCKET, SO_RCVTIMEO, &timeout, socklen_t(MemoryLayout<timeval>.size))
 
@@ -122,12 +133,10 @@ final class IPCServer {
                 return
             }
 
-            // Dispatch on MainActor — returns JSON-encoded response bytes
             let responseJSON = await MainActor.run {
                 self.dispatcher.dispatch(request)
             }
 
-            // Write length-prefixed response
             var length = UInt32(responseJSON.count).bigEndian
             var frame = Data(bytes: &length, count: 4)
             frame.append(responseJSON)
