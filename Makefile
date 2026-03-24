@@ -41,6 +41,7 @@ bundle: release
 	mkdir -p $(APP_BUNDLE)/Contents/Frameworks
 	mkdir -p $(APP_BUNDLE)/Contents/Resources
 	cp .build/release/$(APP_NAME) $(APP_BUNDLE)/Contents/MacOS/
+	cp .build/release/sbar $(APP_BUNDLE)/Contents/MacOS/
 	cp .build/release/libStatusBarKit.dylib $(APP_BUNDLE)/Contents/Frameworks/
 	cp Resources/Info.plist $(APP_BUNDLE)/Contents/
 	@if [ -f StatusBar.entitlements ]; then \

@@ -13,6 +13,7 @@ let package = Package(
         .package(url: "https://github.com/hytfjwr/StatusBarKit", from: "1.4.0"),
         .package(url: "https://github.com/jpsim/Yams", from: "6.2.1"),
         .package(url: "https://github.com/SimplyDanny/SwiftLintPlugins", from: "0.58.0"),
+        .package(url: "https://github.com/apple/swift-argument-parser", from: "1.3.0"),
     ],
     targets: [
         .executableTarget(
@@ -39,6 +40,14 @@ let package = Package(
             ],
             plugins: [swiftLint]
         ),
+        .executableTarget(
+            name: "sbar",
+            dependencies: [
+                .product(name: "StatusBarIPC", package: "StatusBarKit"),
+                .product(name: "ArgumentParser", package: "swift-argument-parser"),
+            ],
+            path: "Sources/statusbar-cli"
+        ),
         .testTarget(
             name: "StatusBarTests",
             dependencies: [
@@ -47,6 +56,11 @@ let package = Package(
                 .product(name: "Yams", package: "Yams"),
             ],
             path: "Tests/StatusBarTests"
+        ),
+        .testTarget(
+            name: "statusbar-cliTests",
+            dependencies: ["sbar"],
+            path: "Tests/statusbar-cliTests"
         ),
     ]
 )
