@@ -18,6 +18,7 @@ test:
 	swift test
 
 run-dev: build
+	@-pkill -x $(APP_NAME) 2>/dev/null && sleep 0.5 || true
 	@rm -rf $(DEBUG_BUNDLE)
 	@mkdir -p $(DEBUG_BUNDLE)/Contents/MacOS
 	@mkdir -p $(DEBUG_BUNDLE)/Contents/Frameworks
@@ -30,6 +31,7 @@ run-dev: build
 	open $(DEBUG_BUNDLE)
 
 run-app: bundle
+	@-pkill -x $(APP_NAME) 2>/dev/null && sleep 0.5 || true
 	open $(APP_BUNDLE)
 
 bundle: release
