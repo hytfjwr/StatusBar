@@ -3,43 +3,13 @@ import StatusBarIPC
 
 // MARK: - IPCClient
 
-/// Synchronous IPC client that connects to the StatusBar app via Unix domain socket.
+/// Synchronous IPC client for request-response commands.
 enum IPCClient {
     /// Send a command and return the response payload.
     /// Throws `IPCClientError.appNotRunning` if the app is not running.
     static func send(_ command: IPCCommand) throws -> IPCPayload {
-        let socketPath = ipcSocketPath()
-
-        let fd = socket(AF_UNIX, SOCK_STREAM, 0)
-        guard fd >= 0 else {
-            throw IPCClientError.socketCreationFailed
-        }
+        let fd = try IPCConnection.connect()
         defer { close(fd) }
-
-        // Connect
-        var addr = sockaddr_un()
-        addr.sun_family = sa_family_t(AF_UNIX)
-        let pathBytes = socketPath.utf8CString
-        withUnsafeMutablePointer(to: &addr.sun_path) { sunPath in
-            pathBytes.withUnsafeBufferPointer { buf in
-                guard let base = buf.baseAddress else {
-                    return
-                }
-                _ = memcpy(sunPath, base, buf.count)
-            }
-        }
-
-        let connectResult = withUnsafePointer(to: &addr) { ptr in
-            ptr.withMemoryRebound(to: sockaddr.self, capacity: 1) { sockPtr in
-                connect(fd, sockPtr, socklen_t(MemoryLayout<sockaddr_un>.size))
-            }
-        }
-        guard connectResult == 0 else {
-            if errno == ENOENT || errno == ECONNREFUSED {
-                throw IPCClientError.appNotRunning
-            }
-            throw IPCClientError.connectionFailed(String(cString: strerror(errno)))
-        }
 
         // Send request
         let request = IPCRequest(command: command)
@@ -53,7 +23,6 @@ enum IPCClient {
             throw IPCClientError.readFailed
         }
 
-        // Check for protocol version mismatch
         switch response.result {
         case let .success(payload):
             return payload
