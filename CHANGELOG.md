@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.9.0] - 2026-03-25
+
+- fix: align CLI reload command with Apple Menu behavior (#69)
+
 ## [0.8.1] - 2026-03-24
 
 - fix: resolve IPC server crash and sbar CLI SIGSEGV (#67)
