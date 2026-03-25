@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.10.0] - 2026-03-25
+
+- feat: add IPC event subscription system (sbar subscribe) (#72)
+- fix: handle expected read failure on sbar reload (#71)
+
 ## [0.9.0] - 2026-03-25
 
 - fix: align CLI reload command with Apple Menu behavior (#69)
