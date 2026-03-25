@@ -256,7 +256,7 @@ sbar set --global bar.height=44
 sbar set --global appearance.accent=#FF0000
 sbar set --global behavior.autoHide=false
 
-# Reload configuration from disk
+# Relaunch the app
 sbar reload
 ```
 
