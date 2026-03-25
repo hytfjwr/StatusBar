@@ -5,7 +5,7 @@ struct ReloadCommandHandler: CommandHandling {
     let commandKey = "reload"
 
     func handle(_ command: IPCCommand) throws -> IPCPayload {
-        ConfigLoader.shared.reloadFromDisk()
+        AppUpdateService.relaunchApp()
         return .ok
     }
 }

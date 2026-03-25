@@ -4,7 +4,7 @@ import StatusBarIPC
 struct ReloadCommand: ParsableCommand {
     static let configuration = CommandConfiguration(
         commandName: "reload",
-        abstract: "Reload configuration from disk"
+        abstract: "Relaunch the app"
     )
 
     func run() throws {
