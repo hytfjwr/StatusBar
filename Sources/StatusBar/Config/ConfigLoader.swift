@@ -298,6 +298,8 @@ final class ConfigLoader {
             let entries = newConfig.widgets.map(\.asEntry)
             WidgetRegistry.shared.applyLayout(entries)
         }
+
+        EventBus.shared.emit(IPCEventEnvelope(event: .configReloaded, payload: .configReloaded))
     }
 
     // MARK: - Teardown

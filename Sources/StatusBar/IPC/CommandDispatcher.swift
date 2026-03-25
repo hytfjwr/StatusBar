@@ -65,6 +65,7 @@ extension IPCCommand {
         case .setWidget: "setWidget"
         case .setGlobal: "setGlobal"
         case .reload: "reload"
+        case .subscribe: "subscribe"
         @unknown default: "unknown"
         }
     }
