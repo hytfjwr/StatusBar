@@ -15,6 +15,8 @@ final class VolumeWidget: StatusBarWidget {
 
     private var volume: Int = 0
     private var muted: Bool = false
+    private var lastEmittedVolume: Int = -1
+    private var lastEmittedMuted: Bool = false
     private var service: AudioService?
     private var popupPanel: PopupPanel?
 
@@ -26,6 +28,14 @@ final class VolumeWidget: StatusBarWidget {
                 }
                 self.volume = vol
                 self.muted = self.service?.isMuted() ?? false
+                if vol != self.lastEmittedVolume || self.muted != self.lastEmittedMuted {
+                    self.lastEmittedVolume = vol
+                    self.lastEmittedMuted = self.muted
+                    EventBus.shared.emit(IPCEventEnvelope(
+                        event: .volumeChanged,
+                        payload: .volumeChanged(volume: vol, muted: self.muted)
+                    ))
+                }
                 if self.popupPanel?.isVisible == true {
                     self.refreshPopup()
                 }

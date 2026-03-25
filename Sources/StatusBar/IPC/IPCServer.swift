@@ -37,24 +37,33 @@ private func makeAcceptSource(
 /// Handle a single IPC client connection on a detached task.
 private func handleClient(fd: Int32, dispatcher: CommandDispatcher) {
     Task.detached {
-        defer { close(fd) }
-
         var timeout = timeval(tv_sec: 5, tv_usec: 0)
         setsockopt(fd, SOL_SOCKET, SO_RCVTIMEO, &timeout, socklen_t(MemoryLayout<timeval>.size))
 
         let request: IPCRequest
         do {
             guard let req = try IPCFraming.readFrame(fd: fd, as: IPCRequest.self) else {
+                close(fd)
                 logger.warning("IPC client disconnected before sending request")
                 return
             }
             request = req
         } catch {
+            close(fd)
             logger.error("IPC failed to read request: \(error)")
             return
         }
 
         logger.debug("IPC received command: \(request.command.handlerKey)")
+
+        // Subscribe commands keep the connection open — hand off to the pump.
+        if case let .subscribe(events) = request.command {
+            await handleSubscribe(fd: fd, requestID: request.requestID, events: events)
+            return
+        }
+
+        // Standard request-response path.
+        defer { close(fd) }
 
         let response = await MainActor.run {
             dispatcher.dispatch(request)
@@ -69,6 +78,38 @@ private func handleClient(fd: Int32, dispatcher: CommandDispatcher) {
             logger.error("IPC failed to encode response: \(error)")
         }
     }
+}
+
+/// Handle a subscribe command: send ACK then delegate to the subscriber pump.
+/// The pump takes ownership of `fd` and closes it on exit.
+private func handleSubscribe(fd: Int32, requestID: String, events: [BarEventName]) async {
+    // Clear the read timeout — this connection lives until the client disconnects.
+    var noTimeout = timeval(tv_sec: 0, tv_usec: 0)
+    setsockopt(fd, SOL_SOCKET, SO_RCVTIMEO, &noTimeout, socklen_t(MemoryLayout<timeval>.size))
+
+    // Prevent SIGPIPE when writing to a disconnected client.
+    var one: Int32 = 1
+    setsockopt(fd, SOL_SOCKET, SO_NOSIGPIPE, &one, socklen_t(MemoryLayout<Int32>.size))
+
+    let ack = IPCResponse(
+        requestID: requestID,
+        result: .success(.subscribeAck(events: events))
+    )
+    do {
+        let frame = try IPCFraming.encode(ack)
+        guard IPCFraming.writeFrame(fd: fd, data: frame) else {
+            close(fd)
+            logger.error("IPC subscribe: failed to send ACK")
+            return
+        }
+    } catch {
+        close(fd)
+        logger.error("IPC subscribe: failed to encode ACK: \(error)")
+        return
+    }
+
+    // The pump owns fd from here — it will close it when done.
+    await runSubscriberPump(fd: fd, events: events)
 }
 
 // MARK: - IPCServer

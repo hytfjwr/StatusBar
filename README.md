@@ -256,11 +256,38 @@ sbar set --global bar.height=44
 sbar set --global appearance.accent=#FF0000
 sbar set --global behavior.autoHide=false
 
+# Subscribe to real-time events (NDJSON stream)
+sbar subscribe front_app_switched volume_changed config_reloaded
+
+# Pipe events to jq for filtering
+sbar subscribe front_app_switched | jq '.payload'
+
 # Relaunch the app
 sbar reload
 ```
 
 Use `--json` for machine-readable output (pipe to `jq` for filtering).
+
+<details>
+<summary>Event subscription</summary>
+
+`sbar subscribe` keeps the connection open and streams events as newline-delimited JSON (NDJSON) to stdout. Available events:
+
+| Event | Trigger |
+|-------|---------|
+| `front_app_switched` | Active application changes |
+| `volume_changed` | System volume or mute state changes |
+| `config_reloaded` | Config file hot-reloaded from disk |
+
+Each line is a JSON object:
+
+```json
+{"event":"front_app_switched","payload":{"frontAppSwitched":{"appName":"Safari","bundleID":"com.apple.Safari"}},"timestamp":1711411234.56}
+```
+
+The stream ends when the app quits or the connection is interrupted (Ctrl-C).
+
+</details>
 
 <details>
 <summary>Global key paths</summary>

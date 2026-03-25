@@ -12,6 +12,7 @@ struct SbarCLI: ParsableCommand {
             GetCommand.self,
             SetCommand.self,
             ReloadCommand.self,
+            SubscribeCommand.self,
         ]
     )
 }
