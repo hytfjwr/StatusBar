@@ -256,6 +256,11 @@ sbar set --global bar.height=44
 sbar set --global appearance.accent=#FF0000
 sbar set --global behavior.autoHide=false
 
+# Send custom events to plugin widgets
+sbar trigger com.example.myapp.deploy_finished
+sbar trigger com.example.myapp.count --payload 42
+sbar trigger com.example.myapp.deploy --payload '{"repo":"myapp","status":"ok"}'
+
 # Subscribe to real-time events (NDJSON stream)
 sbar subscribe front_app_switched volume_changed config_reloaded
 
@@ -286,6 +291,31 @@ Each line is a JSON object:
 ```
 
 The stream ends when the app quits or the connection is interrupted (Ctrl-C).
+
+</details>
+
+<details>
+<summary>Trigger events</summary>
+
+`sbar trigger` sends custom events to plugin widgets that have subscribed to them via `subscribedEvents`. Plugins receive events through the `handleEvent(_:)` callback.
+
+```bash
+sbar trigger <event> [--payload <value>]
+```
+
+| Argument | Required | Description |
+|----------|----------|-------------|
+| `<event>` | Yes | Fully-qualified event name (e.g. `com.example.myapp.deploy_finished`) |
+| `--payload` | No | Event payload — parsed as JSON if valid, otherwise treated as a plain string |
+
+Payload examples:
+
+```bash
+sbar trigger com.example.myapp.ping                              # no payload
+sbar trigger com.example.myapp.count --payload 42                # number
+sbar trigger com.example.myapp.status --payload "building"       # string
+sbar trigger com.example.myapp.deploy --payload '{"status":"ok"}' # JSON object
+```
 
 </details>
 
