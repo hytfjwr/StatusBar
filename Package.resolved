@@ -1,13 +1,13 @@
 {
-  "originHash" : "ecbd9ba9e1bc93fff8a3014efadf0d5a2f61c972d4247171f1bf65c67e9a5684",
+  "originHash" : "16e1954d79c6cb6153e07efe109d31a6e9d5a7dba638afbfc2d650905df847b2",
   "pins" : [
     {
       "identity" : "statusbarkit",
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/hytfjwr/StatusBarKit",
       "state" : {
-        "revision" : "56bc986bbc758cd4a60beeb9e097a0efee61388f",
-        "version" : "1.5.0"
+        "revision" : "6e03b721215d2c6cf86b1ca6d101c9cb13e63666",
+        "version" : "1.6.0"
       }
     },
     {
