@@ -18,6 +18,7 @@ final class CommandDispatcher {
             SetWidgetCommandHandler(),
             SetGlobalCommandHandler(),
             ReloadCommandHandler(),
+            TriggerCommandHandler(),
         ]
         handlers = Dictionary(uniqueKeysWithValues: all.map { ($0.commandKey, $0) })
     }
@@ -66,6 +67,7 @@ extension IPCCommand {
         case .setGlobal: "setGlobal"
         case .reload: "reload"
         case .subscribe: "subscribe"
+        case .trigger: "trigger"
         @unknown default: "unknown"
         }
     }

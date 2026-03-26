@@ -71,6 +71,9 @@ struct PluginLoadResult {
 final class DylibPluginLoader {
     static let shared = DylibPluginLoader()
 
+    /// Routes trigger events to plugin widgets based on their subscriptions.
+    let eventRouter = EventRouter()
+
     /// Retained dlopen handles keyed by plugin id. Must be released AFTER plugin objects.
     private var loadedHandles: [String: UnsafeMutableRawPointer] = [:]
 
@@ -262,6 +265,7 @@ final class DylibPluginLoader {
 
         // Register
         registry.registerPlugin(plugin)
+        eventRouter.registerWidgets(plugin.widgets.map { AnyStatusBarWidget($0) }, pluginID: manifest.id)
 
         // Retain handle and plugin
         loadedHandles[manifest.id] = handle
@@ -317,6 +321,7 @@ final class DylibPluginLoader {
 
         let plugin = box.factory()
         registry.registerPlugin(plugin)
+        eventRouter.registerWidgets(plugin.widgets.map { AnyStatusBarWidget($0) }, pluginID: manifest.id)
 
         loadedHandles[manifest.id] = handle
         loadedPlugins[manifest.id] = plugin
@@ -352,6 +357,7 @@ final class DylibPluginLoader {
                 widget.stop()
             }
         }
+        eventRouter.unregisterPlugin(pluginID)
         teardown(pluginID: pluginID)
     }
 
@@ -363,6 +369,7 @@ final class DylibPluginLoader {
         // Remove widgets from registry (releases AnyStatusBarWidget closure captures)
         let oldWidgetIDs = Set(widgetIDs(for: pluginID))
         registry.unregisterWidgets(ids: oldWidgetIDs)
+        eventRouter.unregisterPlugin(pluginID)
 
         // Tear down old plugin and dylib, then load the new version
         teardown(pluginID: pluginID)
