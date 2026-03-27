@@ -1,8 +1,10 @@
 import StatusBarKit
 
+// MARK: - AppEventName
+
 /// Application-specific event names.
 /// The SDK's IPC layer uses plain strings; this enum provides type safety within the host app.
-enum AppEventName: String, CaseIterable, Sendable {
+enum AppEventName: String, CaseIterable {
     case frontAppSwitched = "front_app_switched"
     case volumeChanged = "volume_changed"
 }
