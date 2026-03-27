@@ -74,7 +74,7 @@ final class MemoryGraphSettings: WidgetConfigProvider {
 
 @MainActor
 @Observable
-final class MemoryGraphWidget: StatusBarWidget {
+final class MemoryGraphWidget: StatusBarWidget, EventEmitting {
     let id = "memory-graph"
     let position: WidgetPosition = .right
     let updateInterval: TimeInterval? = 2
@@ -145,6 +145,7 @@ final class MemoryGraphWidget: StatusBarWidget {
         withAnimation(.numericTransition) {
             graphValues = buffer.values()
         }
+        emitRaw(.memoryUpdated(percent: Int(usage * 100)))
     }
 
     private var latestUsagePercent: Int {

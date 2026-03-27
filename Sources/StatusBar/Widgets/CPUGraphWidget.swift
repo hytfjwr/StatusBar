@@ -74,7 +74,7 @@ final class CPUGraphSettings: WidgetConfigProvider {
 
 @MainActor
 @Observable
-final class CPUGraphWidget: StatusBarWidget {
+final class CPUGraphWidget: StatusBarWidget, EventEmitting {
     let id = "cpu-graph"
     let position: WidgetPosition = .right
     let updateInterval: TimeInterval? = 2
@@ -145,6 +145,7 @@ final class CPUGraphWidget: StatusBarWidget {
         withAnimation(.numericTransition) {
             graphValues = buffer.values()
         }
+        emitRaw(.cpuUpdated(percent: Int(usage * 100)))
     }
 
     private var latestUsagePercent: Int {

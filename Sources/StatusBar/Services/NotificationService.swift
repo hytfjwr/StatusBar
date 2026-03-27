@@ -168,6 +168,7 @@ final class NotificationService {
                 title: "Low Battery",
                 body: "Battery is at \(currentBatteryPct)%"
             )
+            EventBus.shared.emit(.batteryLow(percent: currentBatteryPct, threshold: threshold))
         }
     }
 
@@ -198,6 +199,11 @@ final class NotificationService {
                     title: "High CPU Usage",
                     body: String(format: "CPU has been above %.0f%% for %.0fs", threshold, prefs.cpuSustainedDuration)
                 )
+                EventBus.shared.emit(.cpuHigh(
+                    usagePercent: Int(usage),
+                    threshold: Int(threshold),
+                    sustainedSeconds: Int(prefs.cpuSustainedDuration)
+                ))
             }
         } else {
             cpuExceedStart = nil
@@ -238,6 +244,11 @@ final class NotificationService {
                     title: "High Memory Usage",
                     body: String(format: "Memory has been above %.0f%% for %.0fs", threshold, prefs.memorySustainedDuration)
                 )
+                EventBus.shared.emit(.memoryHigh(
+                    usagePercent: Int(usage),
+                    threshold: Int(threshold),
+                    sustainedSeconds: Int(prefs.memorySustainedDuration)
+                ))
             }
         } else {
             memExceedStart = nil

@@ -54,7 +54,7 @@ final class DateSettings: WidgetConfigProvider {
 
 @MainActor
 @Observable
-final class DateWidget: StatusBarWidget {
+final class DateWidget: StatusBarWidget, EventEmitting {
     let id = "date"
     let position: WidgetPosition = .right
     let updateInterval: TimeInterval? = 60
@@ -68,6 +68,7 @@ final class DateWidget: StatusBarWidget {
 
     private var popupPanel: PopupPanel?
     private var calendarService = CalendarService()
+    private let isoFormatter = ISO8601DateFormatter()
     private var tracker: NextEventTracker?
     private var nextEvent: CalendarEvent?
     private var timeUntilStart: TimeInterval?
@@ -108,6 +109,11 @@ final class DateWidget: StatusBarWidget {
             }
             if changed {
                 self?.refreshPopupIfOpen()
+                self?.emit(.calendarNextEventChanged(
+                    title: event?.title,
+                    startDate: event.map { self?.isoFormatter.string(from: $0.startDate) ?? "" },
+                    timeUntilStart: interval
+                ))
             }
         }
         tracker = t

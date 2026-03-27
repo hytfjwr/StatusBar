@@ -5,7 +5,7 @@ import SwiftUI
 
 @MainActor
 @Observable
-final class VolumeWidget: StatusBarWidget {
+final class VolumeWidget: StatusBarWidget, EventEmitting {
     let id = "volume"
     let position: WidgetPosition = .right
     let updateInterval: TimeInterval? = nil
@@ -31,9 +31,13 @@ final class VolumeWidget: StatusBarWidget {
                     self.muted = self.service?.isMuted() ?? false
                 }
                 if vol != self.lastEmittedVolume || self.muted != self.lastEmittedMuted {
+                    let wasMuted = self.lastEmittedMuted
                     self.lastEmittedVolume = vol
                     self.lastEmittedMuted = self.muted
-                    EventBus.shared.emit(.volumeChanged(volume: vol, muted: self.muted))
+                    self.emit(.volumeChanged(volume: vol, muted: self.muted))
+                    if self.muted != wasMuted {
+                        self.emit(self.muted ? .volumeMuted() : .volumeUnmuted())
+                    }
                 }
                 if self.popupPanel?.isVisible == true {
                     self.refreshPopup()

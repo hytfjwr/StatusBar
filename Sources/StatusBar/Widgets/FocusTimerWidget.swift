@@ -6,7 +6,7 @@ import SwiftUI
 
 @MainActor
 @Observable
-final class FocusTimerWidget: StatusBarWidget {
+final class FocusTimerWidget: StatusBarWidget, EventEmitting {
     let id = "focus-timer"
     let position: WidgetPosition = .right
     let updateInterval: TimeInterval? = 2
@@ -65,6 +65,7 @@ final class FocusTimerWidget: StatusBarWidget {
         update()
         refreshPopup()
         saveState(mode: mode, endTime: endTime)
+        emit(.focusTimerStarted(mode: mode, durationSeconds: Int(duration)))
     }
 
     func stopTimer() {
@@ -76,6 +77,7 @@ final class FocusTimerWidget: StatusBarWidget {
         NSSound(named: "Purr")?.play()
         refreshPopup()
         clearSavedState()
+        emit(.focusTimerStopped())
     }
 
     func toggleCustomSlider() {
@@ -157,7 +159,7 @@ final class FocusTimerWidget: StatusBarWidget {
             displayText = "--:--"
             displayColor = Theme.secondary
 
-        case let .running(_, endTime):
+        case let .running(mode, endTime):
             let remaining = endTime.timeIntervalSinceNow
             if remaining <= 0 {
                 state = .completed(at: Date())
@@ -165,6 +167,7 @@ final class FocusTimerWidget: StatusBarWidget {
                 displayColor = Theme.green
                 NSSound(named: "Glass")?.play()
                 clearSavedState()
+                emit(.focusTimerCompleted(mode: mode))
                 return
             }
 

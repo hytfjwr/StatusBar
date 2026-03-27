@@ -3,7 +3,7 @@ import SwiftUI
 
 @MainActor
 @Observable
-final class MicCameraWidget: StatusBarWidget {
+final class MicCameraWidget: StatusBarWidget, EventEmitting {
     let id = "mic-camera"
     let position: WidgetPosition = .right
     let updateInterval: TimeInterval? = nil
@@ -13,13 +13,29 @@ final class MicCameraWidget: StatusBarWidget {
 
     private var micActive = false
     private var cameraActive = false
+    private var lastEmittedMic = false
+    private var lastEmittedCamera = false
     private var service: MicCameraService?
 
     func start() {
         service = MicCameraService { [weak self] state in
             Task { @MainActor in
-                self?.micActive = state.micActive
-                self?.cameraActive = state.cameraActive
+                guard let self else {
+                    return
+                }
+                let wasMic = self.lastEmittedMic
+                let wasCamera = self.lastEmittedCamera
+                self.micActive = state.micActive
+                self.cameraActive = state.cameraActive
+                self.emit(.micCameraChanged(micActive: state.micActive, cameraActive: state.cameraActive))
+                if state.micActive != wasMic {
+                    self.lastEmittedMic = state.micActive
+                    self.emit(state.micActive ? .micActivated() : .micDeactivated())
+                }
+                if state.cameraActive != wasCamera {
+                    self.lastEmittedCamera = state.cameraActive
+                    self.emit(state.cameraActive ? .cameraActivated() : .cameraDeactivated())
+                }
             }
         }
         service?.start()

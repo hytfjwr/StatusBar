@@ -41,7 +41,7 @@ final class NetworkSettings: WidgetConfigProvider {
 
 @MainActor
 @Observable
-final class NetworkWidget: StatusBarWidget {
+final class NetworkWidget: StatusBarWidget, EventEmitting {
     let id = "network"
     let position: WidgetPosition = .right
     let updateInterval: TimeInterval? = 2
@@ -96,6 +96,7 @@ final class NetworkWidget: StatusBarWidget {
             uploadSpeed = speed.uploadFormatted
             downloadSpeed = speed.downloadFormatted
         }
+        emitRaw(.networkUpdated(downloadBytesPerSec: speed.download, uploadBytesPerSec: speed.upload))
     }
 
     func body() -> some View {

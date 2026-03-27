@@ -41,7 +41,7 @@ final class BatterySettings: WidgetConfigProvider {
 
 @MainActor
 @Observable
-final class BatteryWidget: StatusBarWidget {
+final class BatteryWidget: StatusBarWidget, EventEmitting {
     let id = "battery"
     let position: WidgetPosition = .right
     let updateInterval: TimeInterval? = 120
@@ -53,13 +53,23 @@ final class BatteryWidget: StatusBarWidget {
     private var isCharging = false
     private var hasBattery = true
     private var showPercentage = true
+    private var lastEmittedCharging = false
     func start() {
         showPercentage = BatterySettings.shared.showPercentage
         BatteryService.shared.addObserver { [weak self] pct, charging, battery in
+            guard let self else {
+                return
+            }
+            let wasCharging = lastEmittedCharging
             withAnimation(.numericTransition) {
-                self?.percentage = pct
-                self?.isCharging = charging
-                self?.hasBattery = battery
+                self.percentage = pct
+                self.isCharging = charging
+                self.hasBattery = battery
+            }
+            emitRaw(.batteryChanged(percent: pct, charging: charging, hasBattery: battery))
+            if charging != wasCharging {
+                lastEmittedCharging = charging
+                emit(.batteryChargingChanged(charging: charging))
             }
         }
         BatteryService.shared.start()

@@ -4,7 +4,7 @@ import SwiftUI
 
 @MainActor
 @Observable
-final class FrontAppWidget: StatusBarWidget {
+final class FrontAppWidget: StatusBarWidget, EventEmitting {
     let id = "front-app"
     let position: WidgetPosition = .left
     let updateInterval: TimeInterval? = nil
@@ -28,7 +28,7 @@ final class FrontAppWidget: StatusBarWidget {
             MainActor.assumeIsolated {
                 let name = app.localizedName ?? ""
                 self?.appName = name
-                EventBus.shared.emit(.frontAppSwitched(appName: name, bundleID: app.bundleIdentifier))
+                self?.emit(.frontAppSwitched(appName: name, bundleID: app.bundleIdentifier))
             }
         }
     }

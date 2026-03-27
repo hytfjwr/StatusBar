@@ -6,7 +6,7 @@ import SwiftUI
 
 @MainActor
 @Observable
-final class BluetoothWidget: StatusBarWidget {
+final class BluetoothWidget: StatusBarWidget, EventEmitting {
     let id = "bluetooth"
     let position: WidgetPosition = .right
     let updateInterval: TimeInterval? = 10
@@ -41,7 +41,24 @@ final class BluetoothWidget: StatusBarWidget {
                 guard updated != devices else {
                     return
                 }
+                let oldIDs = Set(devices.map(\.id))
+                let newIDs = Set(updated.map(\.id))
+                let added = updated.filter { !oldIDs.contains($0.id) }
+                let removed = devices.filter { !newIDs.contains($0.id) }
                 devices = updated
+                emit(.bluetoothDevicesChanged(
+                    connectedCount: updated.count,
+                    deviceNames: updated.map(\.name)
+                ))
+                for device in added {
+                    emit(.bluetoothDeviceConnected(
+                        name: device.name,
+                        category: device.category.rawValue
+                    ))
+                }
+                for device in removed {
+                    emit(.bluetoothDeviceDisconnected(name: device.name))
+                }
                 if popupPanel?.isVisible == true {
                     refreshPopup()
                 }
