@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.12.0] - 2026-03-27
+
+- refactor: migrate to string-based IPC event protocol (#81)
+
 ## [0.11.2] - 2026-03-27
 
 - fix: preserve plugin order on update (#79)
