@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.11.1] - 2026-03-27
+
+- feat: show update availability indicators in UI (#76)
+
 ## [0.11.0] - 2026-03-26
 
 - feat: add trigger event support (sbar trigger) (#74)
