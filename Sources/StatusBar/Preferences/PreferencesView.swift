@@ -6,12 +6,21 @@ import SwiftUI
 struct PreferencesView: View {
     @Bindable var model: PreferencesModel
     @State private var selectedSection: PreferencesSection = .general
+    private let updateService = AppUpdateService.shared
 
     var body: some View {
         HStack(spacing: 0) {
             // Sidebar
             List(PreferencesSection.allCases, selection: $selectedSection) { section in
-                Label(section.title, systemImage: section.icon)
+                HStack {
+                    Label(section.title, systemImage: section.icon)
+                    if section == .about, updateService.isUpdateAvailable {
+                        Spacer()
+                        Circle()
+                            .fill(Theme.green)
+                            .frame(width: 8, height: 8)
+                    }
+                }
             }
             .listStyle(.sidebar)
             .frame(width: 170)

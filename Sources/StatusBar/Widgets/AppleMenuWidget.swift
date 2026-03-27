@@ -14,6 +14,7 @@ final class AppleMenuWidget: StatusBarWidget {
     }
 
     private var popupPanel: PopupPanel?
+    private let updateService = AppUpdateService.shared
 
     func start() {}
     func stop() {
@@ -25,6 +26,14 @@ final class AppleMenuWidget: StatusBarWidget {
             .font(Theme.sfIconFont)
             .foregroundStyle(.primary)
             .padding(.horizontal, 4)
+            .overlay(alignment: .topTrailing) {
+                if updateService.isUpdateAvailable {
+                    Circle()
+                        .fill(Theme.green)
+                        .frame(width: 6, height: 6)
+                        .offset(x: 2, y: -2)
+                }
+            }
             .contentShape(Rectangle())
             .onTapGesture { [weak self] in
                 self?.togglePopup()
@@ -62,6 +71,7 @@ struct AppleMenuPopupContent: View {
     let dismiss: () -> Void
 
     @State private var confirmAction: SystemAction?
+    private let updateService = AppUpdateService.shared
 
     private enum SystemAction: String, Identifiable {
         case lockScreen = "Lock Screen"
@@ -122,6 +132,10 @@ struct AppleMenuPopupContent: View {
 
                 VStack(spacing: 2) {
                     PopupRow(icon: "gearshape", label: "Preferences") {
+                        if updateService.isUpdateAvailable {
+                            PopupStatusBadge("Update", color: Theme.green)
+                        }
+                    } action: {
                         PreferencesWindow.shared.show()
                         dismiss()
                     }
