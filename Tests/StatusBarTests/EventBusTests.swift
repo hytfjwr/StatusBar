@@ -11,7 +11,7 @@ struct EventBusTests {
     @Test("Subscriber receives matching event")
     func receiveMatchingEvent() async {
         let bus = EventBus.shared
-        let (id, stream) = bus.subscribe(to: [AppEventName.frontAppSwitched.rawValue])
+        let (id, stream) = bus.subscribe(to: [AppEvent.FrontApp.switched])
         defer { bus.cancel(id: id) }
 
         let envelope = IPCEventEnvelope.frontAppSwitched(appName: "Safari", bundleID: "com.apple.Safari")
@@ -30,7 +30,7 @@ struct EventBusTests {
     @Test("Subscriber does not receive non-matching events")
     func filterNonMatchingEvent() async {
         let bus = EventBus.shared
-        let (id, stream) = bus.subscribe(to: [AppEventName.volumeChanged.rawValue])
+        let (id, stream) = bus.subscribe(to: [AppEvent.Volume.changed])
         defer { bus.cancel(id: id) }
 
         // Emit an event that doesn't match the subscription.
@@ -94,5 +94,140 @@ struct EventBusTests {
 
         #expect(r1 == envelope)
         #expect(r2 == envelope)
+    }
+
+    // MARK: - Wildcard subscriptions
+
+    @Test("Wildcard subscription matches prefix")
+    func wildcardMatchesPrefix() async {
+        let bus = EventBus.shared
+        let (id, stream) = bus.subscribe(to: ["battery_*"])
+        defer { bus.cancel(id: id) }
+
+        let envelope = IPCEventEnvelope.batteryChanged(percent: 80, charging: false, hasBattery: true)
+        bus.emit(envelope)
+
+        var received: IPCEventEnvelope?
+        for await event in stream {
+            received = event
+            break
+        }
+        #expect(received == envelope)
+    }
+
+    @Test("Wildcard subscription matches multiple event names")
+    func wildcardMatchesMultiple() async {
+        let bus = EventBus.shared
+        let (id, stream) = bus.subscribe(to: ["battery_*"])
+        defer { bus.cancel(id: id) }
+
+        let e1 = IPCEventEnvelope.batteryChanged(percent: 50, charging: true, hasBattery: true)
+        let e2 = IPCEventEnvelope.batteryChargingChanged(charging: true)
+        bus.emit(e1)
+        bus.emit(e2)
+
+        var events: [IPCEventEnvelope] = []
+        for await event in stream {
+            events.append(event)
+            if events.count == 2 {
+                break
+            }
+        }
+        #expect(events.count == 2)
+        #expect(events[0] == e1)
+        #expect(events[1] == e2)
+    }
+
+    @Test("Wildcard does not match unrelated events")
+    func wildcardDoesNotMatchUnrelated() async {
+        let bus = EventBus.shared
+        let (id, stream) = bus.subscribe(to: ["battery_*"])
+        defer { bus.cancel(id: id) }
+
+        // Emit non-matching event, then matching to unblock stream
+        bus.emit(.volumeChanged(volume: 50, muted: false))
+        bus.emit(.batteryLow(percent: 10, threshold: 20))
+
+        var received: IPCEventEnvelope?
+        for await event in stream {
+            received = event
+            break
+        }
+        #expect(received?.event == AppEvent.Battery.low)
+    }
+
+    @Test("Bare * matches all events")
+    func bareWildcardMatchesAll() async {
+        let bus = EventBus.shared
+        let (id, stream) = bus.subscribe(to: ["*"])
+        defer { bus.cancel(id: id) }
+
+        let envelope = IPCEventEnvelope.cpuUpdated(percent: 42)
+        bus.emit(envelope)
+
+        var received: IPCEventEnvelope?
+        for await event in stream {
+            received = event
+            break
+        }
+        #expect(received == envelope)
+    }
+
+    // MARK: - Rate limiting (emitRaw)
+
+    @Test("emitRaw suppresses within cooldown interval")
+    func emitRawSuppressesWithinCooldown() async {
+        let bus = EventBus.shared
+        bus.resetCooldowns()
+        let (id, stream) = bus.subscribe(to: [AppEvent.CPU.updated])
+        defer { bus.cancel(id: id) }
+
+        // First emit should pass
+        bus.emitRaw(.cpuUpdated(percent: 50), minInterval: 10)
+        // Second emit within interval should be suppressed
+        bus.emitRaw(.cpuUpdated(percent: 55), minInterval: 10)
+
+        // Emit a transition event to unblock stream after checking
+        bus.emit(.configReloaded())
+
+        // Subscribe to both to see what arrives
+        let (id2, stream2) = bus.subscribe(to: [AppEvent.CPU.updated, AppEvent.Bar.configReloaded])
+        defer { bus.cancel(id: id2) }
+
+        bus.emitRaw(.cpuUpdated(percent: 60), minInterval: 10)
+        bus.emit(.configReloaded())
+
+        var events: [IPCEventEnvelope] = []
+        for await event in stream2 {
+            events.append(event)
+            if events.count == 1 {
+                break
+            }
+        }
+        // Should only get configReloaded (cpu_updated was suppressed)
+        #expect(events[0].event == AppEvent.Bar.configReloaded)
+        bus.resetCooldowns()
+    }
+
+    @Test("emitRaw passes after cooldown expires")
+    func emitRawPassesAfterCooldown() async {
+        let bus = EventBus.shared
+        bus.resetCooldowns()
+        let (id, stream) = bus.subscribe(to: [AppEvent.CPU.updated])
+        defer { bus.cancel(id: id) }
+
+        // With a very short interval, both should pass
+        bus.emitRaw(.cpuUpdated(percent: 50), minInterval: 0)
+        bus.emitRaw(.cpuUpdated(percent: 55), minInterval: 0)
+
+        var events: [IPCEventEnvelope] = []
+        for await event in stream {
+            events.append(event)
+            if events.count == 2 {
+                break
+            }
+        }
+        #expect(events.count == 2)
+        bus.resetCooldowns()
     }
 }
