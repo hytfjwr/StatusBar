@@ -2,6 +2,31 @@ import Combine
 import StatusBarKit
 import SwiftUI
 
+// MARK: - DateEvent
+
+enum DateEvent {
+    static let nextEventChanged = "calendar_next_event_changed"
+}
+
+extension IPCEventEnvelope {
+    static func calendarNextEventChanged(title: String?, startDate: String?, timeUntilStart: Double?) -> Self {
+        var fields: [String: JSONValue] = [:]
+        if let title {
+            fields["title"] = .string(title)
+        }
+        if let startDate {
+            fields["startDate"] = .string(startDate)
+        }
+        if let timeUntilStart {
+            fields["timeUntilStartSeconds"] = .number(timeUntilStart)
+        }
+        return IPCEventEnvelope(
+            event: DateEvent.nextEventChanged,
+            payload: fields.isEmpty ? nil : .object(fields)
+        )
+    }
+}
+
 // MARK: - DateSettings
 
 @MainActor
@@ -54,7 +79,7 @@ final class DateSettings: WidgetConfigProvider {
 
 @MainActor
 @Observable
-final class DateWidget: StatusBarWidget {
+final class DateWidget: StatusBarWidget, EventEmitting {
     let id = "date"
     let position: WidgetPosition = .right
     let updateInterval: TimeInterval? = 60
@@ -68,6 +93,7 @@ final class DateWidget: StatusBarWidget {
 
     private var popupPanel: PopupPanel?
     private var calendarService = CalendarService()
+    private let isoFormatter = ISO8601DateFormatter()
     private var tracker: NextEventTracker?
     private var nextEvent: CalendarEvent?
     private var timeUntilStart: TimeInterval?
@@ -106,8 +132,13 @@ final class DateWidget: StatusBarWidget {
                 self?.timeUntilStart = interval
                 self?.isLoadingEvents = false
             }
-            if changed {
-                self?.refreshPopupIfOpen()
+            if changed, let self {
+                refreshPopupIfOpen()
+                emit(.calendarNextEventChanged(
+                    title: event?.title,
+                    startDate: event.map { self.isoFormatter.string(from: $0.startDate) },
+                    timeUntilStart: interval
+                ))
             }
         }
         tracker = t

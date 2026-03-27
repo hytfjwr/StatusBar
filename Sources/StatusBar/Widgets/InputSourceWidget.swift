@@ -1,9 +1,26 @@
 import StatusBarKit
 import SwiftUI
 
+// MARK: - InputSourceEvent
+
+enum InputSourceEvent {
+    static let changed = "input_source_changed"
+}
+
+extension IPCEventEnvelope {
+    static func inputSourceChanged(abbreviation: String) -> Self {
+        IPCEventEnvelope(
+            event: InputSourceEvent.changed,
+            payload: .object(["abbreviation": .string(abbreviation)])
+        )
+    }
+}
+
+// MARK: - InputSourceWidget
+
 @MainActor
 @Observable
-final class InputSourceWidget: StatusBarWidget {
+final class InputSourceWidget: StatusBarWidget, EventEmitting {
     let id = "input-source"
     let position: WidgetPosition = .right
     let updateInterval: TimeInterval? = nil
@@ -12,6 +29,7 @@ final class InputSourceWidget: StatusBarWidget {
     }
 
     private var abbreviation = "??"
+    private var lastEmittedAbbreviation = ""
     private var service: InputSourceService?
 
     func start() {
@@ -29,6 +47,10 @@ final class InputSourceWidget: StatusBarWidget {
 
     private func refresh() {
         abbreviation = service?.currentSourceAbbreviation() ?? "??"
+        if abbreviation != lastEmittedAbbreviation {
+            lastEmittedAbbreviation = abbreviation
+            emit(.inputSourceChanged(abbreviation: abbreviation))
+        }
     }
 
     func body() -> some View {

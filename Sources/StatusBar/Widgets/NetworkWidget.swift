@@ -2,6 +2,24 @@ import Combine
 import StatusBarKit
 import SwiftUI
 
+// MARK: - NetworkEvent
+
+enum NetworkEvent {
+    static let updated = "network_updated"
+}
+
+extension IPCEventEnvelope {
+    static func networkUpdated(downloadBytesPerSec: Double, uploadBytesPerSec: Double) -> Self {
+        IPCEventEnvelope(
+            event: NetworkEvent.updated,
+            payload: .object([
+                "downloadBytesPerSec": .number(downloadBytesPerSec),
+                "uploadBytesPerSec": .number(uploadBytesPerSec),
+            ])
+        )
+    }
+}
+
 // MARK: - NetworkSettings
 
 @MainActor
@@ -41,7 +59,7 @@ final class NetworkSettings: WidgetConfigProvider {
 
 @MainActor
 @Observable
-final class NetworkWidget: StatusBarWidget {
+final class NetworkWidget: StatusBarWidget, EventEmitting {
     let id = "network"
     let position: WidgetPosition = .right
     let updateInterval: TimeInterval? = 2
@@ -96,6 +114,7 @@ final class NetworkWidget: StatusBarWidget {
             uploadSpeed = speed.uploadFormatted
             downloadSpeed = speed.downloadFormatted
         }
+        emitRaw(.networkUpdated(downloadBytesPerSec: speed.download, uploadBytesPerSec: speed.upload))
     }
 
     func body() -> some View {

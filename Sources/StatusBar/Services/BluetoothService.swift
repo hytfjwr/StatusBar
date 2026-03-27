@@ -24,7 +24,7 @@ final class BluetoothService: NSObject, @unchecked Sendable, CBCentralManagerDel
         let category: DeviceCategory
         let batteryLevel: Int?
 
-        enum DeviceCategory {
+        enum DeviceCategory: String {
             case headphones
             case keyboard
             case mouse

@@ -2,9 +2,41 @@ import Combine
 import StatusBarKit
 import SwiftUI
 
+// MARK: - DiskEvent
+
+enum DiskEvent {
+    static let updated = "disk_updated"
+    static let high = "disk_high"
+}
+
+extension IPCEventEnvelope {
+    static func diskUpdated(usedPercent: Int, usedBytes: Int64, totalBytes: Int64) -> Self {
+        IPCEventEnvelope(
+            event: DiskEvent.updated,
+            payload: .object([
+                "usedPercent": .number(Double(usedPercent)),
+                "usedBytes": .number(Double(usedBytes)),
+                "totalBytes": .number(Double(totalBytes)),
+            ])
+        )
+    }
+
+    static func diskHigh(usedPercent: Int, threshold: Int) -> Self {
+        IPCEventEnvelope(
+            event: DiskEvent.high,
+            payload: .object([
+                "usedPercent": .number(Double(usedPercent)),
+                "threshold": .number(Double(threshold)),
+            ])
+        )
+    }
+}
+
+// MARK: - DiskUsageWidget
+
 @MainActor
 @Observable
-final class DiskUsageWidget: StatusBarWidget {
+final class DiskUsageWidget: StatusBarWidget, EventEmitting {
     let id = "disk-usage"
     let position: WidgetPosition = .right
     let updateInterval: TimeInterval? = 60
@@ -15,6 +47,7 @@ final class DiskUsageWidget: StatusBarWidget {
     private var snapshot: DiskService.DiskSnapshot?
     private var timer: AnyCancellable?
     private let service = DiskService()
+    private var lastDiskThresholdLevel = 0 // 0=normal, 1=80%+, 2=90%+
 
     func start() {
         pollInBackground()
@@ -29,9 +62,23 @@ final class DiskUsageWidget: StatusBarWidget {
         Task.detached { [service] in
             let snap = service.poll()
             await MainActor.run { [weak self] in
-                withAnimation(.numericTransition) {
-                    self?.snapshot = snap
+                guard let self else {
+                    return
                 }
+                withAnimation(.numericTransition) {
+                    self.snapshot = snap
+                }
+                emitRaw(.diskUpdated(
+                    usedPercent: snap.usedPercent,
+                    usedBytes: snap.usedBytes,
+                    totalBytes: snap.totalBytes
+                ))
+                let level = snap.usedPercent >= 90 ? 2 : snap.usedPercent >= 80 ? 1 : 0
+                if level > lastDiskThresholdLevel {
+                    let threshold = level == 2 ? 90 : 80
+                    emit(.diskHigh(usedPercent: snap.usedPercent, threshold: threshold))
+                }
+                lastDiskThresholdLevel = level
             }
         }
     }

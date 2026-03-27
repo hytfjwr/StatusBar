@@ -1,11 +1,39 @@
 import StatusBarKit
 import SwiftUI
 
+// MARK: - VolumeEvent
+
+enum VolumeEvent {
+    static let changed = "volume_changed"
+    static let muted = "volume_muted"
+    static let unmuted = "volume_unmuted"
+}
+
+extension IPCEventEnvelope {
+    static func volumeChanged(volume: Int, muted: Bool) -> Self {
+        IPCEventEnvelope(
+            event: VolumeEvent.changed,
+            payload: .object([
+                "volume": .number(Double(volume)),
+                "muted": .bool(muted),
+            ])
+        )
+    }
+
+    static func volumeMuted() -> Self {
+        IPCEventEnvelope(event: VolumeEvent.muted)
+    }
+
+    static func volumeUnmuted() -> Self {
+        IPCEventEnvelope(event: VolumeEvent.unmuted)
+    }
+}
+
 // MARK: - VolumeWidget
 
 @MainActor
 @Observable
-final class VolumeWidget: StatusBarWidget {
+final class VolumeWidget: StatusBarWidget, EventEmitting {
     let id = "volume"
     let position: WidgetPosition = .right
     let updateInterval: TimeInterval? = nil
@@ -31,9 +59,13 @@ final class VolumeWidget: StatusBarWidget {
                     self.muted = self.service?.isMuted() ?? false
                 }
                 if vol != self.lastEmittedVolume || self.muted != self.lastEmittedMuted {
+                    let wasMuted = self.lastEmittedMuted
                     self.lastEmittedVolume = vol
                     self.lastEmittedMuted = self.muted
-                    EventBus.shared.emit(.volumeChanged(volume: vol, muted: self.muted))
+                    self.emit(.volumeChanged(volume: vol, muted: self.muted))
+                    if self.muted != wasMuted {
+                        self.emit(self.muted ? .volumeMuted() : .volumeUnmuted())
+                    }
                 }
                 if self.popupPanel?.isVisible == true {
                     self.refreshPopup()

@@ -2,6 +2,33 @@ import Combine
 import StatusBarKit
 import SwiftUI
 
+// MARK: - CPUEvent
+
+enum CPUEvent {
+    static let updated = "cpu_updated"
+    static let high = "cpu_high"
+}
+
+extension IPCEventEnvelope {
+    static func cpuUpdated(percent: Int) -> Self {
+        IPCEventEnvelope(
+            event: CPUEvent.updated,
+            payload: .object(["percent": .number(Double(percent))])
+        )
+    }
+
+    static func cpuHigh(usagePercent: Int, threshold: Int, sustainedSeconds: Int) -> Self {
+        IPCEventEnvelope(
+            event: CPUEvent.high,
+            payload: .object([
+                "usagePercent": .number(Double(usagePercent)),
+                "threshold": .number(Double(threshold)),
+                "sustainedSeconds": .number(Double(sustainedSeconds)),
+            ])
+        )
+    }
+}
+
 // MARK: - CPUGraphSettings
 
 @MainActor
@@ -74,7 +101,7 @@ final class CPUGraphSettings: WidgetConfigProvider {
 
 @MainActor
 @Observable
-final class CPUGraphWidget: StatusBarWidget {
+final class CPUGraphWidget: StatusBarWidget, EventEmitting {
     let id = "cpu-graph"
     let position: WidgetPosition = .right
     let updateInterval: TimeInterval? = 2
@@ -145,6 +172,7 @@ final class CPUGraphWidget: StatusBarWidget {
         withAnimation(.numericTransition) {
             graphValues = buffer.values()
         }
+        emitRaw(.cpuUpdated(percent: Int(usage * 100)))
     }
 
     private var latestUsagePercent: Int {

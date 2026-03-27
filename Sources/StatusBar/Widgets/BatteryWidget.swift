@@ -2,6 +2,44 @@ import Combine
 import StatusBarKit
 import SwiftUI
 
+// MARK: - BatteryEvent
+
+enum BatteryEvent {
+    static let changed = "battery_changed"
+    static let chargingChanged = "battery_charging_changed"
+    static let low = "battery_low"
+}
+
+extension IPCEventEnvelope {
+    static func batteryChanged(percent: Int, charging: Bool, hasBattery: Bool) -> Self {
+        IPCEventEnvelope(
+            event: BatteryEvent.changed,
+            payload: .object([
+                "percent": .number(Double(percent)),
+                "charging": .bool(charging),
+                "hasBattery": .bool(hasBattery),
+            ])
+        )
+    }
+
+    static func batteryChargingChanged(charging: Bool) -> Self {
+        IPCEventEnvelope(
+            event: BatteryEvent.chargingChanged,
+            payload: .object(["charging": .bool(charging)])
+        )
+    }
+
+    static func batteryLow(percent: Int, threshold: Int) -> Self {
+        IPCEventEnvelope(
+            event: BatteryEvent.low,
+            payload: .object([
+                "percent": .number(Double(percent)),
+                "threshold": .number(Double(threshold)),
+            ])
+        )
+    }
+}
+
 // MARK: - BatterySettings
 
 @MainActor
@@ -41,7 +79,7 @@ final class BatterySettings: WidgetConfigProvider {
 
 @MainActor
 @Observable
-final class BatteryWidget: StatusBarWidget {
+final class BatteryWidget: StatusBarWidget, EventEmitting {
     let id = "battery"
     let position: WidgetPosition = .right
     let updateInterval: TimeInterval? = 120
@@ -56,10 +94,18 @@ final class BatteryWidget: StatusBarWidget {
     func start() {
         showPercentage = BatterySettings.shared.showPercentage
         BatteryService.shared.addObserver { [weak self] pct, charging, battery in
+            guard let self else {
+                return
+            }
+            let wasCharging = isCharging
             withAnimation(.numericTransition) {
-                self?.percentage = pct
-                self?.isCharging = charging
-                self?.hasBattery = battery
+                self.percentage = pct
+                self.isCharging = charging
+                self.hasBattery = battery
+            }
+            emitRaw(.batteryChanged(percent: pct, charging: charging, hasBattery: battery))
+            if charging != wasCharging {
+                emit(.batteryChargingChanged(charging: charging))
             }
         }
         BatteryService.shared.start()

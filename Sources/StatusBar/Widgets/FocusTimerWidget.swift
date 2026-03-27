@@ -2,11 +2,42 @@ import Combine
 import StatusBarKit
 import SwiftUI
 
+// MARK: - FocusTimerEvent
+
+enum FocusTimerEvent {
+    static let started = "focus_timer_started"
+    static let stopped = "focus_timer_stopped"
+    static let completed = "focus_timer_completed"
+}
+
+extension IPCEventEnvelope {
+    static func focusTimerStarted(mode: String, durationSeconds: Int) -> Self {
+        IPCEventEnvelope(
+            event: FocusTimerEvent.started,
+            payload: .object([
+                "mode": .string(mode),
+                "durationSeconds": .number(Double(durationSeconds)),
+            ])
+        )
+    }
+
+    static func focusTimerStopped() -> Self {
+        IPCEventEnvelope(event: FocusTimerEvent.stopped)
+    }
+
+    static func focusTimerCompleted(mode: String) -> Self {
+        IPCEventEnvelope(
+            event: FocusTimerEvent.completed,
+            payload: .object(["mode": .string(mode)])
+        )
+    }
+}
+
 // MARK: - FocusTimerWidget
 
 @MainActor
 @Observable
-final class FocusTimerWidget: StatusBarWidget {
+final class FocusTimerWidget: StatusBarWidget, EventEmitting {
     let id = "focus-timer"
     let position: WidgetPosition = .right
     let updateInterval: TimeInterval? = 2
@@ -65,6 +96,7 @@ final class FocusTimerWidget: StatusBarWidget {
         update()
         refreshPopup()
         saveState(mode: mode, endTime: endTime)
+        emit(.focusTimerStarted(mode: mode, durationSeconds: Int(duration)))
     }
 
     func stopTimer() {
@@ -76,6 +108,7 @@ final class FocusTimerWidget: StatusBarWidget {
         NSSound(named: "Purr")?.play()
         refreshPopup()
         clearSavedState()
+        emit(.focusTimerStopped())
     }
 
     func toggleCustomSlider() {
@@ -157,7 +190,7 @@ final class FocusTimerWidget: StatusBarWidget {
             displayText = "--:--"
             displayColor = Theme.secondary
 
-        case let .running(_, endTime):
+        case let .running(mode, endTime):
             let remaining = endTime.timeIntervalSinceNow
             if remaining <= 0 {
                 state = .completed(at: Date())
@@ -165,6 +198,7 @@ final class FocusTimerWidget: StatusBarWidget {
                 displayColor = Theme.green
                 NSSound(named: "Glass")?.play()
                 clearSavedState()
+                emit(.focusTimerCompleted(mode: mode))
                 return
             }
 

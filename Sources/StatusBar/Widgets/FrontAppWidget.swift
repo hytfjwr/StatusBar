@@ -2,9 +2,29 @@ import AppKit
 import StatusBarKit
 import SwiftUI
 
+// MARK: - FrontAppEvent
+
+enum FrontAppEvent {
+    static let switched = "front_app_switched"
+}
+
+extension IPCEventEnvelope {
+    static func frontAppSwitched(appName: String, bundleID: String?) -> Self {
+        IPCEventEnvelope(
+            event: FrontAppEvent.switched,
+            payload: .object([
+                "appName": .string(appName),
+                "bundleID": bundleID.map { .string($0) } ?? .null,
+            ])
+        )
+    }
+}
+
+// MARK: - FrontAppWidget
+
 @MainActor
 @Observable
-final class FrontAppWidget: StatusBarWidget {
+final class FrontAppWidget: StatusBarWidget, EventEmitting {
     let id = "front-app"
     let position: WidgetPosition = .left
     let updateInterval: TimeInterval? = nil
@@ -28,7 +48,7 @@ final class FrontAppWidget: StatusBarWidget {
             MainActor.assumeIsolated {
                 let name = app.localizedName ?? ""
                 self?.appName = name
-                EventBus.shared.emit(.frontAppSwitched(appName: name, bundleID: app.bundleIdentifier))
+                self?.emit(.frontAppSwitched(appName: name, bundleID: app.bundleIdentifier))
             }
         }
     }

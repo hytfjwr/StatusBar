@@ -264,6 +264,12 @@ sbar trigger com.example.myapp.deploy --payload '{"repo":"myapp","status":"ok"}'
 # Subscribe to real-time events (NDJSON stream)
 sbar subscribe front_app_switched volume_changed config_reloaded
 
+# Wildcard: subscribe to all battery events
+sbar subscribe 'battery_*'
+
+# Subscribe to all events
+sbar subscribe '*'
+
 # Pipe events to jq for filtering
 sbar subscribe front_app_switched | jq '.payload'
 
@@ -276,18 +282,73 @@ Use `--json` for machine-readable output (pipe to `jq` for filtering).
 <details>
 <summary>Event subscription</summary>
 
-`sbar subscribe` keeps the connection open and streams events as newline-delimited JSON (NDJSON) to stdout. Available events:
+`sbar subscribe` keeps the connection open and streams events as newline-delimited JSON (NDJSON) to stdout. Supports wildcard patterns — a name ending in `*` matches any event with that prefix (e.g., `battery_*` matches `battery_changed`, `battery_charging_changed`, `battery_low`).
+
+**Raw events** (emitted on every value change):
+
+| Event | Payload | Source |
+|-------|---------|--------|
+| `battery_changed` | `percent`, `charging`, `hasBattery` | Battery widget |
+| `cpu_updated` | `percent` | CPU graph widget |
+| `memory_updated` | `percent` | Memory graph widget |
+| `network_updated` | `downloadBytesPerSec`, `uploadBytesPerSec` | Network widget |
+| `disk_updated` | `usedPercent`, `usedBytes`, `totalBytes` | Disk widget |
+| `volume_changed` | `volume`, `muted` | Volume widget |
+| `mic_camera_changed` | `micActive`, `cameraActive` | Mic/Camera widget |
+
+**State transition events** (emitted on discrete state changes):
+
+| Event | Payload | Trigger |
+|-------|---------|---------|
+| `front_app_switched` | `appName`, `bundleID` | Active app changes |
+| `battery_charging_changed` | `charging` | Charger plugged/unplugged |
+| `input_source_changed` | `abbreviation` | Keyboard source switched |
+| `volume_muted` | — | Audio muted |
+| `volume_unmuted` | — | Audio unmuted |
+| `mic_activated` / `mic_deactivated` | — | Microphone starts/stops |
+| `camera_activated` / `camera_deactivated` | — | Camera starts/stops |
+| `bluetooth_devices_changed` | `connectedCount`, `deviceNames` | Device list changes |
+| `bluetooth_device_connected` | `name`, `category` | New device connected |
+| `bluetooth_device_disconnected` | `name` | Device disconnected |
+| `focus_timer_started` | `mode`, `durationSeconds` | Timer started |
+| `focus_timer_stopped` | — | Timer cancelled |
+| `focus_timer_completed` | `mode` | Timer finished |
+| `calendar_next_event_changed` | `title`, `startDate`, `timeUntilStartSeconds` | Next event changes |
+
+**Threshold events** (emitted when crossing configured boundaries):
+
+| Event | Payload | Trigger |
+|-------|---------|---------|
+| `battery_low` | `percent`, `threshold` | Battery drops below threshold |
+| `cpu_high` | `usagePercent`, `threshold`, `sustainedSeconds` | CPU sustained above threshold |
+| `memory_high` | `usagePercent`, `threshold`, `sustainedSeconds` | Memory sustained above threshold |
+| `disk_high` | `usedPercent`, `threshold` | Disk crosses 80% or 90% |
+
+**Infrastructure events:**
 
 | Event | Trigger |
 |-------|---------|
-| `front_app_switched` | Active application changes |
-| `volume_changed` | System volume or mute state changes |
 | `config_reloaded` | Config file hot-reloaded from disk |
 
 Each line is a JSON object:
 
 ```json
-{"event":"front_app_switched","payload":{"frontAppSwitched":{"appName":"Safari","bundleID":"com.apple.Safari"}},"timestamp":1711411234.56}
+{"event":"front_app_switched","timestamp":1711411234.56,"payload":{"appName":"Safari","bundleID":"com.apple.Safari"}}
+```
+
+Examples:
+
+```bash
+# React to focus timer completion
+sbar subscribe focus_timer_completed | while read -r line; do
+  osascript -e 'display notification "Break time!" with title "Focus Timer"'
+done
+
+# Log all battery events
+sbar subscribe 'battery_*' | jq -c '{event, payload}'
+
+# Monitor privacy indicators
+sbar subscribe mic_activated mic_deactivated camera_activated camera_deactivated
 ```
 
 The stream ends when the app quits or the connection is interrupted (Ctrl-C).

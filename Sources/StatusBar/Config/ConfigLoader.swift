@@ -4,6 +4,12 @@ import ServiceManagement
 import StatusBarKit
 import Yams
 
+extension IPCEventEnvelope {
+    static func configReloaded() -> Self {
+        IPCEventEnvelope(event: BarEvent.configReloaded)
+    }
+}
+
 private let logger = Logger(subsystem: "com.statusbar", category: "ConfigLoader")
 
 extension Notification.Name {
