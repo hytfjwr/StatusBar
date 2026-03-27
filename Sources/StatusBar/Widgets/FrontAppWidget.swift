@@ -28,10 +28,7 @@ final class FrontAppWidget: StatusBarWidget {
             MainActor.assumeIsolated {
                 let name = app.localizedName ?? ""
                 self?.appName = name
-                EventBus.shared.emit(IPCEventEnvelope(
-                    event: .frontAppSwitched,
-                    payload: .frontAppSwitched(appName: name, bundleID: app.bundleIdentifier)
-                ))
+                EventBus.shared.emit(.frontAppSwitched(appName: name, bundleID: app.bundleIdentifier))
             }
         }
     }

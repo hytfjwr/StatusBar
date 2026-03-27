@@ -16,7 +16,7 @@ final class EventBus {
     private var subscriptions: [UUID: Subscription] = [:]
 
     private struct Subscription {
-        let events: Set<BarEventName>
+        let events: Set<String>
         let continuation: AsyncStream<IPCEventEnvelope>.Continuation
     }
 
@@ -24,13 +24,13 @@ final class EventBus {
 
     /// Create a new subscription that yields events matching `events`.
     /// Returns a unique ID (for cancellation) and the stream to consume.
-    func subscribe(to events: [BarEventName]) -> (id: UUID, stream: AsyncStream<IPCEventEnvelope>) {
+    func subscribe(to events: [String]) -> (id: UUID, stream: AsyncStream<IPCEventEnvelope>) {
         let id = UUID()
         let stream = AsyncStream<IPCEventEnvelope>(bufferingPolicy: .bufferingNewest(64)) { continuation in
             let sub = Subscription(events: Set(events), continuation: continuation)
             self.subscriptions[id] = sub
         }
-        logger.info("Subscriber \(id) registered for \(events.map(\.rawValue))")
+        logger.info("Subscriber \(id) registered for \(events)")
         return (id, stream)
     }
 

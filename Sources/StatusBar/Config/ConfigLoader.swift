@@ -299,7 +299,7 @@ final class ConfigLoader {
             WidgetRegistry.shared.applyLayout(entries)
         }
 
-        EventBus.shared.emit(IPCEventEnvelope(event: .configReloaded, payload: .configReloaded))
+        EventBus.shared.emit(.configReloaded())
     }
 
     // MARK: - Teardown

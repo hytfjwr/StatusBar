@@ -31,10 +31,7 @@ final class VolumeWidget: StatusBarWidget {
                 if vol != self.lastEmittedVolume || self.muted != self.lastEmittedMuted {
                     self.lastEmittedVolume = vol
                     self.lastEmittedMuted = self.muted
-                    EventBus.shared.emit(IPCEventEnvelope(
-                        event: .volumeChanged,
-                        payload: .volumeChanged(volume: vol, muted: self.muted)
-                    ))
+                    EventBus.shared.emit(.volumeChanged(volume: vol, muted: self.muted))
                 }
                 if self.popupPanel?.isVisible == true {
                     self.refreshPopup()
