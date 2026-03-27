@@ -1,26 +1,36 @@
+import Foundation
 import StatusBarIPC
 import Testing
 
 struct SubscribeCommandTests {
-    @Test("BarEventName initializes from valid raw values")
-    func validEventNames() {
-        #expect(BarEventName(rawValue: "front_app_switched") == .frontAppSwitched)
-        #expect(BarEventName(rawValue: "volume_changed") == .volumeChanged)
-        #expect(BarEventName(rawValue: "config_reloaded") == .configReloaded)
+    @Test("IPCEventEnvelope round-trips with string event name")
+    func envelopeRoundTrip() throws {
+        let envelope = IPCEventEnvelope(
+            event: "front_app_switched",
+            timestamp: 1_000_000,
+            payload: .object([
+                "appName": .string("Safari"),
+                "bundleID": .string("com.apple.Safari"),
+            ])
+        )
+        let data = try JSONEncoder().encode(envelope)
+        let decoded = try JSONDecoder().decode(IPCEventEnvelope.self, from: data)
+        #expect(decoded == envelope)
     }
 
-    @Test("BarEventName returns nil for unknown raw value")
-    func unknownEventName() {
-        #expect(BarEventName(rawValue: "nonexistent_event") == nil)
-        #expect(BarEventName(rawValue: "") == nil)
+    @Test("IPCEventEnvelope with nil payload round-trips")
+    func envelopeNilPayloadRoundTrip() throws {
+        let envelope = IPCEventEnvelope(event: "config_reloaded", timestamp: 1_000_000)
+        let data = try JSONEncoder().encode(envelope)
+        let decoded = try JSONDecoder().decode(IPCEventEnvelope.self, from: data)
+        #expect(decoded == envelope)
     }
 
-    @Test("BarEventName.allCases contains expected events")
-    func allCasesComplete() {
-        let names = Set(BarEventName.allCases.map(\.rawValue))
-        #expect(names.contains("front_app_switched"))
-        #expect(names.contains("volume_changed"))
-        #expect(names.contains("config_reloaded"))
-        #expect(names.count == 3)
+    @Test("Subscribe command accepts arbitrary event names")
+    func arbitraryEventNames() throws {
+        let request = IPCRequest(command: .subscribe(events: ["custom_plugin_event", "front_app_switched"]))
+        let data = try JSONEncoder().encode(request)
+        let decoded = try JSONDecoder().decode(IPCRequest.self, from: data)
+        #expect(decoded == request)
     }
 }

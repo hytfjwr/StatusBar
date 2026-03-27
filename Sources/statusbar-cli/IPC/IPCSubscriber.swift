@@ -9,7 +9,7 @@ import StatusBarIPC
 enum IPCSubscriber {
     /// Subscribe to the given events and print each one as a JSON line to stdout.
     /// Blocks until the server closes the connection or the process is interrupted.
-    static func subscribe(to events: [BarEventName]) throws {
+    static func subscribe(to events: [String]) throws {
         let fd = try IPCConnection.connect()
         defer { close(fd) }
 

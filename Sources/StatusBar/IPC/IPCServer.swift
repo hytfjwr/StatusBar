@@ -82,7 +82,7 @@ private func handleClient(fd: Int32, dispatcher: CommandDispatcher) {
 
 /// Handle a subscribe command: send ACK then delegate to the subscriber pump.
 /// The pump takes ownership of `fd` and closes it on exit.
-private func handleSubscribe(fd: Int32, requestID: String, events: [BarEventName]) async {
+private func handleSubscribe(fd: Int32, requestID: String, events: [String]) async {
     // Clear the read timeout — this connection lives until the client disconnects.
     var noTimeout = timeval(tv_sec: 0, tv_usec: 0)
     setsockopt(fd, SOL_SOCKET, SO_RCVTIMEO, &noTimeout, socklen_t(MemoryLayout<timeval>.size))

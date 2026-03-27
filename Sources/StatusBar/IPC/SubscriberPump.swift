@@ -9,15 +9,15 @@ private let logger = Logger(subsystem: "com.statusbar", category: "SubscriberPum
 ///
 /// This function takes ownership of `fd` — it will be closed on return.
 /// Must be called from a detached (non-MainActor) context.
-func runSubscriberPump(fd: Int32, events: [BarEventName]) async {
+func runSubscriberPump(fd: Int32, events: [String]) async {
     let (id, stream) = await MainActor.run {
         EventBus.shared.subscribe(to: events)
     }
 
-    logger.info("Subscriber pump started (fd=\(fd), events=\(events.map(\.rawValue)))")
+    logger.info("Subscriber pump started (fd=\(fd), events=\(events))")
 
     let encoder = JSONEncoder()
-    encoder.outputFormatting = [.sortedKeys]
+    encoder.outputFormatting = []
 
     for await envelope in stream {
         guard writeEventLine(fd: fd, envelope: envelope, encoder: encoder) else {
