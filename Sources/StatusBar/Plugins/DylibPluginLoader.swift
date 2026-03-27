@@ -368,7 +368,7 @@ final class DylibPluginLoader {
     func reload(pluginID: String, bundleURL: URL, into registry: WidgetRegistry) throws -> DylibPluginManifest {
         // Remove widgets from registry (releases AnyStatusBarWidget closure captures)
         let oldWidgetIDs = Set(widgetIDs(for: pluginID))
-        registry.unregisterWidgets(ids: oldWidgetIDs)
+        registry.unregisterWidgets(ids: oldWidgetIDs, preserveLayout: true)
         eventRouter.unregisterPlugin(pluginID)
 
         // Tear down old plugin and dylib, then load the new version
