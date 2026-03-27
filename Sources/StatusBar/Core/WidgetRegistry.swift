@@ -71,13 +71,17 @@ final class WidgetRegistry: WidgetRegistryProtocol {
 
     /// Remove widgets by ID and their owning plugin from the registry.
     /// Call BEFORE dlclose so widget destructors can run safely.
-    func unregisterWidgets(ids widgetIDs: Set<String>) {
+    /// When `preserveLayout` is true, layout entries are kept so that
+    /// re-registered widgets inherit the same section / sortIndex / visibility.
+    func unregisterWidgets(ids widgetIDs: Set<String>, preserveLayout: Bool = false) {
         for id in widgetIDs {
             allWidgets[id]?.stop()
             allWidgets.removeValue(forKey: id)
         }
-        layout.removeAll { widgetIDs.contains($0.id) }
-        defaultLayout.removeAll { widgetIDs.contains($0.id) }
+        if !preserveLayout {
+            layout.removeAll { widgetIDs.contains($0.id) }
+            defaultLayout.removeAll { widgetIDs.contains($0.id) }
+        }
         plugins.removeAll { plugin in
             plugin.widgets.contains { widgetIDs.contains($0.id) }
         }
