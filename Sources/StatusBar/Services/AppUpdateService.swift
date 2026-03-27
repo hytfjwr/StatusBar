@@ -59,6 +59,13 @@ final class AppUpdateService {
         }
     }
 
+    var isUpdateAvailable: Bool {
+        if case .available = state {
+            return true
+        }
+        return false
+    }
+
     // MARK: - Public API
 
     /// Check for updates. Called manually from UI or automatically on launch.
