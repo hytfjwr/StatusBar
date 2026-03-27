@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.11.2] - 2026-03-27
+
+- fix: preserve plugin order on update (#79)
+- fix: preserve plugin order on update (#78)
+
 ## [0.11.1] - 2026-03-27
 
 - feat: show update availability indicators in UI (#76)
