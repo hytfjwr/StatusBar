@@ -11,7 +11,7 @@ struct EventBusTests {
     @Test("Subscriber receives matching event")
     func receiveMatchingEvent() async {
         let bus = EventBus.shared
-        let (id, stream) = bus.subscribe(to: [AppEvent.FrontApp.switched])
+        let (id, stream) = bus.subscribe(to: [FrontAppEvent.switched])
         defer { bus.cancel(id: id) }
 
         let envelope = IPCEventEnvelope.frontAppSwitched(appName: "Safari", bundleID: "com.apple.Safari")
@@ -30,7 +30,7 @@ struct EventBusTests {
     @Test("Subscriber does not receive non-matching events")
     func filterNonMatchingEvent() async {
         let bus = EventBus.shared
-        let (id, stream) = bus.subscribe(to: [AppEvent.Volume.changed])
+        let (id, stream) = bus.subscribe(to: [VolumeEvent.changed])
         defer { bus.cancel(id: id) }
 
         // Emit an event that doesn't match the subscription.
@@ -153,7 +153,7 @@ struct EventBusTests {
             received = event
             break
         }
-        #expect(received?.event == AppEvent.Battery.low)
+        #expect(received?.event == BatteryEvent.low)
     }
 
     @Test("Bare * matches all events")
@@ -179,7 +179,7 @@ struct EventBusTests {
     func emitRawSuppressesWithinCooldown() async {
         let bus = EventBus.shared
         bus.resetCooldowns()
-        let (id, stream) = bus.subscribe(to: [AppEvent.CPU.updated])
+        let (id, stream) = bus.subscribe(to: [CPUEvent.updated])
         defer { bus.cancel(id: id) }
 
         // First emit should pass
@@ -191,7 +191,7 @@ struct EventBusTests {
         bus.emit(.configReloaded())
 
         // Subscribe to both to see what arrives
-        let (id2, stream2) = bus.subscribe(to: [AppEvent.CPU.updated, AppEvent.Bar.configReloaded])
+        let (id2, stream2) = bus.subscribe(to: [CPUEvent.updated, BarEvent.configReloaded])
         defer { bus.cancel(id: id2) }
 
         bus.emitRaw(.cpuUpdated(percent: 60), minInterval: 10)
@@ -205,7 +205,7 @@ struct EventBusTests {
             }
         }
         // Should only get configReloaded (cpu_updated was suppressed)
-        #expect(events[0].event == AppEvent.Bar.configReloaded)
+        #expect(events[0].event == BarEvent.configReloaded)
         bus.resetCooldowns()
     }
 
@@ -213,7 +213,7 @@ struct EventBusTests {
     func emitRawPassesAfterCooldown() async {
         let bus = EventBus.shared
         bus.resetCooldowns()
-        let (id, stream) = bus.subscribe(to: [AppEvent.CPU.updated])
+        let (id, stream) = bus.subscribe(to: [CPUEvent.updated])
         defer { bus.cancel(id: id) }
 
         // With a very short interval, both should pass
