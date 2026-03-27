@@ -77,3 +77,10 @@ extension [ThresholdEntry] {
         last(where: { $0.above <= value })?.color ?? fallback
     }
 }
+
+// MARK: - Numeric Animation
+
+extension Animation {
+    /// Standard animation for numeric text transitions across all widgets.
+    static let numericTransition: Animation = .spring(duration: 0.35, bounce: 0.0)
+}

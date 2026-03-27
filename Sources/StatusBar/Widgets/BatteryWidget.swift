@@ -56,9 +56,11 @@ final class BatteryWidget: StatusBarWidget {
     func start() {
         showPercentage = BatterySettings.shared.showPercentage
         BatteryService.shared.addObserver { [weak self] pct, charging, battery in
-            self?.percentage = pct
-            self?.isCharging = charging
-            self?.hasBattery = battery
+            withAnimation(.numericTransition) {
+                self?.percentage = pct
+                self?.isCharging = charging
+                self?.hasBattery = battery
+            }
         }
         BatteryService.shared.start()
         observeSettings()
@@ -124,6 +126,7 @@ final class BatteryWidget: StatusBarWidget {
                     Text("\(percentage)%")
                         .font(Theme.labelFont)
                         .foregroundStyle(.primary)
+                        .contentTransition(.numericText())
                 }
             }
             .padding(.horizontal, 4)

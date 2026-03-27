@@ -142,7 +142,9 @@ final class CPUGraphWidget: StatusBarWidget {
     private func update() {
         let usage = service.cpuUsage()
         buffer.push(usage)
-        graphValues = buffer.values()
+        withAnimation(.numericTransition) {
+            graphValues = buffer.values()
+        }
     }
 
     private var latestUsagePercent: Int {
@@ -169,6 +171,7 @@ final class CPUGraphWidget: StatusBarWidget {
                     .font(Theme.monoFont)
                     .foregroundStyle(activeColor)
                     .frame(minWidth: 32, alignment: .trailing)
+                    .contentTransition(.numericText())
             }
         }
         .onTapGesture {

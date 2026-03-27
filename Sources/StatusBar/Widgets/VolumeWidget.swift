@@ -26,8 +26,10 @@ final class VolumeWidget: StatusBarWidget {
                 guard let self else {
                     return
                 }
-                self.volume = vol
-                self.muted = self.service?.isMuted() ?? false
+                withAnimation(.numericTransition) {
+                    self.volume = vol
+                    self.muted = self.service?.isMuted() ?? false
+                }
                 if vol != self.lastEmittedVolume || self.muted != self.lastEmittedMuted {
                     self.lastEmittedVolume = vol
                     self.lastEmittedMuted = self.muted
@@ -70,6 +72,7 @@ final class VolumeWidget: StatusBarWidget {
                 .foregroundStyle(.primary)
                 .fixedSize()
                 .frame(width: 38, alignment: .trailing)
+                .contentTransition(.numericText())
         }
         .padding(.horizontal, 4)
         .contentShape(Rectangle())
