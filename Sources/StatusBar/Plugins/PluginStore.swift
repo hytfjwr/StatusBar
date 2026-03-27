@@ -100,11 +100,14 @@ final class PluginStore {
     // MARK: - CRUD
 
     func add(_ record: InstalledPluginRecord) throws {
-        let isUpdate = plugins.contains { $0.id == record.id }
-        plugins.removeAll { $0.id == record.id }
-        plugins.append(record)
+        let existingIndex = plugins.firstIndex { $0.id == record.id }
+        if let index = existingIndex {
+            plugins[index] = record
+        } else {
+            plugins.append(record)
+        }
         try save()
-        if isUpdate {
+        if existingIndex != nil {
             logger.info("Updated plugin record: \(record.name) (\(record.id))")
         } else {
             logger.info("Added plugin record: \(record.name) (\(record.id))")

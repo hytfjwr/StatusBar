@@ -56,6 +56,22 @@ struct PluginStorePersistenceTests {
         #expect(store.plugins.count == 2)
     }
 
+    @Test("add with existing ID preserves original position")
+    func addPreservesOrder() throws {
+        let (store, _, cleanup) = makeTempStore()
+        defer { cleanup() }
+        try store.add(makeRecord(id: "a", name: "A"))
+        try store.add(makeRecord(id: "b", name: "B"))
+        try store.add(makeRecord(id: "c", name: "C"))
+        try store.add(makeRecord(id: "a", name: "A-updated", version: "2.0.0"))
+        #expect(store.plugins.count == 3)
+        #expect(store.plugins[0].id == "a")
+        #expect(store.plugins[0].name == "A-updated")
+        #expect(store.plugins[0].version == "2.0.0")
+        #expect(store.plugins[1].id == "b")
+        #expect(store.plugins[2].id == "c")
+    }
+
     // MARK: - Remove
 
     @Test("remove deletes the record by ID")
