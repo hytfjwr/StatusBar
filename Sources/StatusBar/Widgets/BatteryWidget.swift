@@ -91,14 +91,13 @@ final class BatteryWidget: StatusBarWidget, EventEmitting {
     private var isCharging = false
     private var hasBattery = true
     private var showPercentage = true
-    private var lastEmittedCharging = false
     func start() {
         showPercentage = BatterySettings.shared.showPercentage
         BatteryService.shared.addObserver { [weak self] pct, charging, battery in
             guard let self else {
                 return
             }
-            let wasCharging = lastEmittedCharging
+            let wasCharging = isCharging
             withAnimation(.numericTransition) {
                 self.percentage = pct
                 self.isCharging = charging
@@ -106,7 +105,6 @@ final class BatteryWidget: StatusBarWidget, EventEmitting {
             }
             emitRaw(.batteryChanged(percent: pct, charging: charging, hasBattery: battery))
             if charging != wasCharging {
-                lastEmittedCharging = charging
                 emit(.batteryChargingChanged(charging: charging))
             }
         }

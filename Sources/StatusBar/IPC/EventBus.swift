@@ -75,6 +75,9 @@ final class EventBus {
     func cancel(id: UUID) {
         if let sub = subscriptions.removeValue(forKey: id) {
             sub.continuation.finish()
+            if subscriptions.isEmpty {
+                rawEventCooldowns.removeAll(keepingCapacity: true)
+            }
             logger.debug("Subscriber \(id) cancelled")
         }
     }

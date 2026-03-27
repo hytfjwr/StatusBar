@@ -132,11 +132,11 @@ final class DateWidget: StatusBarWidget, EventEmitting {
                 self?.timeUntilStart = interval
                 self?.isLoadingEvents = false
             }
-            if changed {
-                self?.refreshPopupIfOpen()
-                self?.emit(.calendarNextEventChanged(
+            if changed, let self {
+                refreshPopupIfOpen()
+                emit(.calendarNextEventChanged(
                     title: event?.title,
-                    startDate: event.map { self?.isoFormatter.string(from: $0.startDate) ?? "" },
+                    startDate: event.map { self.isoFormatter.string(from: $0.startDate) },
                     timeUntilStart: interval
                 ))
             }
