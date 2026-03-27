@@ -13,6 +13,7 @@ struct BarContentView: View {
             HStack(spacing: Theme.widgetSpacing) {
                 ForEach(registry.centerWidgets) { widget in
                     widget.body()
+                        .transition(.widgetAppear)
                 }
             }
 
@@ -21,6 +22,7 @@ struct BarContentView: View {
                 HStack(spacing: Theme.widgetSpacing) {
                     ForEach(registry.leftWidgets) { widget in
                         widget.body()
+                            .transition(.widgetAppear)
                     }
                 }
                 .padding(.leading, Theme.widgetPaddingH)
@@ -30,6 +32,7 @@ struct BarContentView: View {
                 HStack(spacing: Theme.widgetSpacing) {
                     ForEach(registry.rightWidgets) { widget in
                         widget.body()
+                            .transition(.widgetAppear)
                     }
                 }
                 .padding(.trailing, Theme.widgetPaddingH)

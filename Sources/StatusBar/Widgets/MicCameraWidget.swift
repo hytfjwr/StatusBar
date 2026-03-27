@@ -91,27 +91,30 @@ final class MicCameraWidget: StatusBarWidget, EventEmitting {
         }
     }
 
-    @ViewBuilder
     func body() -> some View {
-        if micActive || cameraActive {
-            HStack(spacing: 4) {
-                if micActive {
-                    Image(systemName: "mic.fill")
-                        .font(Theme.sfIconFont)
-                        .foregroundStyle(Theme.red)
+        Group {
+            if micActive || cameraActive {
+                HStack(spacing: 4) {
+                    if micActive {
+                        Image(systemName: "mic.fill")
+                            .font(Theme.sfIconFont)
+                            .foregroundStyle(Theme.red)
+                    }
+                    if cameraActive {
+                        Image(systemName: "video.fill")
+                            .font(Theme.sfIconFont)
+                            .foregroundStyle(Theme.red)
+                    }
                 }
-                if cameraActive {
-                    Image(systemName: "video.fill")
-                        .font(Theme.sfIconFont)
-                        .foregroundStyle(Theme.red)
-                }
+                .padding(.horizontal, 6)
+                .padding(.vertical, 2)
+                .glassEffect(.regular, in: .rect(cornerRadius: 4))
+                .accessibilityElement(children: .combine)
+                .accessibilityLabel("Microphone and Camera")
+                .accessibilityValue(accessibilityStateDescription)
+                .transition(.widgetAppear)
             }
-            .padding(.horizontal, 6)
-            .padding(.vertical, 2)
-            .glassEffect(.regular, in: .rect(cornerRadius: 4))
-            .accessibilityElement(children: .combine)
-            .accessibilityLabel("Microphone and Camera")
-            .accessibilityValue(accessibilityStateDescription)
         }
+        .animation(.widgetTransition, value: micActive || cameraActive)
     }
 }

@@ -218,7 +218,9 @@ final class WidgetRegistry: WidgetRegistryProtocol {
         guard let index = layout.firstIndex(where: { $0.id == widgetID }) else {
             return
         }
-        layout[index].isVisible = visible
+        withAnimation(.widgetTransition) {
+            layout[index].isVisible = visible
+        }
 
         if visible {
             allWidgets[widgetID]?.start()
