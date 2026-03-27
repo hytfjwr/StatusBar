@@ -2,6 +2,33 @@ import Combine
 import StatusBarKit
 import SwiftUI
 
+// MARK: - MemoryEvent
+
+enum MemoryEvent {
+    static let updated = "memory_updated"
+    static let high = "memory_high"
+}
+
+extension IPCEventEnvelope {
+    static func memoryUpdated(percent: Int) -> Self {
+        IPCEventEnvelope(
+            event: MemoryEvent.updated,
+            payload: .object(["percent": .number(Double(percent))])
+        )
+    }
+
+    static func memoryHigh(usagePercent: Int, threshold: Int, sustainedSeconds: Int) -> Self {
+        IPCEventEnvelope(
+            event: MemoryEvent.high,
+            payload: .object([
+                "usagePercent": .number(Double(usagePercent)),
+                "threshold": .number(Double(threshold)),
+                "sustainedSeconds": .number(Double(sustainedSeconds)),
+            ])
+        )
+    }
+}
+
 // MARK: - MemoryGraphSettings
 
 @MainActor

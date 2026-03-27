@@ -2,105 +2,82 @@ import StatusBarKit
 
 // MARK: - AppEvent
 
-/// Application-level event name constants, organized by domain.
-/// Mirrors the `BarEvent` (SDK) pattern: caseless enums used as namespaces.
-///
-/// Three granularity levels:
-/// - **Raw** (`*_changed` / `*_updated`): emitted on every value change
-/// - **Transition** (`*_started`, `*_activated`, etc.): discrete state flips
-/// - **Threshold** (`*_low`, `*_high`): configurable boundary crossings
+/// Central catalog of all event name constants.
+/// Each constant is defined in its source widget file (e.g., `BatteryEvent`)
+/// and re-exported here for discoverability and cross-cutting consumers.
 enum AppEvent {
-
-    // MARK: - FrontApp
-
     enum FrontApp {
-        static let switched = "front_app_switched"
+        static let switched = FrontAppEvent.switched
     }
-
-    // MARK: - Volume
 
     enum Volume {
-        static let changed = "volume_changed"
-        static let muted = "volume_muted"
-        static let unmuted = "volume_unmuted"
+        static let changed = VolumeEvent.changed
+        static let muted = VolumeEvent.muted
+        static let unmuted = VolumeEvent.unmuted
     }
-
-    // MARK: - Battery
 
     enum Battery {
-        static let changed = "battery_changed"
-        static let chargingChanged = "battery_charging_changed"
-        static let low = "battery_low"
+        static let changed = BatteryEvent.changed
+        static let chargingChanged = BatteryEvent.chargingChanged
+        static let low = BatteryEvent.low
     }
-
-    // MARK: - CPU
 
     enum CPU {
-        static let updated = "cpu_updated"
-        static let high = "cpu_high"
+        static let updated = CPUEvent.updated
+        static let high = CPUEvent.high
     }
-
-    // MARK: - Memory
 
     enum Memory {
-        static let updated = "memory_updated"
-        static let high = "memory_high"
+        static let updated = MemoryEvent.updated
+        static let high = MemoryEvent.high
     }
-
-    // MARK: - Network
 
     enum Network {
-        static let updated = "network_updated"
+        static let updated = NetworkEvent.updated
     }
-
-    // MARK: - Bluetooth
 
     enum Bluetooth {
-        static let devicesChanged = "bluetooth_devices_changed"
-        static let deviceConnected = "bluetooth_device_connected"
-        static let deviceDisconnected = "bluetooth_device_disconnected"
+        static let devicesChanged = BluetoothEvent.devicesChanged
+        static let deviceConnected = BluetoothEvent.deviceConnected
+        static let deviceDisconnected = BluetoothEvent.deviceDisconnected
     }
-
-    // MARK: - Disk
 
     enum Disk {
-        static let updated = "disk_updated"
-        static let high = "disk_high"
+        static let updated = DiskEvent.updated
+        static let high = DiskEvent.high
     }
-
-    // MARK: - InputSource
 
     enum InputSource {
-        static let changed = "input_source_changed"
+        static let changed = InputSourceEvent.changed
     }
-
-    // MARK: - MicCamera
 
     enum MicCamera {
-        static let changed = "mic_camera_changed"
-        static let micActivated = "mic_activated"
-        static let micDeactivated = "mic_deactivated"
-        static let cameraActivated = "camera_activated"
-        static let cameraDeactivated = "camera_deactivated"
+        static let changed = MicCameraEvent.changed
+        static let micActivated = MicCameraEvent.micActivated
+        static let micDeactivated = MicCameraEvent.micDeactivated
+        static let cameraActivated = MicCameraEvent.cameraActivated
+        static let cameraDeactivated = MicCameraEvent.cameraDeactivated
     }
-
-    // MARK: - FocusTimer
 
     enum FocusTimer {
-        static let started = "focus_timer_started"
-        static let stopped = "focus_timer_stopped"
-        static let completed = "focus_timer_completed"
+        static let started = FocusTimerEvent.started
+        static let stopped = FocusTimerEvent.stopped
+        static let completed = FocusTimerEvent.completed
     }
-
-    // MARK: - Calendar
 
     enum Calendar {
-        static let nextEventChanged = "calendar_next_event_changed"
+        static let nextEventChanged = DateEvent.nextEventChanged
     }
-
-    // MARK: - Bar (re-export SDK constants)
 
     enum Bar {
         static let configReloaded = BarEvent.configReloaded
+    }
+}
+
+// MARK: - Bar event factory
+
+extension IPCEventEnvelope {
+    static func configReloaded() -> Self {
+        IPCEventEnvelope(event: AppEvent.Bar.configReloaded)
     }
 }

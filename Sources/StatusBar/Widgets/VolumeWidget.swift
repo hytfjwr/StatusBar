@@ -1,6 +1,34 @@
 import StatusBarKit
 import SwiftUI
 
+// MARK: - VolumeEvent
+
+enum VolumeEvent {
+    static let changed = "volume_changed"
+    static let muted = "volume_muted"
+    static let unmuted = "volume_unmuted"
+}
+
+extension IPCEventEnvelope {
+    static func volumeChanged(volume: Int, muted: Bool) -> Self {
+        IPCEventEnvelope(
+            event: VolumeEvent.changed,
+            payload: .object([
+                "volume": .number(Double(volume)),
+                "muted": .bool(muted),
+            ])
+        )
+    }
+
+    static func volumeMuted() -> Self {
+        IPCEventEnvelope(event: VolumeEvent.muted)
+    }
+
+    static func volumeUnmuted() -> Self {
+        IPCEventEnvelope(event: VolumeEvent.unmuted)
+    }
+}
+
 // MARK: - VolumeWidget
 
 @MainActor

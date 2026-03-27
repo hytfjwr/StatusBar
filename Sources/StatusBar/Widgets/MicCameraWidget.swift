@@ -1,6 +1,46 @@
 import StatusBarKit
 import SwiftUI
 
+// MARK: - MicCameraEvent
+
+enum MicCameraEvent {
+    static let changed = "mic_camera_changed"
+    static let micActivated = "mic_activated"
+    static let micDeactivated = "mic_deactivated"
+    static let cameraActivated = "camera_activated"
+    static let cameraDeactivated = "camera_deactivated"
+}
+
+extension IPCEventEnvelope {
+    static func micCameraChanged(micActive: Bool, cameraActive: Bool) -> Self {
+        IPCEventEnvelope(
+            event: MicCameraEvent.changed,
+            payload: .object([
+                "micActive": .bool(micActive),
+                "cameraActive": .bool(cameraActive),
+            ])
+        )
+    }
+
+    static func micActivated() -> Self {
+        IPCEventEnvelope(event: MicCameraEvent.micActivated)
+    }
+
+    static func micDeactivated() -> Self {
+        IPCEventEnvelope(event: MicCameraEvent.micDeactivated)
+    }
+
+    static func cameraActivated() -> Self {
+        IPCEventEnvelope(event: MicCameraEvent.cameraActivated)
+    }
+
+    static func cameraDeactivated() -> Self {
+        IPCEventEnvelope(event: MicCameraEvent.cameraDeactivated)
+    }
+}
+
+// MARK: - MicCameraWidget
+
 @MainActor
 @Observable
 final class MicCameraWidget: StatusBarWidget, EventEmitting {

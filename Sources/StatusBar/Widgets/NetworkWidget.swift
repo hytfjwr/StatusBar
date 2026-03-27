@@ -2,6 +2,24 @@ import Combine
 import StatusBarKit
 import SwiftUI
 
+// MARK: - NetworkEvent
+
+enum NetworkEvent {
+    static let updated = "network_updated"
+}
+
+extension IPCEventEnvelope {
+    static func networkUpdated(downloadBytesPerSec: Double, uploadBytesPerSec: Double) -> Self {
+        IPCEventEnvelope(
+            event: NetworkEvent.updated,
+            payload: .object([
+                "downloadBytesPerSec": .number(downloadBytesPerSec),
+                "uploadBytesPerSec": .number(uploadBytesPerSec),
+            ])
+        )
+    }
+}
+
 // MARK: - NetworkSettings
 
 @MainActor

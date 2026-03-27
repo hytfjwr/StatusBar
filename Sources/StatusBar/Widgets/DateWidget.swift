@@ -2,6 +2,31 @@ import Combine
 import StatusBarKit
 import SwiftUI
 
+// MARK: - DateEvent
+
+enum DateEvent {
+    static let nextEventChanged = "calendar_next_event_changed"
+}
+
+extension IPCEventEnvelope {
+    static func calendarNextEventChanged(title: String?, startDate: String?, timeUntilStart: Double?) -> Self {
+        var fields: [String: JSONValue] = [:]
+        if let title {
+            fields["title"] = .string(title)
+        }
+        if let startDate {
+            fields["startDate"] = .string(startDate)
+        }
+        if let timeUntilStart {
+            fields["timeUntilStartSeconds"] = .number(timeUntilStart)
+        }
+        return IPCEventEnvelope(
+            event: DateEvent.nextEventChanged,
+            payload: fields.isEmpty ? nil : .object(fields)
+        )
+    }
+}
+
 // MARK: - DateSettings
 
 @MainActor

@@ -1,6 +1,23 @@
 import StatusBarKit
 import SwiftUI
 
+// MARK: - InputSourceEvent
+
+enum InputSourceEvent {
+    static let changed = "input_source_changed"
+}
+
+extension IPCEventEnvelope {
+    static func inputSourceChanged(abbreviation: String) -> Self {
+        IPCEventEnvelope(
+            event: InputSourceEvent.changed,
+            payload: .object(["abbreviation": .string(abbreviation)])
+        )
+    }
+}
+
+// MARK: - InputSourceWidget
+
 @MainActor
 @Observable
 final class InputSourceWidget: StatusBarWidget, EventEmitting {

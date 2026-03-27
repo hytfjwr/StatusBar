@@ -2,6 +2,38 @@ import Combine
 import StatusBarKit
 import SwiftUI
 
+// MARK: - DiskEvent
+
+enum DiskEvent {
+    static let updated = "disk_updated"
+    static let high = "disk_high"
+}
+
+extension IPCEventEnvelope {
+    static func diskUpdated(usedPercent: Int, usedBytes: Int64, totalBytes: Int64) -> Self {
+        IPCEventEnvelope(
+            event: DiskEvent.updated,
+            payload: .object([
+                "usedPercent": .number(Double(usedPercent)),
+                "usedBytes": .number(Double(usedBytes)),
+                "totalBytes": .number(Double(totalBytes)),
+            ])
+        )
+    }
+
+    static func diskHigh(usedPercent: Int, threshold: Int) -> Self {
+        IPCEventEnvelope(
+            event: DiskEvent.high,
+            payload: .object([
+                "usedPercent": .number(Double(usedPercent)),
+                "threshold": .number(Double(threshold)),
+            ])
+        )
+    }
+}
+
+// MARK: - DiskUsageWidget
+
 @MainActor
 @Observable
 final class DiskUsageWidget: StatusBarWidget, EventEmitting {

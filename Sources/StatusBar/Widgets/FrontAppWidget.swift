@@ -2,6 +2,26 @@ import AppKit
 import StatusBarKit
 import SwiftUI
 
+// MARK: - FrontAppEvent
+
+enum FrontAppEvent {
+    static let switched = "front_app_switched"
+}
+
+extension IPCEventEnvelope {
+    static func frontAppSwitched(appName: String, bundleID: String?) -> Self {
+        IPCEventEnvelope(
+            event: FrontAppEvent.switched,
+            payload: .object([
+                "appName": .string(appName),
+                "bundleID": bundleID.map { .string($0) } ?? .null,
+            ])
+        )
+    }
+}
+
+// MARK: - FrontAppWidget
+
 @MainActor
 @Observable
 final class FrontAppWidget: StatusBarWidget, EventEmitting {

@@ -2,6 +2,43 @@ import Combine
 import StatusBarKit
 import SwiftUI
 
+// MARK: - BluetoothEvent
+
+enum BluetoothEvent {
+    static let devicesChanged = "bluetooth_devices_changed"
+    static let deviceConnected = "bluetooth_device_connected"
+    static let deviceDisconnected = "bluetooth_device_disconnected"
+}
+
+extension IPCEventEnvelope {
+    static func bluetoothDevicesChanged(connectedCount: Int, deviceNames: [String]) -> Self {
+        IPCEventEnvelope(
+            event: BluetoothEvent.devicesChanged,
+            payload: .object([
+                "connectedCount": .number(Double(connectedCount)),
+                "deviceNames": .array(deviceNames.map { .string($0) }),
+            ])
+        )
+    }
+
+    static func bluetoothDeviceConnected(name: String, category: String) -> Self {
+        IPCEventEnvelope(
+            event: BluetoothEvent.deviceConnected,
+            payload: .object([
+                "name": .string(name),
+                "category": .string(category),
+            ])
+        )
+    }
+
+    static func bluetoothDeviceDisconnected(name: String) -> Self {
+        IPCEventEnvelope(
+            event: BluetoothEvent.deviceDisconnected,
+            payload: .object(["name": .string(name)])
+        )
+    }
+}
+
 // MARK: - BluetoothWidget
 
 @MainActor

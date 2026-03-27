@@ -2,6 +2,37 @@ import Combine
 import StatusBarKit
 import SwiftUI
 
+// MARK: - FocusTimerEvent
+
+enum FocusTimerEvent {
+    static let started = "focus_timer_started"
+    static let stopped = "focus_timer_stopped"
+    static let completed = "focus_timer_completed"
+}
+
+extension IPCEventEnvelope {
+    static func focusTimerStarted(mode: String, durationSeconds: Int) -> Self {
+        IPCEventEnvelope(
+            event: FocusTimerEvent.started,
+            payload: .object([
+                "mode": .string(mode),
+                "durationSeconds": .number(Double(durationSeconds)),
+            ])
+        )
+    }
+
+    static func focusTimerStopped() -> Self {
+        IPCEventEnvelope(event: FocusTimerEvent.stopped)
+    }
+
+    static func focusTimerCompleted(mode: String) -> Self {
+        IPCEventEnvelope(
+            event: FocusTimerEvent.completed,
+            payload: .object(["mode": .string(mode)])
+        )
+    }
+}
+
 // MARK: - FocusTimerWidget
 
 @MainActor
