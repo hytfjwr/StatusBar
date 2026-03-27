@@ -18,14 +18,24 @@ final class DateSettings: WidgetConfigProvider {
         } }
     }
 
+    var showNextEvent: Bool {
+        didSet { if !suppressWrite {
+            WidgetConfigRegistry.shared.notifySettingsChanged()
+        } }
+    }
+
     private init() {
         let cfg = WidgetConfigRegistry.shared.values(for: "date")
         format = cfg?["format"]?.stringValue ?? "EEE dd. MMM"
+        showNextEvent = cfg?["showNextEvent"]?.boolValue ?? true
         WidgetConfigRegistry.shared.register(self)
     }
 
     func exportConfig() -> [String: ConfigValue] {
-        ["format": .string(format)]
+        [
+            "format": .string(format),
+            "showNextEvent": .bool(showNextEvent),
+        ]
     }
 
     func applyConfig(_ values: [String: ConfigValue]) {
@@ -33,6 +43,9 @@ final class DateSettings: WidgetConfigProvider {
         defer { suppressWrite = false }
         if let v = values["format"]?.stringValue {
             format = v
+        }
+        if let v = values["showNextEvent"]?.boolValue {
+            showNextEvent = v
         }
     }
 }
@@ -54,7 +67,11 @@ final class DateWidget: StatusBarWidget {
     private let formatter = DateFormatter()
 
     private var popupPanel: PopupPanel?
-    private var calendarService: CalendarService?
+    private var calendarService = CalendarService()
+    private var tracker: NextEventTracker?
+    private var nextEvent: CalendarEvent?
+    private var timeUntilStart: TimeInterval?
+    private var isLoadingEvents = true
 
     func start() {
         applyFormat()
@@ -63,15 +80,46 @@ final class DateWidget: StatusBarWidget {
             .autoconnect()
             .sink { [weak self] _ in self?.updateDate() }
         observeSettings()
+        startTrackerIfNeeded()
     }
 
     func stop() {
         timer?.cancel()
+        tracker?.stop()
         popupPanel?.hidePopup()
+    }
+
+    private func startTrackerIfNeeded() {
+        tracker?.stop()
+        tracker = nil
+        guard DateSettings.shared.showNextEvent else {
+            nextEvent = nil
+            timeUntilStart = nil
+            return
+        }
+        isLoadingEvents = true
+        let t = NextEventTracker()
+        t.onUpdate = { [weak self] event, interval in
+            let changed = self?.nextEvent?.id != event?.id
+            withAnimation(.numericTransition) {
+                self?.nextEvent = event
+                self?.timeUntilStart = interval
+                self?.isLoadingEvents = false
+            }
+            if changed {
+                self?.refreshPopupIfOpen()
+            }
+        }
+        tracker = t
+        Task { await t.start(calendarService: calendarService) }
     }
 
     var hasSettings: Bool {
         true
+    }
+
+    var preferredSettingsSize: CGSize? {
+        CGSize(width: 360, height: 320)
     }
 
     func settingsBody() -> some View {
@@ -85,10 +133,12 @@ final class DateWidget: StatusBarWidget {
     private func observeSettings() {
         withObservationTracking {
             _ = DateSettings.shared.format
+            _ = DateSettings.shared.showNextEvent
         } onChange: { [weak self] in
             Task { @MainActor in
                 self?.applyFormat()
                 self?.updateDate()
+                self?.startTrackerIfNeeded()
                 self?.observeSettings()
             }
         }
@@ -99,19 +149,72 @@ final class DateWidget: StatusBarWidget {
     }
 
     func body() -> some View {
-        Text(currentDate)
-            .font(Theme.smallFont)
-            .foregroundStyle(.primary)
+        HStack(spacing: 6) {
+            Text(currentDate)
+                .font(Theme.smallFont)
+                .foregroundStyle(.primary)
+                .padding(.horizontal, 6)
+                .padding(.vertical, 2)
+                .glassEffect(.regular, in: .rect(cornerRadius: 4))
+                .contentShape(Rectangle())
+                .onTapGesture { [weak self] in
+                    self?.togglePopup()
+                }
+
+            if DateSettings.shared.showNextEvent {
+                nextEventPill()
+            }
+        }
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel("Date")
+        .accessibilityValue(nextEventAccessibilityValue)
+    }
+
+    @ViewBuilder
+    private func nextEventPill() -> some View {
+        if let event = nextEvent, let interval = timeUntilStart {
+            let label = NextEventTracker.remainingLabel(for: interval)
+            HStack(spacing: 4) {
+                Text(event.title)
+                    .font(Theme.smallFont)
+                    .foregroundStyle(.secondary)
+                    .lineLimit(1)
+                    .frame(maxWidth: 140)
+
+                Text(label)
+                    .font(Theme.smallFont)
+                    .foregroundStyle(interval <= 300 ? Theme.red : Theme.accentBlue)
+                    .contentTransition(.numericText())
+
+                if let url = event.url {
+                    Image(systemName: "arrow.up.right.circle.fill")
+                        .font(.system(size: 11))
+                        .foregroundStyle(Theme.accentBlue)
+                        .contentShape(Circle())
+                        .onTapGesture {
+                            NSWorkspace.shared.open(url)
+                        }
+                        .accessibilityLabel("Join \(event.title)")
+                }
+            }
             .padding(.horizontal, 6)
             .padding(.vertical, 2)
             .glassEffect(.regular, in: .rect(cornerRadius: 4))
-            .contentShape(Rectangle())
-            .onTapGesture { [weak self] in
-                self?.togglePopup()
-            }
-            .accessibilityElement(children: .combine)
-            .accessibilityLabel("Date")
-            .accessibilityValue(currentDate)
+        } else if nextEvent == nil, !isLoadingEvents {
+            Text("No events today")
+                .font(Theme.smallFont)
+                .foregroundStyle(.tertiary)
+                .padding(.horizontal, 6)
+                .padding(.vertical, 2)
+        }
+    }
+
+    private var nextEventAccessibilityValue: String {
+        if let event = nextEvent, let interval = timeUntilStart {
+            let label = NextEventTracker.remainingLabel(for: interval)
+            return "\(currentDate), \(event.title) \(label)"
+        }
+        return "\(currentDate), No events today"
     }
 
     private func togglePopup() {
@@ -126,18 +229,21 @@ final class DateWidget: StatusBarWidget {
         if popupPanel == nil {
             popupPanel = PopupPanel(contentRect: NSRect(x: 0, y: 0, width: 300, height: 400))
         }
-        let service = calendarService ?? {
-            let s = CalendarService()
-            calendarService = s
-            return s
-        }()
 
         guard let (barFrame, screen) = PopupPanel.barTriggerFrame(width: 120) else {
             return
         }
 
-        let content = CalendarPopupContent(calendarService: service)
+        let content = CalendarPopupContent(calendarService: calendarService, nextEvent: nextEvent)
         popupPanel?.showPopup(relativeTo: barFrame, on: screen, content: content)
+    }
+
+    private func refreshPopupIfOpen() {
+        guard let panel = popupPanel, panel.isVisible else {
+            return
+        }
+        let content = CalendarPopupContent(calendarService: calendarService, nextEvent: nextEvent)
+        panel.updateContent(content)
     }
 }
 
@@ -145,6 +251,7 @@ final class DateWidget: StatusBarWidget {
 
 struct CalendarPopupContent: View {
     let calendarService: CalendarService
+    let nextEvent: CalendarEvent?
 
     @State private var displayedMonth = Date()
     @State private var selectedDate = Date()
@@ -176,6 +283,16 @@ struct CalendarPopupContent: View {
 
     var body: some View {
         VStack(spacing: 0) {
+            if let nextEvent {
+                nextUpSection(event: nextEvent)
+                    .padding(12)
+
+                Rectangle()
+                    .fill(Theme.separator)
+                    .frame(height: 1)
+                    .padding(.horizontal, 12)
+            }
+
             monthHeader
                 .padding(.horizontal, 12)
                 .padding(.top, 12)
@@ -404,6 +521,55 @@ struct CalendarPopupContent: View {
             RoundedRectangle(cornerRadius: Theme.popupItemCornerRadius, style: .continuous)
                 .fill(.quaternary)
         )
+    }
+
+    // MARK: - Next Up Section
+
+    private func nextUpSection(event: CalendarEvent) -> some View {
+        VStack(alignment: .leading, spacing: 6) {
+            Text("NEXT UP")
+                .font(.system(size: 10, weight: .semibold))
+                .foregroundStyle(.tertiary)
+
+            HStack(spacing: 8) {
+                RoundedRectangle(cornerRadius: 2, style: .continuous)
+                    .fill(event.swiftUIColor)
+                    .frame(width: 3, height: 36)
+
+                VStack(alignment: .leading, spacing: 1) {
+                    Text(event.title)
+                        .font(.system(size: 13, weight: .medium))
+                        .foregroundStyle(.primary)
+                        .lineLimit(1)
+
+                    Text(event.timeString)
+                        .font(.system(size: 11))
+                        .foregroundStyle(.secondary)
+                }
+
+                Spacer()
+
+                if let url = event.url {
+                    Button {
+                        NSWorkspace.shared.open(url)
+                    } label: {
+                        Label("Join", systemImage: "arrow.up.right.circle.fill")
+                            .font(.system(size: 11, weight: .medium))
+                            .foregroundStyle(Theme.accentBlue)
+                            .padding(.horizontal, 8)
+                            .padding(.vertical, 4)
+                            .contentShape(Rectangle())
+                    }
+                    .buttonStyle(PopupButtonStyle(cornerRadius: 4))
+                }
+            }
+            .padding(.horizontal, 8)
+            .padding(.vertical, 6)
+            .background(
+                RoundedRectangle(cornerRadius: Theme.popupItemCornerRadius, style: .continuous)
+                    .fill(.quaternary)
+            )
+        }
     }
 
     // MARK: - Helpers

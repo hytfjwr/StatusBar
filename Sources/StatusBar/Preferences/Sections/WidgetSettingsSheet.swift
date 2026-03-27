@@ -90,9 +90,11 @@ struct TimeWidgetSettings: View {
 
 struct DateWidgetSettings: View {
     @State private var format: String
+    @State private var showNextEvent: Bool
 
     init() {
         _format = State(initialValue: DateSettings.shared.format)
+        _showNextEvent = State(initialValue: DateSettings.shared.showNextEvent)
     }
 
     var body: some View {
@@ -113,6 +115,21 @@ struct DateWidgetSettings: View {
             }
 
             previewRow(format: format)
+
+            Divider()
+
+            Text("Next Event")
+                .font(.system(size: 12, weight: .semibold))
+                .foregroundStyle(.secondary)
+
+            Toggle("Show Next Event", isOn: $showNextEvent)
+                .onChange(of: showNextEvent) { _, newValue in
+                    DateSettings.shared.showNextEvent = newValue
+                }
+
+            Text("Shows the next upcoming event with countdown and join button on the bar.")
+                .font(.system(size: 11))
+                .foregroundStyle(.tertiary)
         }
     }
 }

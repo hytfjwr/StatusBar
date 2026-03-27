@@ -45,7 +45,9 @@ final class CalendarService {
                 startDate: event.startDate,
                 endDate: event.endDate,
                 isAllDay: event.isAllDay,
-                calendarColor: event.calendar.color
+                calendarColor: event.calendar.color,
+                notes: event.notes,
+                url: CalendarEvent.extractURL(from: event.location, event.notes)
             )
         }
         .sorted { $0.startDate < $1.startDate }
@@ -79,6 +81,16 @@ final class CalendarService {
         return MonthData(allEvents: allEvents, datesWithEvents: dates, eventsForSelectedDate: dayEvents)
     }
 
+    /// Fetch today's events for the next-event tracker.
+    func fetchTodayEvents() async -> [CalendarEvent] {
+        let cal = Calendar.current
+        let start = cal.startOfDay(for: Date())
+        guard let end = cal.date(byAdding: .day, value: 1, to: start) else {
+            return []
+        }
+        return await fetchEvents(from: start, to: end)
+    }
+
     /// Filter events for a specific day from a pre-fetched event list.
     func filterEvents(from allEvents: [CalendarEvent], for date: Date) -> [CalendarEvent] {
         let calendar = Calendar.current
@@ -109,6 +121,8 @@ struct CalendarEvent: Identifiable {
     let endDate: Date
     let isAllDay: Bool
     let calendarColor: NSColor?
+    let notes: String?
+    let url: URL?
 
     private static let timeFormatter: DateFormatter = {
         let f = DateFormatter()
@@ -130,5 +144,28 @@ struct CalendarEvent: Identifiable {
             return Color(nsColor: nsColor)
         }
         return Theme.accentBlue
+    }
+
+    private static let linkDetector = try? NSDataDetector(
+        types: NSTextCheckingResult.CheckingType.link.rawValue
+    )
+
+    /// Extracts the first URL found in the given text fields using NSDataDetector.
+    static func extractURL(from texts: String?...) -> URL? {
+        guard let detector = linkDetector else {
+            return nil
+        }
+        for text in texts {
+            guard let text, !text.isEmpty else {
+                continue
+            }
+            let range = NSRange(text.startIndex..., in: text)
+            if let match = detector.firstMatch(in: text, range: range),
+               let url = match.url
+            {
+                return url
+            }
+        }
+        return nil
     }
 }

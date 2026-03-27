@@ -92,8 +92,10 @@ final class NetworkWidget: StatusBarWidget {
 
     private func update() {
         let speed = service.poll()
-        uploadSpeed = speed.uploadFormatted
-        downloadSpeed = speed.downloadFormatted
+        withAnimation(.numericTransition) {
+            uploadSpeed = speed.uploadFormatted
+            downloadSpeed = speed.downloadFormatted
+        }
     }
 
     func body() -> some View {
@@ -107,6 +109,7 @@ final class NetworkWidget: StatusBarWidget {
                     .monospacedDigit()
                     .frame(width: 58, alignment: .trailing)
                     .foregroundStyle(.secondary)
+                    .contentTransition(.numericText())
             }
             HStack(spacing: 2) {
                 Image(systemName: "arrow.down")
@@ -117,6 +120,7 @@ final class NetworkWidget: StatusBarWidget {
                     .monospacedDigit()
                     .frame(width: 58, alignment: .trailing)
                     .foregroundStyle(.secondary)
+                    .contentTransition(.numericText())
             }
         }
         .padding(.horizontal, 4)

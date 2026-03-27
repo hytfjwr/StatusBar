@@ -29,7 +29,9 @@ final class DiskUsageWidget: StatusBarWidget {
         Task.detached { [service] in
             let snap = service.poll()
             await MainActor.run { [weak self] in
-                self?.snapshot = snap
+                withAnimation(.numericTransition) {
+                    self?.snapshot = snap
+                }
             }
         }
     }
@@ -66,6 +68,7 @@ final class DiskUsageWidget: StatusBarWidget {
             Text("\(snapshot?.usedPercent ?? 0)%")
                 .font(Theme.labelFont)
                 .foregroundStyle(.primary)
+                .contentTransition(.numericText())
         }
         .padding(.horizontal, 4)
         .accessibilityElement(children: .combine)
