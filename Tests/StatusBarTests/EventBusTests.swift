@@ -11,13 +11,10 @@ struct EventBusTests {
     @Test("Subscriber receives matching event")
     func receiveMatchingEvent() async {
         let bus = EventBus.shared
-        let (id, stream) = bus.subscribe(to: [.frontAppSwitched])
+        let (id, stream) = bus.subscribe(to: [AppEventName.frontAppSwitched.rawValue])
         defer { bus.cancel(id: id) }
 
-        let envelope = IPCEventEnvelope(
-            event: .frontAppSwitched,
-            payload: .frontAppSwitched(appName: "Safari", bundleID: "com.apple.Safari")
-        )
+        let envelope = IPCEventEnvelope.frontAppSwitched(appName: "Safari", bundleID: "com.apple.Safari")
         bus.emit(envelope)
 
         var received: IPCEventEnvelope?
@@ -33,20 +30,14 @@ struct EventBusTests {
     @Test("Subscriber does not receive non-matching events")
     func filterNonMatchingEvent() async {
         let bus = EventBus.shared
-        let (id, stream) = bus.subscribe(to: [.volumeChanged])
+        let (id, stream) = bus.subscribe(to: [AppEventName.volumeChanged.rawValue])
         defer { bus.cancel(id: id) }
 
         // Emit an event that doesn't match the subscription.
-        bus.emit(IPCEventEnvelope(
-            event: .frontAppSwitched,
-            payload: .frontAppSwitched(appName: "Xcode", bundleID: nil)
-        ))
+        bus.emit(.frontAppSwitched(appName: "Xcode", bundleID: nil))
 
         // Emit a matching event so the stream has something to yield.
-        let matching = IPCEventEnvelope(
-            event: .volumeChanged,
-            payload: .volumeChanged(volume: 50, muted: false)
-        )
+        let matching = IPCEventEnvelope.volumeChanged(volume: 50, muted: false)
         bus.emit(matching)
 
         var received: IPCEventEnvelope?
@@ -62,7 +53,7 @@ struct EventBusTests {
     @Test("Cancel finishes the stream")
     func cancelFinishesStream() async {
         let bus = EventBus.shared
-        let (id, stream) = bus.subscribe(to: [.configReloaded])
+        let (id, stream) = bus.subscribe(to: [BarEvent.configReloaded])
 
         bus.cancel(id: id)
 
@@ -79,14 +70,14 @@ struct EventBusTests {
     func fanout() async {
         let bus = EventBus.shared
 
-        let (id1, stream1) = bus.subscribe(to: [.configReloaded])
-        let (id2, stream2) = bus.subscribe(to: [.configReloaded])
+        let (id1, stream1) = bus.subscribe(to: [BarEvent.configReloaded])
+        let (id2, stream2) = bus.subscribe(to: [BarEvent.configReloaded])
         defer {
             bus.cancel(id: id1)
             bus.cancel(id: id2)
         }
 
-        let envelope = IPCEventEnvelope(event: .configReloaded, payload: .configReloaded)
+        let envelope = IPCEventEnvelope.configReloaded()
         bus.emit(envelope)
 
         var r1: IPCEventEnvelope?
