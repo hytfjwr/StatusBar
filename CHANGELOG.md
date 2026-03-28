@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.14.0] - 2026-03-28
+
+- feat: toast notification system (#88)
+- feat: smooth widget visibility transitions (#87)
+
 ## [0.13.1] - 2026-03-27
 
 - feat: enrich EventBus with 23 events, wildcard subscriptions, and rate limiting (#85)
