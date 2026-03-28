@@ -22,16 +22,12 @@ else
     echo "warning: swiftformat not installed, skipping format check"
 fi
 
-# --- SwiftLint ---
-if command -v swiftlint &>/dev/null; then
-    echo "-> swiftlint"
-    echo "$staged_files" | xargs swiftlint lint --quiet --strict 2>&1 || {
-        echo ""
-        echo "SwiftLint violations found. Fix them before committing."
-        exit 1
-    }
-else
-    echo "warning: swiftlint not installed, skipping lint check"
-fi
+# --- SwiftLint (via SPM plugin, version locked in Package.resolved) ---
+echo "-> swiftlint"
+swift package plugin --allow-writing-to-package-directory swiftlint lint --strict -- "$staged_files" 2>&1 || {
+    echo ""
+    echo "SwiftLint violations found. Fix them before committing."
+    exit 1
+}
 
 echo "Pre-commit checks passed."

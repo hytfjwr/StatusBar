@@ -70,7 +70,7 @@ setup:
 	@echo "Git hooks configured (scripts/pre-commit)"
 
 lint:
-	swiftlint lint --strict
+	swift package plugin --allow-writing-to-package-directory swiftlint lint --strict
 
 format:
 	swiftformat .
