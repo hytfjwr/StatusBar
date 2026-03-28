@@ -40,7 +40,7 @@ private struct SustainedAlertState {
             }
         } else {
             exceedStart = nil
-            if cooldownEnd == nil || now >= cooldownEnd! {
+            if cooldownEnd.map({ now >= $0 }) ?? true {
                 notified = false
                 cooldownEnd = nil
             }
