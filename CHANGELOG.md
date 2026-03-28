@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.14.1] - 2026-03-28
+
+- chore: add pre-commit hooks and unify SwiftLint to SPM plugin (#93)
+- feat: replace system notifications with toast alerts (#92)
+- feat: show toast notification on config reload (#91)
+
 ## [0.14.0] - 2026-03-28
 
 - feat: toast notification system (#88)
