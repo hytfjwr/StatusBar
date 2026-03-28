@@ -138,6 +138,7 @@ struct DateWidgetSettings: View {
 
 struct BatteryWidgetSettings: View {
     @State private var showPercentage: Bool
+    @Bindable private var prefs = PreferencesModel.shared
 
     init() {
         _showPercentage = State(initialValue: BatterySettings.shared.showPercentage)
@@ -153,6 +154,15 @@ struct BatteryWidgetSettings: View {
                 .onChange(of: showPercentage) { _, newValue in
                     BatterySettings.shared.showPercentage = newValue
                 }
+
+            Divider()
+
+            ToastAlertSection(
+                enabled: $prefs.notifyBatteryLow,
+                threshold: $prefs.batteryThreshold,
+                thresholdRange: 5 ... 50,
+                thresholdLabel: "Threshold"
+            )
         }
     }
 }
@@ -205,30 +215,58 @@ struct NetworkWidgetSettings: View {
 // MARK: - CPUGraphWidgetSettings
 
 struct CPUGraphWidgetSettings: View {
+    @Bindable private var prefs = PreferencesModel.shared
+
     var body: some View {
-        GraphWidgetSettingsContent(
-            displayMode: CPUGraphSettings.shared.displayMode,
-            thresholds: CPUGraphSettings.shared.thresholds,
-            interval: CPUGraphSettings.shared.updateInterval,
-            onModeChange: { CPUGraphSettings.shared.displayMode = $0 },
-            onThresholdsChange: { CPUGraphSettings.shared.thresholds = $0 },
-            onIntervalChange: { CPUGraphSettings.shared.updateInterval = $0 }
-        )
+        VStack(alignment: .leading, spacing: 16) {
+            GraphWidgetSettingsContent(
+                displayMode: CPUGraphSettings.shared.displayMode,
+                thresholds: CPUGraphSettings.shared.thresholds,
+                interval: CPUGraphSettings.shared.updateInterval,
+                onModeChange: { CPUGraphSettings.shared.displayMode = $0 },
+                onThresholdsChange: { CPUGraphSettings.shared.thresholds = $0 },
+                onIntervalChange: { CPUGraphSettings.shared.updateInterval = $0 }
+            )
+
+            Divider()
+
+            ToastAlertSection(
+                enabled: $prefs.notifyCPUHigh,
+                threshold: $prefs.cpuThreshold,
+                thresholdRange: 50 ... 100,
+                thresholdLabel: "Threshold",
+                sustainedDuration: $prefs.cpuSustainedDuration
+            )
+        }
     }
 }
 
 // MARK: - MemoryGraphWidgetSettings
 
 struct MemoryGraphWidgetSettings: View {
+    @Bindable private var prefs = PreferencesModel.shared
+
     var body: some View {
-        GraphWidgetSettingsContent(
-            displayMode: MemoryGraphSettings.shared.displayMode,
-            thresholds: MemoryGraphSettings.shared.thresholds,
-            interval: MemoryGraphSettings.shared.updateInterval,
-            onModeChange: { MemoryGraphSettings.shared.displayMode = $0 },
-            onThresholdsChange: { MemoryGraphSettings.shared.thresholds = $0 },
-            onIntervalChange: { MemoryGraphSettings.shared.updateInterval = $0 }
-        )
+        VStack(alignment: .leading, spacing: 16) {
+            GraphWidgetSettingsContent(
+                displayMode: MemoryGraphSettings.shared.displayMode,
+                thresholds: MemoryGraphSettings.shared.thresholds,
+                interval: MemoryGraphSettings.shared.updateInterval,
+                onModeChange: { MemoryGraphSettings.shared.displayMode = $0 },
+                onThresholdsChange: { MemoryGraphSettings.shared.thresholds = $0 },
+                onIntervalChange: { MemoryGraphSettings.shared.updateInterval = $0 }
+            )
+
+            Divider()
+
+            ToastAlertSection(
+                enabled: $prefs.notifyMemoryHigh,
+                threshold: $prefs.memoryThreshold,
+                thresholdRange: 50 ... 100,
+                thresholdLabel: "Threshold",
+                sustainedDuration: $prefs.memorySustainedDuration
+            )
+        }
     }
 }
 
@@ -291,6 +329,46 @@ struct GraphWidgetSettingsContent: View {
         }
         .onChange(of: thresholds) { _, newValue in
             onThresholdsChange(newValue)
+        }
+    }
+}
+
+// MARK: - ToastAlertSection
+
+private struct ToastAlertSection: View {
+    @Binding var enabled: Bool
+    @Binding var threshold: Double
+    let thresholdRange: ClosedRange<Double>
+    let thresholdLabel: String
+    var sustainedDuration: Binding<Double>?
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            Text("Toast Alert")
+                .font(.system(size: 12, weight: .semibold))
+                .foregroundStyle(.secondary)
+
+            Toggle("Enable", isOn: $enabled)
+
+            DoubleSliderRow(
+                label: thresholdLabel,
+                value: $threshold,
+                range: thresholdRange,
+                step: 1,
+                unit: "%"
+            )
+            .disabled(!enabled)
+
+            if let sustained = sustainedDuration {
+                DoubleSliderRow(
+                    label: "Sustained",
+                    value: sustained,
+                    range: 1 ... 60,
+                    step: 1,
+                    unit: "s"
+                )
+                .disabled(!enabled)
+            }
         }
     }
 }

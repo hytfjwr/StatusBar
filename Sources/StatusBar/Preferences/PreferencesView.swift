@@ -54,8 +54,6 @@ struct PreferencesView: View {
             TypographySection(model: model)
         case .graphs:
             GraphsSection(model: model)
-        case .notifications:
-            NotificationsSection(model: model)
         case .plugins:
             PluginsSection()
         case .presets:
@@ -75,7 +73,6 @@ enum PreferencesSection: String, CaseIterable, Identifiable, Hashable {
     case appearance
     case typography
     case graphs
-    case notifications
     case plugins
     case presets
     case about
@@ -92,7 +89,6 @@ enum PreferencesSection: String, CaseIterable, Identifiable, Hashable {
         case .appearance: "Appearance"
         case .typography: "Typography"
         case .graphs: "Graphs"
-        case .notifications: "Notifications"
         case .plugins: "Plugins"
         case .presets: "Presets"
         case .about: "About"
@@ -107,7 +103,6 @@ enum PreferencesSection: String, CaseIterable, Identifiable, Hashable {
         case .appearance: "paintbrush"
         case .typography: "textformat"
         case .graphs: "chart.xyaxis.line"
-        case .notifications: "bell"
         case .plugins: "puzzlepiece.extension"
         case .presets: "square.on.square.dashed"
         case .about: "info.circle"
