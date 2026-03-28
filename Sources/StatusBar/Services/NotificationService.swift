@@ -1,8 +1,53 @@
 import Combine
-import OSLog
-import UserNotifications
+import Foundation
+import StatusBarKit
 
-private let logger = Logger(subsystem: "com.statusbar", category: "NotificationService")
+// MARK: - SustainedAlertState
+
+/// Tracks whether a metric has exceeded a threshold for a sustained duration,
+/// with a cooldown period to prevent rapid re-fires.
+@MainActor
+private struct SustainedAlertState {
+    var exceedStart: Date?
+    var notified = false
+    var cooldownEnd: Date?
+
+    mutating func reset() {
+        exceedStart = nil
+        notified = false
+        cooldownEnd = nil
+    }
+
+    /// Returns `true` when alert should fire (first time crossing the sustained threshold).
+    mutating func check(
+        usage: Double,
+        threshold: Double,
+        sustainedDuration: Double,
+        cooldown: TimeInterval
+    ) -> Bool {
+        let now = Date()
+        if usage >= threshold {
+            if exceedStart == nil {
+                exceedStart = now
+            }
+            if let start = exceedStart,
+               now.timeIntervalSince(start) >= sustainedDuration,
+               !notified
+            {
+                notified = true
+                cooldownEnd = now.addingTimeInterval(cooldown)
+                return true
+            }
+        } else {
+            exceedStart = nil
+            if cooldownEnd.map({ now >= $0 }) ?? true {
+                notified = false
+                cooldownEnd = nil
+            }
+        }
+        return false
+    }
+}
 
 // MARK: - NotificationService
 
@@ -10,9 +55,6 @@ private let logger = Logger(subsystem: "com.statusbar", category: "NotificationS
 @Observable
 final class NotificationService {
     static let shared = NotificationService()
-
-    private(set) var isAvailable: Bool = false
-    private(set) var permissionStatus: String = "Unknown"
 
     private var timer: AnyCancellable?
     private var batteryObserverToken: BatteryService.ObserverToken?
@@ -23,21 +65,12 @@ final class NotificationService {
     private var currentBatteryCharging = false
     private var lastBatteryNotifPct: Int = 101 // sentinel: haven't notified yet
 
-    // CPU sustained state
-    private var cpuExceedStart: Date?
-    private var cpuNotified = false
-    private var cpuCooldownEnd: Date?
-
-    // Memory sustained state
-    private var memExceedStart: Date?
-    private var memNotified = false
-    private var memCooldownEnd: Date?
+    private var cpuAlert = SustainedAlertState()
+    private var memAlert = SustainedAlertState()
 
     private static let notificationCooldown: TimeInterval = 60
 
-    private init() {
-        isAvailable = Bundle.main.bundleIdentifier != nil
-    }
+    private init() {}
 
     func start() {
         stop()
@@ -72,13 +105,8 @@ final class NotificationService {
         } else if !anyEnabled {
             timer?.cancel()
             timer = nil
-            // Reset sustained state
-            cpuExceedStart = nil
-            cpuNotified = false
-            cpuCooldownEnd = nil
-            memExceedStart = nil
-            memNotified = false
-            memCooldownEnd = nil
+            cpuAlert.reset()
+            memAlert.reset()
         }
     }
 
@@ -92,46 +120,6 @@ final class NotificationService {
             Task { @MainActor in
                 self?.updateTimerState()
                 self?.observeNotificationPrefs()
-            }
-        }
-    }
-
-    func requestPermission() {
-        guard isAvailable else {
-            logger.warning("Notifications unavailable: no bundle identifier (SPM debug build)")
-            permissionStatus = "Unavailable (no bundle ID)"
-            return
-        }
-
-        UNUserNotificationCenter.current().requestAuthorization(options: [.alert, .sound]) { granted, error in
-            Task { @MainActor [weak self] in
-                if let error {
-                    logger.warning("Notification permission error: \(error.localizedDescription)")
-                    self?.permissionStatus = "Error"
-                } else {
-                    self?.permissionStatus = granted ? "Granted" : "Denied"
-                    logger.info("Notification permission \(granted ? "granted" : "denied")")
-                }
-            }
-        }
-    }
-
-    func refreshPermissionStatus() {
-        guard isAvailable else {
-            permissionStatus = "Unavailable (no bundle ID)"
-            return
-        }
-
-        UNUserNotificationCenter.current().getNotificationSettings { settings in
-            let status = settings.authorizationStatus
-            Task { @MainActor [weak self] in
-                switch status {
-                case .authorized: self?.permissionStatus = "Granted"
-                case .denied: self?.permissionStatus = "Denied"
-                case .notDetermined: self?.permissionStatus = "Not Requested"
-                case .provisional: self?.permissionStatus = "Provisional"
-                default: self?.permissionStatus = "Unknown"
-                }
             }
         }
     }
@@ -163,11 +151,11 @@ final class NotificationService {
         // Fire once when dropping below threshold (not every tick)
         if currentBatteryPct <= threshold, currentBatteryPct < lastBatteryNotifPct {
             lastBatteryNotifPct = currentBatteryPct
-            postNotification(
-                id: "battery-low",
+            ToastManager.shared.post(ToastRequest(
                 title: "Low Battery",
-                body: "Battery is at \(currentBatteryPct)%"
-            )
+                message: "Battery is at \(currentBatteryPct)%",
+                level: .warning
+            ))
             EventBus.shared.emit(.batteryLow(percent: currentBatteryPct, threshold: threshold))
         }
     }
@@ -176,44 +164,31 @@ final class NotificationService {
 
     private func checkCPU(_ prefs: PreferencesModel) {
         guard prefs.notifyCPUHigh else {
-            cpuExceedStart = nil
-            cpuNotified = false
+            cpuAlert.reset()
             return
         }
 
-        let usage = monitorService.cpuUsage() * 100 // 0...100
+        let usage = monitorService.cpuUsage() * 100
         let threshold = prefs.cpuThreshold
 
-        if usage >= threshold {
-            if cpuExceedStart == nil {
-                cpuExceedStart = Date()
-            }
-            if let start = cpuExceedStart,
-               Date().timeIntervalSince(start) >= prefs.cpuSustainedDuration,
-               !cpuNotified
-            {
-                cpuNotified = true
-                cpuCooldownEnd = Date().addingTimeInterval(Self.notificationCooldown)
-                postNotification(
-                    id: "cpu-high",
-                    title: "High CPU Usage",
-                    body: String(format: "CPU has been above %.0f%% for %.0fs", threshold, prefs.cpuSustainedDuration)
-                )
-                EventBus.shared.emit(.cpuHigh(
-                    usagePercent: Int(usage),
-                    threshold: Int(threshold),
-                    sustainedSeconds: Int(prefs.cpuSustainedDuration)
-                ))
-            }
-        } else {
-            cpuExceedStart = nil
-            // Only reset notified state after cooldown to prevent rapid re-fires
-            if let cooldown = cpuCooldownEnd, Date() < cooldown {
-                // still in cooldown
-            } else {
-                cpuNotified = false
-                cpuCooldownEnd = nil
-            }
+        if cpuAlert.check(
+            usage: usage,
+            threshold: threshold,
+            sustainedDuration: prefs.cpuSustainedDuration,
+            cooldown: Self.notificationCooldown
+        ) {
+            ToastManager.shared.post(ToastRequest(
+                title: "High CPU Usage",
+                message: String(format: "CPU has been above %.0f%% for %.0fs", threshold, prefs.cpuSustainedDuration),
+                level: .warning,
+                actionLabel: "Activity Monitor",
+                actionShellCommand: "open -a 'Activity Monitor'"
+            ))
+            EventBus.shared.emit(.cpuHigh(
+                usagePercent: Int(usage),
+                threshold: Int(threshold),
+                sustainedSeconds: Int(prefs.cpuSustainedDuration)
+            ))
         }
     }
 
@@ -221,68 +196,31 @@ final class NotificationService {
 
     private func checkMemory(_ prefs: PreferencesModel) {
         guard prefs.notifyMemoryHigh else {
-            memExceedStart = nil
-            memNotified = false
+            memAlert.reset()
             return
         }
 
-        let usage = monitorService.memoryUsage() * 100 // 0...100
+        let usage = monitorService.memoryUsage() * 100
         let threshold = prefs.memoryThreshold
 
-        if usage >= threshold {
-            if memExceedStart == nil {
-                memExceedStart = Date()
-            }
-            if let start = memExceedStart,
-               Date().timeIntervalSince(start) >= prefs.memorySustainedDuration,
-               !memNotified
-            {
-                memNotified = true
-                memCooldownEnd = Date().addingTimeInterval(Self.notificationCooldown)
-                postNotification(
-                    id: "memory-high",
-                    title: "High Memory Usage",
-                    body: String(format: "Memory has been above %.0f%% for %.0fs", threshold, prefs.memorySustainedDuration)
-                )
-                EventBus.shared.emit(.memoryHigh(
-                    usagePercent: Int(usage),
-                    threshold: Int(threshold),
-                    sustainedSeconds: Int(prefs.memorySustainedDuration)
-                ))
-            }
-        } else {
-            memExceedStart = nil
-            if let cooldown = memCooldownEnd, Date() < cooldown {
-                // still in cooldown
-            } else {
-                memNotified = false
-                memCooldownEnd = nil
-            }
-        }
-    }
-
-    // MARK: - Post
-
-    private func postNotification(id: String, title: String, body: String) {
-        guard isAvailable else {
-            return
-        }
-
-        let content = UNMutableNotificationContent()
-        content.title = title
-        content.body = body
-        content.sound = .default
-
-        let request = UNNotificationRequest(
-            identifier: "com.statusbar.\(id)",
-            content: content,
-            trigger: nil // deliver immediately
-        )
-
-        UNUserNotificationCenter.current().add(request) { error in
-            if let error {
-                logger.warning("Failed to post notification: \(error.localizedDescription)")
-            }
+        if memAlert.check(
+            usage: usage,
+            threshold: threshold,
+            sustainedDuration: prefs.memorySustainedDuration,
+            cooldown: Self.notificationCooldown
+        ) {
+            ToastManager.shared.post(ToastRequest(
+                title: "High Memory Usage",
+                message: String(format: "Memory has been above %.0f%% for %.0fs", threshold, prefs.memorySustainedDuration),
+                level: .warning,
+                actionLabel: "Activity Monitor",
+                actionShellCommand: "open -a 'Activity Monitor'"
+            ))
+            EventBus.shared.emit(.memoryHigh(
+                usagePercent: Int(usage),
+                threshold: Int(threshold),
+                sustainedSeconds: Int(prefs.memorySustainedDuration)
+            ))
         }
     }
 }
