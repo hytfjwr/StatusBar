@@ -41,6 +41,8 @@ final class ConfigLoader {
     /// Guards against write-back during apply (hot-reload or bootstrap).
     private var isApplying = false
 
+    private var fsDebounceTask: Task<Void, Never>?
+
     /// True when bootstrap created a fresh config (no existing file).
     private(set) var isFirstLaunch = false
 
@@ -156,7 +158,7 @@ final class ConfigLoader {
             return
         }
         writeTask?.cancel()
-        writeTask = Task { @MainActor [weak self] in
+        writeTask = Task { [weak self] in
             try? await Task.sleep(for: .milliseconds(300))
             guard !Task.isCancelled else {
                 return
@@ -225,7 +227,7 @@ final class ConfigLoader {
 
         source.setEventHandler { [weak self] in
             Task { @MainActor in
-                self?.handleFileSystemEvent()
+                self?.scheduleFileSystemEvent()
             }
         }
 
@@ -236,6 +238,17 @@ final class ConfigLoader {
         source.resume()
         fsSource = source
         logger.info("Watching config directory for changes")
+    }
+
+    private func scheduleFileSystemEvent() {
+        fsDebounceTask?.cancel()
+        fsDebounceTask = Task { [weak self] in
+            try? await Task.sleep(for: .milliseconds(200))
+            guard !Task.isCancelled else {
+                return
+            }
+            self?.handleFileSystemEvent()
+        }
     }
 
     private func handleFileSystemEvent() {
@@ -306,6 +319,10 @@ final class ConfigLoader {
         }
 
         EventBus.shared.emit(.configReloaded())
+
+        ToastManager.shared.post(
+            ToastRequest(title: "Config Reloaded", icon: "checkmark.circle", level: .success, duration: 3)
+        )
     }
 
     // MARK: - Teardown
@@ -313,6 +330,8 @@ final class ConfigLoader {
     func teardown() {
         fsSource?.cancel()
         fsSource = nil
+        fsDebounceTask?.cancel()
+        fsDebounceTask = nil
         writeTask?.cancel()
         writeTask = nil
     }
