@@ -50,10 +50,18 @@ final class StatusBarController {
         }
 
         updateFullscreenVisibility()
+        setupToastManager()
     }
 
     private func handleScreenChange() {
         createBarWindows()
+    }
+
+    private func setupToastManager() {
+        guard let primaryWindow = barWindows.first, let screen = NSScreen.screens.first else {
+            return
+        }
+        ToastManager.shared.reposition(anchoredTo: primaryWindow, on: screen)
     }
 
     /// Observe bar dimension preferences and rebuild windows when they change.
@@ -102,6 +110,7 @@ final class StatusBarController {
             Task { @MainActor in
                 self?.barWindows.forEach { $0.updateTint() }
                 PopupManager.shared.updateTint()
+                ToastManager.shared.updateTint()
                 self?.observeTintPreferences()
             }
         }
@@ -315,6 +324,7 @@ final class StatusBarController {
         dwellTimer = nil
         removeFullscreenObservers()
         fullscreenHiddenIndices.removeAll()
+        ToastManager.shared.dismissAll()
         registry.stopAll()
         barWindows.forEach { $0.orderOut(nil) }
         barWindows.removeAll()

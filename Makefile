@@ -4,7 +4,7 @@ APP_NAME = StatusBar
 APP_BUNDLE = $(APP_NAME).app
 DEBUG_BUNDLE = .build/debug/$(APP_BUNDLE)
 CLI_NAME = sbar
-CLI_INSTALL_DIR = /usr/local/bin
+CLI_INSTALL_DIR = /opt/homebrew/bin
 
 build:
 	swift build

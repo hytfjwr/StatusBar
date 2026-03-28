@@ -45,6 +45,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         // Apply layout from config after all widgets are registered
         ConfigLoader.shared.applyLayoutIfNeeded()
 
+        // Wire toast service for plugin API
+        ToastService.shared.configure { request in
+            ToastManager.shared.post(request)
+        }
+
         controller = StatusBarController()
         controller?.setup()
 

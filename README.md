@@ -273,6 +273,11 @@ sbar subscribe '*'
 # Pipe events to jq for filtering
 sbar subscribe front_app_switched | jq '.payload'
 
+# Toast notifications
+sbar toast --title "Deploy done" --message "v1.2.3 shipped" --level success
+sbar toast --title "CPU Warning" --level warning --duration 10
+sbar toast --title "Error" --level error --action-label "Open Logs" --action "open /var/log"
+
 # Relaunch the app
 sbar reload
 ```
@@ -377,6 +382,31 @@ sbar trigger com.example.myapp.count --payload 42                # number
 sbar trigger com.example.myapp.status --payload "building"       # string
 sbar trigger com.example.myapp.deploy --payload '{"status":"ok"}' # JSON object
 ```
+
+</details>
+
+<details>
+<summary>Toast notifications</summary>
+
+`sbar toast` displays a Liquid Glass notification panel below the bar. Toasts stack vertically (up to 4) and auto-dismiss after a configurable duration.
+
+```bash
+sbar toast --title <text> [options]
+```
+
+| Option | Default | Description |
+|--------|---------|-------------|
+| `--title` | (required) | Toast title |
+| `--message` | — | Body text |
+| `--icon` | (per level) | SF Symbol name |
+| `--level` | `info` | `info`, `success`, `warning`, `error` |
+| `--duration` | `5` | Auto-dismiss seconds (`0` = persistent) |
+| `--action-label` | — | Action button label |
+| `--action` | — | Shell command on action click |
+
+Returns the toast ID (UUID) on success.
+
+Plugins can also post toasts via `ToastService.shared.post(request)`.
 
 </details>
 

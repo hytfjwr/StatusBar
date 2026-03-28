@@ -14,6 +14,7 @@ struct SbarCLI: ParsableCommand {
             ReloadCommand.self,
             SubscribeCommand.self,
             TriggerCommand.self,
+            ToastCommand.self,
         ]
     )
 }

@@ -19,6 +19,7 @@ final class CommandDispatcher {
             SetGlobalCommandHandler(),
             ReloadCommandHandler(),
             TriggerCommandHandler(),
+            ToastCommandHandler(),
         ]
         handlers = Dictionary(uniqueKeysWithValues: all.map { ($0.commandKey, $0) })
     }
@@ -68,6 +69,7 @@ extension IPCCommand {
         case .reload: "reload"
         case .subscribe: "subscribe"
         case .trigger: "trigger"
+        case .showToast: "showToast"
         @unknown default: "unknown"
         }
     }
