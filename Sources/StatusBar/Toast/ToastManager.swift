@@ -131,6 +131,8 @@ final class ToastManager {
         }
     }
 
+    private static let scaleUp: CGFloat = 1.08
+
     private func showPanel() {
         guard panel == nil, anchorScreen != nil else {
             return
@@ -138,14 +140,41 @@ final class ToastManager {
         let trayPanel = ToastTrayPanel()
         trayPanel.setContent(ToastTrayView())
         panel = trayPanel
-        // Reposition before making visible to avoid flash at (0,0)
         repositionPanel()
+
+        // Start scaled up + transparent, then shrink to natural size + fade in
+        let finalFrame = trayPanel.frame
+        let s = Self.scaleUp
+        let expandedFrame = NSRect(
+            x: finalFrame.midX - finalFrame.width * s / 2,
+            y: finalFrame.midY - finalFrame.height * s / 2,
+            width: finalFrame.width * s,
+            height: finalFrame.height * s
+        )
+        trayPanel.setFrame(expandedFrame, display: false)
+        trayPanel.alphaValue = 0
         trayPanel.orderFront(nil)
+
+        NSAnimationContext.runAnimationGroup { context in
+            context.duration = 0.35
+            context.timingFunction = CAMediaTimingFunction(controlPoints: 0.2, 0.9, 0.3, 1.0)
+            trayPanel.animator().setFrame(finalFrame, display: true)
+            trayPanel.animator().alphaValue = 1
+        }
     }
 
     private func hidePanel() {
-        panel?.orderOut(nil)
-        panel = nil
+        guard let panel else {
+            return
+        }
+        NSAnimationContext.runAnimationGroup { context in
+            context.duration = 0.25
+            context.timingFunction = CAMediaTimingFunction(name: .easeIn)
+            panel.animator().alphaValue = 0
+        } completionHandler: { [weak self] in
+            self?.panel?.orderOut(nil)
+            self?.panel = nil
+        }
     }
 
     private func repositionPanel() {
