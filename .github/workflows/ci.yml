@@ -11,11 +11,11 @@ jobs:
     steps:
       - uses: actions/checkout@v6
 
-      - name: Install tools
-        run: brew install swiftlint swiftformat
-
       - name: SwiftLint
-        run: swiftlint lint --strict
+        run: swift package plugin --allow-writing-to-package-directory swiftlint lint --strict
+
+      - name: Install SwiftFormat
+        run: brew install swiftformat
 
       - name: SwiftFormat check
         run: swiftformat --lint .

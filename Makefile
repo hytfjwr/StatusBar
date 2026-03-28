@@ -1,4 +1,4 @@
-.PHONY: build clean run-dev run-app bundle test set-version package install-cli uninstall-cli
+.PHONY: build clean run-dev run-app bundle test set-version package install-cli uninstall-cli setup lint format
 
 APP_NAME = StatusBar
 APP_BUNDLE = $(APP_NAME).app
@@ -64,6 +64,19 @@ install-cli: build
 uninstall-cli:
 	rm -f $(CLI_INSTALL_DIR)/$(CLI_NAME)
 	@echo "Removed $(CLI_NAME) from $(CLI_INSTALL_DIR)"
+
+setup:
+	git config core.hooksPath scripts
+	@echo "Git hooks configured (scripts/pre-commit)"
+
+lint:
+	swift package plugin --allow-writing-to-package-directory swiftlint lint --strict
+
+format:
+	swiftformat .
+
+format-check:
+	swiftformat --lint .
 
 set-version:
 	@if [ -z "$(VERSION)" ]; then echo "Usage: make set-version VERSION=x.y.z"; exit 1; fi
