@@ -142,8 +142,7 @@ final class DateWidget: StatusBarWidget, EventEmitting {
     private var nextEvent: CalendarEvent?
     private var timeUntilStart: TimeInterval?
     private var isLoadingEvents = true
-    private var notifiedEventKey: String?
-    private var notifiedThresholds: Set<Int> = []
+    private var notifiedThresholds: [String: Set<Int>] = [:]
 
     func start() {
         applyFormat()
@@ -164,8 +163,7 @@ final class DateWidget: StatusBarWidget, EventEmitting {
     private func startTrackerIfNeeded() {
         tracker?.stop()
         tracker = nil
-        notifiedEventKey = nil
-        notifiedThresholds = []
+        notifiedThresholds = [:]
         let settings = DateSettings.shared
         guard settings.showNextEventOnBar || settings.showNextEventInPopup || settings.notifyNextEvent else {
             nextEvent = nil
@@ -174,7 +172,7 @@ final class DateWidget: StatusBarWidget, EventEmitting {
         }
         isLoadingEvents = true
         let t = NextEventTracker()
-        t.onUpdate = { [weak self] event, interval in
+        t.onUpdate = { [weak self] event, interval, upcomingEvents in
             let changed = self?.nextEvent?.id != event?.id
             withAnimation(.numericTransition) {
                 self?.nextEvent = event
@@ -189,7 +187,7 @@ final class DateWidget: StatusBarWidget, EventEmitting {
                     timeUntilStart: interval
                 ))
             }
-            self?.checkEventNotifications(event: event, interval: interval)
+            self?.checkEventNotifications(upcomingEvents: upcomingEvents)
         }
         tracker = t
         Task { await t.start(calendarService: calendarService) }
@@ -199,48 +197,62 @@ final class DateWidget: StatusBarWidget, EventEmitting {
         "\(event.title)-\(event.startDate.timeIntervalSince1970)"
     }
 
-    private func checkEventNotifications(event: CalendarEvent?, interval: TimeInterval?) {
+    private func checkEventNotifications(upcomingEvents: [CalendarEvent]) {
         let settings = DateSettings.shared
-        guard settings.notifyNextEvent, let event, let interval, interval > 0 else {
+        guard settings.notifyNextEvent else {
             return
         }
 
-        let key = Self.eventKey(for: event)
-        if notifiedEventKey != key {
-            notifiedEventKey = key
-            notifiedThresholds = []
-            for minutes in settings.notifyMinutesBefore where interval <= Double(minutes) * 60 {
-                notifiedThresholds.insert(minutes)
-            }
-            return
-        }
+        let now = Date()
+        let activeKeys = Set(upcomingEvents.map { Self.eventKey(for: $0) })
+        notifiedThresholds = notifiedThresholds.filter { activeKeys.contains($0.key) }
 
-        for minutes in settings.notifyMinutesBefore.reversed() {
-            let thresholdSeconds = Double(minutes) * 60
-            guard interval <= thresholdSeconds else {
-                break
-            }
-            guard !notifiedThresholds.contains(minutes) else {
+        for event in upcomingEvents {
+            let interval = event.startDate.timeIntervalSince(now)
+            guard interval > 0 else {
                 continue
             }
-            notifiedThresholds.insert(minutes)
-            let message = minutes == 1 ? "Starting in 1 minute" : "Starting in \(minutes) minutes"
-            let joinAction: (@MainActor () -> Void)? = if let url = event.url {
-                { NSWorkspace.shared.open(url) }
-            } else {
-                nil
+
+            let key = Self.eventKey(for: event)
+
+            // First time seeing this event — pre-populate already-passed thresholds
+            if notifiedThresholds[key] == nil {
+                var initial: Set<Int> = []
+                for minutes in settings.notifyMinutesBefore where interval <= Double(minutes) * 60 {
+                    initial.insert(minutes)
+                }
+                notifiedThresholds[key] = initial
+                continue
             }
-            ToastManager.shared.post(
-                ToastRequest(
-                    title: event.title,
-                    message: message,
-                    icon: "calendar",
-                    level: minutes <= 1 ? .warning : .info,
-                    duration: 8,
-                    actionLabel: joinAction != nil ? "Join" : nil
-                ),
-                action: joinAction
-            )
+
+            for minutes in settings.notifyMinutesBefore.reversed() {
+                let thresholdSeconds = Double(minutes) * 60
+                guard interval <= thresholdSeconds else {
+                    break
+                }
+                guard notifiedThresholds[key]?.contains(minutes) != true else {
+                    continue
+                }
+
+                notifiedThresholds[key, default: []].insert(minutes)
+                let message = minutes == 1 ? "Starting in 1 minute" : "Starting in \(minutes) minutes"
+                let joinAction: (@MainActor () -> Void)? = if let url = event.url {
+                    { NSWorkspace.shared.open(url) }
+                } else {
+                    nil
+                }
+                ToastManager.shared.post(
+                    ToastRequest(
+                        title: event.title,
+                        message: message,
+                        icon: "calendar",
+                        level: minutes <= 1 ? .warning : .info,
+                        duration: 8,
+                        actionLabel: joinAction != nil ? "Join" : nil
+                    ),
+                    action: joinAction
+                )
+            }
         }
     }
 
