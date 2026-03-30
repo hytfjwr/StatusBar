@@ -43,7 +43,13 @@ final class DateSettings: WidgetConfigProvider {
         } }
     }
 
-    var showNextEvent: Bool {
+    var showNextEventInBar: Bool {
+        didSet { if !suppressWrite {
+            WidgetConfigRegistry.shared.notifySettingsChanged()
+        } }
+    }
+
+    var showNextEventInPopup: Bool {
         didSet { if !suppressWrite {
             WidgetConfigRegistry.shared.notifySettingsChanged()
         } }
@@ -52,14 +58,16 @@ final class DateSettings: WidgetConfigProvider {
     private init() {
         let cfg = WidgetConfigRegistry.shared.values(for: "date")
         format = cfg?["format"]?.stringValue ?? "EEE dd. MMM"
-        showNextEvent = cfg?["showNextEvent"]?.boolValue ?? true
+        showNextEventInBar = cfg?["showNextEventInBar"]?.boolValue ?? true
+        showNextEventInPopup = cfg?["showNextEventInPopup"]?.boolValue ?? true
         WidgetConfigRegistry.shared.register(self)
     }
 
     func exportConfig() -> [String: ConfigValue] {
         [
             "format": .string(format),
-            "showNextEvent": .bool(showNextEvent),
+            "showNextEventInBar": .bool(showNextEventInBar),
+            "showNextEventInPopup": .bool(showNextEventInPopup),
         ]
     }
 
@@ -69,8 +77,11 @@ final class DateSettings: WidgetConfigProvider {
         if let v = values["format"]?.stringValue {
             format = v
         }
-        if let v = values["showNextEvent"]?.boolValue {
-            showNextEvent = v
+        if let v = values["showNextEventInBar"]?.boolValue {
+            showNextEventInBar = v
+        }
+        if let v = values["showNextEventInPopup"]?.boolValue {
+            showNextEventInPopup = v
         }
     }
 }
@@ -118,7 +129,8 @@ final class DateWidget: StatusBarWidget, EventEmitting {
     private func startTrackerIfNeeded() {
         tracker?.stop()
         tracker = nil
-        guard DateSettings.shared.showNextEvent else {
+        let settings = DateSettings.shared
+        guard settings.showNextEventInBar || settings.showNextEventInPopup else {
             nextEvent = nil
             timeUntilStart = nil
             return
@@ -150,7 +162,7 @@ final class DateWidget: StatusBarWidget, EventEmitting {
     }
 
     var preferredSettingsSize: CGSize? {
-        CGSize(width: 360, height: 320)
+        CGSize(width: 360, height: 380)
     }
 
     func settingsBody() -> some View {
@@ -162,14 +174,22 @@ final class DateWidget: StatusBarWidget, EventEmitting {
     }
 
     private func observeSettings() {
+        let settings = DateSettings.shared
+        let prevInBar = settings.showNextEventInBar
+        let prevInPopup = settings.showNextEventInPopup
         withObservationTracking {
-            _ = DateSettings.shared.format
-            _ = DateSettings.shared.showNextEvent
+            _ = settings.format
+            _ = settings.showNextEventInBar
+            _ = settings.showNextEventInPopup
         } onChange: { [weak self] in
             Task { @MainActor in
                 self?.applyFormat()
                 self?.updateDate()
-                self?.startTrackerIfNeeded()
+                if settings.showNextEventInBar != prevInBar
+                    || settings.showNextEventInPopup != prevInPopup
+                {
+                    self?.startTrackerIfNeeded()
+                }
                 self?.observeSettings()
             }
         }
@@ -192,7 +212,7 @@ final class DateWidget: StatusBarWidget, EventEmitting {
                     self?.togglePopup()
                 }
 
-            if DateSettings.shared.showNextEvent {
+            if DateSettings.shared.showNextEventInBar {
                 nextEventPill()
             }
         }
@@ -265,7 +285,8 @@ final class DateWidget: StatusBarWidget, EventEmitting {
             return
         }
 
-        let content = CalendarPopupContent(calendarService: calendarService, nextEvent: nextEvent)
+        let popupEvent = DateSettings.shared.showNextEventInPopup ? nextEvent : nil
+        let content = CalendarPopupContent(calendarService: calendarService, nextEvent: popupEvent)
         popupPanel?.showPopup(relativeTo: barFrame, on: screen, content: content)
     }
 
@@ -273,7 +294,8 @@ final class DateWidget: StatusBarWidget, EventEmitting {
         guard let panel = popupPanel, panel.isVisible else {
             return
         }
-        let content = CalendarPopupContent(calendarService: calendarService, nextEvent: nextEvent)
+        let popupEvent = DateSettings.shared.showNextEventInPopup ? nextEvent : nil
+        let content = CalendarPopupContent(calendarService: calendarService, nextEvent: popupEvent)
         panel.updateContent(content)
     }
 }
