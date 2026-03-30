@@ -4,12 +4,10 @@ import SwiftUI
 
 @MainActor
 final class StatusBarController {
-    private var barWindows: [BarWindow] = []
+    private var windowStates: [BarWindowState] = []
     private let registry = WidgetRegistry.shared
     private var screenObserver: NSObjectProtocol?
     private var mouseMonitor: Any?
-    private var dwellTimer: Timer?
-    private var isBarHidden = false
     private var rebuildTask: Task<Void, Never>?
     private var spaceObserver: NSObjectProtocol?
     private var appActivationObserver: NSObjectProtocol?
@@ -25,8 +23,12 @@ final class StatusBarController {
             queue: .main
         ) { [weak self] _ in
             Task { @MainActor in
-                self?.handleScreenChange()
+                self?.createBarWindows()
             }
+        }
+
+        ConfigLoader.shared.onMonitorConfigDidChange = { [weak self] in
+            self?.applyMonitorConfigs()
         }
 
         observeBarDimensions()
@@ -37,31 +39,68 @@ final class StatusBarController {
     }
 
     private func createBarWindows() {
-        barWindows.forEach { $0.orderOut(nil) }
-        barWindows.removeAll()
+        for windowState in windowStates {
+            windowState.invalidateDwellTimer()
+            windowState.window.orderOut(nil)
+        }
+        windowStates.removeAll()
         fullscreenHiddenIndices.removeAll()
 
+        let rules = ConfigLoader.shared.currentConfig.monitors
+        let globalAutoHide = PreferencesModel.shared.autoHideEnabled
+
         for (index, screen) in NSScreen.screens.enumerated() {
+            let resolved = MonitorConfigResolver.resolve(
+                screenName: screen.localizedName,
+                rules: rules,
+                globalAutoHide: globalAutoHide
+            )
             let window = BarWindow(screen: screen)
-            let contentView = BarContentView(registry: registry, screenIndex: index)
-            window.setContent(contentView)
+            applyContentView(to: window, screenIndex: index, config: resolved)
             window.orderFrontRegardless()
-            barWindows.append(window)
+            windowStates.append(BarWindowState(window: window, screen: screen, resolvedConfig: resolved))
         }
 
         updateFullscreenVisibility()
         setupToastManager()
+        applyAutoHideState()
     }
 
-    private func handleScreenChange() {
-        createBarWindows()
+    /// Re-resolve per-monitor configs without rebuilding windows (called on config hot-reload).
+    private func applyMonitorConfigs() {
+        let rules = ConfigLoader.shared.currentConfig.monitors
+        let globalAutoHide = PreferencesModel.shared.autoHideEnabled
+
+        for (index, state) in windowStates.enumerated() {
+            let resolved = MonitorConfigResolver.resolve(
+                screenName: state.screen.localizedName,
+                rules: rules,
+                globalAutoHide: globalAutoHide
+            )
+
+            // If auto-hide was disabled for this window, restore it
+            if !resolved.autoHide, state.isHidden {
+                state.isHidden = false
+                state.invalidateDwellTimer()
+                fadeWindow(state.window, hide: false)
+            }
+
+            let oldConfig = state.resolvedConfig
+            state.resolvedConfig = resolved
+
+            if resolved.widgetFilter != oldConfig.widgetFilter {
+                applyContentView(to: state.window, screenIndex: index, config: resolved)
+            }
+        }
+
+        applyAutoHideState()
     }
 
     private func setupToastManager() {
-        guard let primaryWindow = barWindows.first, let screen = NSScreen.screens.first else {
+        guard let primary = windowStates.first, let screen = NSScreen.screens.first else {
             return
         }
-        ToastManager.shared.reposition(anchoredTo: primaryWindow, on: screen)
+        ToastManager.shared.reposition(anchoredTo: primary.window, on: screen)
     }
 
     /// Observe bar dimension preferences and rebuild windows when they change.
@@ -94,7 +133,7 @@ final class StatusBarController {
             _ = PreferencesModel.shared.shadowEnabled
         } onChange: { [weak self] in
             Task { @MainActor in
-                self?.barWindows.forEach { GlassEffect.applyShadow(to: $0) }
+                self?.windowStates.forEach { GlassEffect.applyShadow(to: $0.window) }
                 self?.observeShadowPreferences()
             }
         }
@@ -108,7 +147,7 @@ final class StatusBarController {
             _ = prefs.barTintHex
         } onChange: { [weak self] in
             Task { @MainActor in
-                self?.barWindows.forEach { $0.updateTint() }
+                self?.windowStates.forEach { $0.window.updateTint() }
                 PopupManager.shared.updateTint()
                 ToastManager.shared.updateTint()
                 self?.observeTintPreferences()
@@ -123,7 +162,8 @@ final class StatusBarController {
             _ = PreferencesModel.shared.autoHideEnabled
         } onChange: { [weak self] in
             Task { @MainActor in
-                self?.applyAutoHideState()
+                // Global autoHide changed — re-resolve all monitors
+                self?.applyMonitorConfigs()
                 self?.observeBehaviorPreferences()
             }
         }
@@ -131,15 +171,16 @@ final class StatusBarController {
     }
 
     private func applyAutoHideState() {
-        let enabled = PreferencesModel.shared.autoHideEnabled
-        if enabled, mouseMonitor == nil {
+        let anyAutoHide = windowStates.contains { $0.resolvedConfig.autoHide }
+
+        if anyAutoHide, mouseMonitor == nil {
             installMouseMonitor()
-        } else if !enabled {
+        } else if !anyAutoHide {
             removeMouseMonitor()
-            // Restore bar if it was hidden
-            if isBarHidden {
-                isBarHidden = false
-                fadeBarWindows(hide: false)
+            for state in windowStates where state.isHidden {
+                state.isHidden = false
+                state.invalidateDwellTimer()
+                fadeWindow(state.window, hide: false)
             }
         }
     }
@@ -158,44 +199,56 @@ final class StatusBarController {
             NSEvent.removeMonitor(monitor)
             mouseMonitor = nil
         }
-        dwellTimer?.invalidate()
-        dwellTimer = nil
+        for state in windowStates {
+            state.invalidateDwellTimer()
+        }
     }
 
     // MARK: - Menu Bar Auto-Hide Detection
 
     private func handleMouseMove() {
         let mouseLocation = NSEvent.mouseLocation
-        guard let screen = NSScreen.screens.first(where: {
-            $0.frame.insetBy(dx: -1, dy: -1).contains(mouseLocation)
-        }) else {
-            return
-        }
-        let mouseY = mouseLocation.y
-        let screenTop = screen.frame.maxY
-        let distanceFromTop = screenTop - mouseY
+        let barHeight = Theme.barHeight
+        let barYOffset = Theme.barYOffset
+        for state in windowStates {
+            guard state.screen.frame.insetBy(dx: -1, dy: -1).contains(mouseLocation) else {
+                continue
+            }
+            guard state.resolvedConfig.autoHide else {
+                break
+            }
 
-        if distanceFromTop <= 2 {
-            // Cursor at the very top edge — start dwell timer to hide
-            if !isBarHidden, dwellTimer == nil {
-                let dwellTime = PreferencesModel.shared.autoHideDwellTime
-                dwellTimer = Timer.scheduledTimer(withTimeInterval: dwellTime, repeats: false) { [weak self] _ in
-                    Task { @MainActor in
-                        self?.isBarHidden = true
-                        self?.fadeBarWindows(hide: true)
+            let mouseY = mouseLocation.y
+            let screenTop = state.screen.frame.maxY
+            let distanceFromTop = screenTop - mouseY
+
+            if distanceFromTop <= 2 {
+                // Cursor at the very top edge — start dwell timer to hide
+                if !state.isHidden, state.dwellTimer == nil {
+                    let dwellTime = PreferencesModel.shared.autoHideDwellTime
+                    state.dwellTimer = Timer.scheduledTimer(
+                        withTimeInterval: dwellTime, repeats: false
+                    ) { [weak self, weak state] _ in
+                        Task { @MainActor in
+                            guard let self, let state else {
+                                return
+                            }
+                            state.isHidden = true
+                            self.fadeWindow(state.window, hide: true)
+                        }
                     }
                 }
+            } else {
+                let barBottom = screenTop - barHeight - barYOffset
+                if state.isHidden, mouseY < barBottom {
+                    // Cursor moved below bar area — show bar
+                    state.isHidden = false
+                    fadeWindow(state.window, hide: false)
+                }
+                // Cancel any pending hide timer
+                state.invalidateDwellTimer()
             }
-        } else {
-            let barBottom = screenTop - Theme.barHeight - Theme.barYOffset
-            if isBarHidden, mouseY < barBottom {
-                // Cursor moved below bar area — show bar
-                isBarHidden = false
-                fadeBarWindows(hide: false)
-            }
-            // Cancel any pending hide timer
-            dwellTimer?.invalidate()
-            dwellTimer = nil
+            break
         }
     }
 
@@ -260,10 +313,10 @@ final class StatusBarController {
 
     private func restoreFullscreenHiddenWindows() {
         for index in fullscreenHiddenIndices {
-            guard index < barWindows.count else {
+            guard index < windowStates.count else {
                 continue
             }
-            showBarWindow(barWindows[index])
+            showBarWindow(windowStates[index])
         }
         fullscreenHiddenIndices.removeAll()
     }
@@ -277,35 +330,39 @@ final class StatusBarController {
         let fullscreenIndices = FullscreenDetector.fullscreenScreenIndices(for: screens)
 
         for index in screens.indices {
-            guard index < barWindows.count else {
+            guard index < windowStates.count else {
                 continue
             }
-            let window = barWindows[index]
+            let state = windowStates[index]
 
             if fullscreenIndices.contains(index) {
-                if window.isVisible {
-                    window.orderOut(nil)
+                if state.window.isVisible {
+                    state.window.orderOut(nil)
                     fullscreenHiddenIndices.insert(index)
                 }
             } else if fullscreenHiddenIndices.contains(index) {
                 fullscreenHiddenIndices.remove(index)
-                showBarWindow(window)
+                showBarWindow(state)
             }
         }
     }
 
-    private func showBarWindow(_ window: BarWindow) {
-        window.orderFrontRegardless()
-        window.alphaValue = isBarHidden ? 0 : 1
+    private func showBarWindow(_ state: BarWindowState) {
+        state.window.orderFrontRegardless()
+        state.window.alphaValue = state.isHidden ? 0 : 1
     }
 
-    private func fadeBarWindows(hide: Bool) {
+    private func applyContentView(to window: BarWindow, screenIndex: Int, config: MonitorConfig) {
+        let contentView = BarContentView(registry: registry, screenIndex: screenIndex)
+            .environment(\.widgetFilter, config.widgetFilter)
+        window.setContent(contentView)
+    }
+
+    private func fadeWindow(_ window: BarWindow, hide: Bool) {
         let duration = PreferencesModel.shared.autoHideFadeDuration
         NSAnimationContext.runAnimationGroup { context in
             context.duration = duration
-            for window in barWindows {
-                window.animator().alphaValue = hide ? 0 : 1
-            }
+            window.animator().alphaValue = hide ? 0 : 1
         }
     }
 
@@ -316,17 +373,16 @@ final class StatusBarController {
             NotificationCenter.default.removeObserver(observer)
             screenObserver = nil
         }
-        if let monitor = mouseMonitor {
-            NSEvent.removeMonitor(monitor)
-            mouseMonitor = nil
-        }
-        dwellTimer?.invalidate()
-        dwellTimer = nil
+        removeMouseMonitor()
         removeFullscreenObservers()
         fullscreenHiddenIndices.removeAll()
         ToastManager.shared.dismissAll()
         registry.stopAll()
-        barWindows.forEach { $0.orderOut(nil) }
-        barWindows.removeAll()
+        for windowState in windowStates {
+            windowState.invalidateDwellTimer()
+            windowState.window.orderOut(nil)
+        }
+        windowStates.removeAll()
+        ConfigLoader.shared.onMonitorConfigDidChange = nil
     }
 }

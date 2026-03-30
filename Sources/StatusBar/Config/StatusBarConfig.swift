@@ -7,11 +7,23 @@ struct StatusBarConfig: Codable {
     var global: GlobalConfig
     var widgets: [WidgetLayoutConfig]
     var widgetSettings: [String: [String: ConfigValue]]
+    var monitors: [MonitorMatchRule]
 
     init() {
         global = GlobalConfig()
         widgets = []
         widgetSettings = [:]
+        monitors = []
+    }
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        global = try container.decodeIfPresent(GlobalConfig.self, forKey: .global) ?? GlobalConfig()
+        widgets = try container.decodeIfPresent([WidgetLayoutConfig].self, forKey: .widgets) ?? []
+        widgetSettings = try container.decodeIfPresent(
+            [String: [String: ConfigValue]].self, forKey: .widgetSettings
+        ) ?? [:]
+        monitors = try container.decodeIfPresent([MonitorMatchRule].self, forKey: .monitors) ?? []
     }
 
     @MainActor
@@ -21,6 +33,7 @@ struct StatusBarConfig: Codable {
         config.global = GlobalConfig(from: prefs)
         config.widgets = WidgetRegistry.shared.layout.map { WidgetLayoutConfig(from: $0) }
         config.widgetSettings = WidgetConfigRegistry.shared.exportAll()
+        config.monitors = ConfigLoader.shared.currentConfig.monitors
         return config
     }
 }

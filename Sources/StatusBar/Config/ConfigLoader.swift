@@ -46,6 +46,9 @@ final class ConfigLoader {
     /// True when bootstrap created a fresh config (no existing file).
     private(set) var isFirstLaunch = false
 
+    /// Called when monitor config changes (hot-reload or IPC reload).
+    var onMonitorConfigDidChange: (@MainActor () -> Void)?
+
     private init() {
         let configDir = FileManager.default.homeDirectoryForCurrentUser
             .appendingPathComponent(".config/statusbar", isDirectory: true)
@@ -319,6 +322,7 @@ final class ConfigLoader {
         }
 
         EventBus.shared.emit(.configReloaded())
+        onMonitorConfigDidChange?()
 
         ToastManager.shared.post(
             ToastRequest(title: "Config Reloaded", icon: "checkmark.circle", level: .success, duration: 3)
