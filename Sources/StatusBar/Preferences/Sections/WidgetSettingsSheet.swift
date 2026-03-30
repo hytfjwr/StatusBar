@@ -90,11 +90,13 @@ struct TimeWidgetSettings: View {
 
 struct DateWidgetSettings: View {
     @State private var format: String
-    @State private var showNextEvent: Bool
+    @State private var showNextEventOnBar: Bool
+    @State private var showNextEventInPopup: Bool
 
     init() {
         _format = State(initialValue: DateSettings.shared.format)
-        _showNextEvent = State(initialValue: DateSettings.shared.showNextEvent)
+        _showNextEventOnBar = State(initialValue: DateSettings.shared.showNextEventOnBar)
+        _showNextEventInPopup = State(initialValue: DateSettings.shared.showNextEventInPopup)
     }
 
     var body: some View {
@@ -122,12 +124,21 @@ struct DateWidgetSettings: View {
                 .font(.system(size: 12, weight: .semibold))
                 .foregroundStyle(.secondary)
 
-            Toggle("Show Next Event", isOn: $showNextEvent)
-                .onChange(of: showNextEvent) { _, newValue in
-                    DateSettings.shared.showNextEvent = newValue
+            Toggle("Show on Bar", isOn: $showNextEventOnBar)
+                .onChange(of: showNextEventOnBar) { _, newValue in
+                    DateSettings.shared.showNextEventOnBar = newValue
                 }
 
             Text("Shows the next upcoming event with countdown and join button on the bar.")
+                .font(.system(size: 11))
+                .foregroundStyle(.tertiary)
+
+            Toggle("Show in Popup", isOn: $showNextEventInPopup)
+                .onChange(of: showNextEventInPopup) { _, newValue in
+                    DateSettings.shared.showNextEventInPopup = newValue
+                }
+
+            Text("Shows the \"Next Up\" section at the top of the calendar popup.")
                 .font(.system(size: 11))
                 .foregroundStyle(.tertiary)
         }
