@@ -2,6 +2,25 @@ import Foundation
 @testable import StatusBar
 import Testing
 
+// MARK: - Test Helpers
+
+private func makeEvent(
+    title: String = "Test",
+    startDate: Date,
+    endDate: Date,
+    isAllDay: Bool = false
+) -> CalendarEvent {
+    CalendarEvent(
+        title: title,
+        startDate: startDate,
+        endDate: endDate,
+        isAllDay: isAllDay,
+        calendarColor: nil,
+        notes: nil,
+        url: nil
+    )
+}
+
 // MARK: - CalendarEventURLExtractionTests
 
 struct CalendarEventURLExtractionTests {
@@ -104,23 +123,6 @@ struct CalendarEventURLExtractionTests {
 
 struct NextEventSelectionTests {
 
-    private func makeEvent(
-        title: String = "Test",
-        startDate: Date,
-        endDate: Date,
-        isAllDay: Bool = false
-    ) -> CalendarEvent {
-        CalendarEvent(
-            title: title,
-            startDate: startDate,
-            endDate: endDate,
-            isAllDay: isAllDay,
-            calendarColor: nil,
-            notes: nil,
-            url: nil
-        )
-    }
-
     @Test
     func skipsEndedEvents() {
         let now = Date()
@@ -217,6 +219,67 @@ struct NextEventSelectionTests {
 
         let result = NextEventTracker.nextEvent(from: events, now: now)
         #expect(result == nil)
+    }
+}
+
+// MARK: - UpcomingEventsTests
+
+struct UpcomingEventsTests {
+
+    @Test
+    func returnsAllFutureEvents() {
+        let now = Date()
+        let events = [
+            makeEvent(title: "A", startDate: now.addingTimeInterval(600), endDate: now.addingTimeInterval(3_600)),
+            makeEvent(title: "B", startDate: now.addingTimeInterval(600), endDate: now.addingTimeInterval(3_600)),
+            makeEvent(title: "C", startDate: now.addingTimeInterval(1_800), endDate: now.addingTimeInterval(5_400)),
+        ]
+
+        let result = NextEventTracker.upcomingEvents(from: events, now: now)
+        #expect(result.count == 3)
+        #expect(result.map(\.title) == ["A", "B", "C"])
+    }
+
+    @Test
+    func excludesInProgressEvents() {
+        let now = Date()
+        let events = [
+            makeEvent(title: "InProgress", startDate: now.addingTimeInterval(-600), endDate: now.addingTimeInterval(1_800)),
+            makeEvent(title: "Future", startDate: now.addingTimeInterval(600), endDate: now.addingTimeInterval(3_600)),
+        ]
+
+        let result = NextEventTracker.upcomingEvents(from: events, now: now)
+        #expect(result.count == 1)
+        #expect(result.first?.title == "Future")
+    }
+
+    @Test
+    func excludesAllDayEvents() {
+        let now = Date()
+        let events = [
+            makeEvent(
+                title: "AllDay",
+                startDate: now.addingTimeInterval(-3_600),
+                endDate: now.addingTimeInterval(36_000),
+                isAllDay: true
+            ),
+            makeEvent(title: "Timed", startDate: now.addingTimeInterval(600), endDate: now.addingTimeInterval(3_600)),
+        ]
+
+        let result = NextEventTracker.upcomingEvents(from: events, now: now)
+        #expect(result.count == 1)
+        #expect(result.first?.title == "Timed")
+    }
+
+    @Test
+    func returnsEmptyWhenAllPast() {
+        let now = Date()
+        let events = [
+            makeEvent(title: "Done", startDate: now.addingTimeInterval(-3_600), endDate: now.addingTimeInterval(-1_800)),
+        ]
+
+        let result = NextEventTracker.upcomingEvents(from: events, now: now)
+        #expect(result.isEmpty)
     }
 }
 

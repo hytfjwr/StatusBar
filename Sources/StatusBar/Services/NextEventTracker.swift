@@ -8,7 +8,7 @@ import Foundation
 /// Polls every 60s normally, switching to 30s when an event starts within 15 minutes.
 @MainActor
 final class NextEventTracker {
-    var onUpdate: ((CalendarEvent?, TimeInterval?) -> Void)?
+    var onUpdate: ((_ nextEvent: CalendarEvent?, _ timeUntilStart: TimeInterval?, _ upcoming: [CalendarEvent]) -> Void)?
 
     private var todayEvents: [CalendarEvent] = []
     private var timer: AnyCancellable?
@@ -44,11 +44,17 @@ final class NextEventTracker {
         events.first { !$0.isAllDay && $0.endDate > now }
     }
 
+    /// Returns all non-allDay events that haven't started yet.
+    nonisolated static func upcomingEvents(from events: [CalendarEvent], now: Date = Date()) -> [CalendarEvent] {
+        events.filter { !$0.isAllDay && $0.startDate > now }
+    }
+
     private func tick() {
         let now = Date()
         let event = Self.nextEvent(from: todayEvents, now: now)
         let timeUntilStart = event.map { $0.startDate.timeIntervalSince(now) }
-        onUpdate?(event, timeUntilStart)
+        let upcoming = Self.upcomingEvents(from: todayEvents, now: now)
+        onUpdate?(event, timeUntilStart, upcoming)
         scheduleTimer(timeUntilStart: timeUntilStart)
         scheduleMidnightRefresh()
     }
