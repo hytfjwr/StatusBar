@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.14.2] - 2026-03-30
+
+- fix: notify all overlapping events, not just the first one (#99)
+- feat: add toast notifications for upcoming calendar events (#98)
+- fix: filter Join button URLs to known meeting services (#97)
+- feat: split next event toggle into bar and popup settings (#96)
+
 ## [0.14.1] - 2026-03-28
 
 - chore: add pre-commit hooks and unify SwiftLint to SPM plugin (#93)
