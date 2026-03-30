@@ -92,11 +92,15 @@ struct DateWidgetSettings: View {
     @State private var format: String
     @State private var showNextEventOnBar: Bool
     @State private var showNextEventInPopup: Bool
+    @State private var notifyNextEvent: Bool
+    @State private var notifyMinutesBefore: [Int]
 
     init() {
         _format = State(initialValue: DateSettings.shared.format)
         _showNextEventOnBar = State(initialValue: DateSettings.shared.showNextEventOnBar)
         _showNextEventInPopup = State(initialValue: DateSettings.shared.showNextEventInPopup)
+        _notifyNextEvent = State(initialValue: DateSettings.shared.notifyNextEvent)
+        _notifyMinutesBefore = State(initialValue: DateSettings.shared.notifyMinutesBefore)
     }
 
     var body: some View {
@@ -141,7 +145,110 @@ struct DateWidgetSettings: View {
             Text("Shows the \"Next Up\" section at the top of the calendar popup.")
                 .font(.system(size: 11))
                 .foregroundStyle(.tertiary)
+
+            Divider()
+
+            Text("Toast Notification")
+                .font(.system(size: 12, weight: .semibold))
+                .foregroundStyle(.secondary)
+
+            Toggle("Notify before events", isOn: $notifyNextEvent)
+                .onChange(of: notifyNextEvent) { _, newValue in
+                    DateSettings.shared.notifyNextEvent = newValue
+                }
+
+            Text("Shows a toast notification before the next event starts.")
+                .font(.system(size: 11))
+                .foregroundStyle(.tertiary)
+
+            EventNotifyMinutesEditor(minutes: $notifyMinutesBefore)
+                .disabled(!notifyNextEvent)
+                .opacity(notifyNextEvent ? 1 : 0.5)
+                .onChange(of: notifyMinutesBefore) { _, newValue in
+                    DateSettings.shared.notifyMinutesBefore = newValue
+                }
         }
+    }
+}
+
+// MARK: - EventNotifyMinutesEditor
+
+private struct EventNotifyMinutesEditor: View {
+    @Binding var minutes: [Int]
+    @State private var drafts: [Int: String] = [:]
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            HStack {
+                Text("Notify before")
+                    .font(.system(size: 11))
+                    .foregroundStyle(.secondary)
+                Spacer()
+                Button {
+                    addEntry()
+                } label: {
+                    Image(systemName: "plus.circle")
+                }
+                .buttonStyle(.borderless)
+                .disabled(minutes.count >= 10)
+            }
+
+            ForEach(minutes, id: \.self) { value in
+                HStack(spacing: 8) {
+                    TextField(
+                        "min",
+                        text: Binding(
+                            get: { drafts[value] ?? String(value) },
+                            set: { drafts[value] = $0 }
+                        )
+                    )
+                    .font(.system(size: 12, design: .monospaced))
+                    .frame(width: 48)
+                    .textFieldStyle(.roundedBorder)
+                    .multilineTextAlignment(.trailing)
+                    .onSubmit { commitDraft(for: value) }
+
+                    Text("min")
+                        .font(.system(size: 11))
+                        .foregroundStyle(.secondary)
+
+                    Spacer()
+
+                    Button {
+                        minutes.removeAll { $0 == value }
+                        drafts.removeValue(forKey: value)
+                    } label: {
+                        Image(systemName: "minus.circle")
+                            .foregroundStyle(.secondary)
+                    }
+                    .buttonStyle(.borderless)
+                }
+            }
+        }
+    }
+
+    private func commitDraft(for oldValue: Int) {
+        guard let text = drafts[oldValue],
+              let newValue = Int(text.trimmingCharacters(in: .whitespaces)),
+              newValue >= 1, newValue <= 1_440
+        else {
+            drafts[oldValue] = String(oldValue)
+            return
+        }
+        drafts.removeValue(forKey: oldValue)
+        if newValue != oldValue, !minutes.contains(newValue),
+           let idx = minutes.firstIndex(of: oldValue)
+        {
+            minutes[idx] = newValue
+            minutes.sort()
+        }
+    }
+
+    private func addEntry() {
+        let existing = Set(minutes)
+        let next = (1 ... 1_440).first { !existing.contains($0) } ?? 1
+        minutes.append(next)
+        minutes.sort()
     }
 }
 
