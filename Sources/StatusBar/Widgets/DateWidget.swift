@@ -55,14 +55,37 @@ final class DateSettings: WidgetConfigProvider {
         } }
     }
 
+    var notifyNextEvent: Bool {
+        didSet { if !suppressWrite {
+            WidgetConfigRegistry.shared.notifySettingsChanged()
+        } }
+    }
+
+    var notifyMinutesBefore: [Int] {
+        didSet { if !suppressWrite {
+            WidgetConfigRegistry.shared.notifySettingsChanged()
+        } }
+    }
+
     private init() {
         let cfg = WidgetConfigRegistry.shared.values(for: "date")
         format = cfg?["format"]?.stringValue ?? "EEE dd. MMM"
 
         showNextEventOnBar = cfg?["showNextEventOnBar"]?.boolValue ?? true
         showNextEventInPopup = cfg?["showNextEventInPopup"]?.boolValue ?? true
+        notifyNextEvent = cfg?["notifyNextEvent"]?.boolValue ?? false
+        notifyMinutesBefore = Self.parseMinutes(cfg?["notifyMinutesBefore"]?.stringValue)
 
         WidgetConfigRegistry.shared.register(self)
+    }
+
+    static let defaultNotifyMinutes = [1, 5, 10]
+
+    static func parseMinutes(_ raw: String?) -> [Int] {
+        guard let raw, !raw.isEmpty else {
+            return defaultNotifyMinutes
+        }
+        return Array(Set(raw.split(separator: ",").compactMap { Int($0.trimmingCharacters(in: .whitespaces)) })).sorted()
     }
 
     func exportConfig() -> [String: ConfigValue] {
@@ -70,6 +93,8 @@ final class DateSettings: WidgetConfigProvider {
             "format": .string(format),
             "showNextEventOnBar": .bool(showNextEventOnBar),
             "showNextEventInPopup": .bool(showNextEventInPopup),
+            "notifyNextEvent": .bool(notifyNextEvent),
+            "notifyMinutesBefore": .string(notifyMinutesBefore.map(String.init).joined(separator: ",")),
         ]
     }
 
@@ -84,6 +109,12 @@ final class DateSettings: WidgetConfigProvider {
         }
         if let v = values["showNextEventInPopup"]?.boolValue {
             showNextEventInPopup = v
+        }
+        if let v = values["notifyNextEvent"]?.boolValue {
+            notifyNextEvent = v
+        }
+        if let v = values["notifyMinutesBefore"]?.stringValue {
+            notifyMinutesBefore = Self.parseMinutes(v)
         }
     }
 }
@@ -111,6 +142,8 @@ final class DateWidget: StatusBarWidget, EventEmitting {
     private var nextEvent: CalendarEvent?
     private var timeUntilStart: TimeInterval?
     private var isLoadingEvents = true
+    private var notifiedEventKey: String?
+    private var notifiedThresholds: Set<Int> = []
 
     func start() {
         applyFormat()
@@ -131,7 +164,10 @@ final class DateWidget: StatusBarWidget, EventEmitting {
     private func startTrackerIfNeeded() {
         tracker?.stop()
         tracker = nil
-        guard DateSettings.shared.showNextEventOnBar || DateSettings.shared.showNextEventInPopup else {
+        notifiedEventKey = nil
+        notifiedThresholds = []
+        let settings = DateSettings.shared
+        guard settings.showNextEventOnBar || settings.showNextEventInPopup || settings.notifyNextEvent else {
             nextEvent = nil
             timeUntilStart = nil
             return
@@ -153,9 +189,54 @@ final class DateWidget: StatusBarWidget, EventEmitting {
                     timeUntilStart: interval
                 ))
             }
+            self?.checkEventNotifications(event: event, interval: interval)
         }
         tracker = t
         Task { await t.start(calendarService: calendarService) }
+    }
+
+    private static func eventKey(for event: CalendarEvent) -> String {
+        "\(event.title)-\(event.startDate.timeIntervalSince1970)"
+    }
+
+    private func checkEventNotifications(event: CalendarEvent?, interval: TimeInterval?) {
+        let settings = DateSettings.shared
+        guard settings.notifyNextEvent, let event, let interval, interval > 0 else {
+            return
+        }
+
+        let key = Self.eventKey(for: event)
+        if notifiedEventKey != key {
+            notifiedEventKey = key
+            notifiedThresholds = []
+            for minutes in settings.notifyMinutesBefore where interval <= Double(minutes) * 60 {
+                notifiedThresholds.insert(minutes)
+            }
+            return
+        }
+
+        for minutes in settings.notifyMinutesBefore.reversed() {
+            let thresholdSeconds = Double(minutes) * 60
+            guard interval <= thresholdSeconds else {
+                break
+            }
+            guard !notifiedThresholds.contains(minutes) else {
+                continue
+            }
+            notifiedThresholds.insert(minutes)
+            let message = minutes == 1 ? "Starting in 1 minute" : "Starting in \(minutes) minutes"
+            ToastManager.shared.post(
+                ToastRequest(
+                    title: event.title,
+                    message: message,
+                    icon: "calendar",
+                    level: minutes <= 1 ? .warning : .info,
+                    duration: 8,
+                    actionLabel: event.url != nil ? "Join" : nil,
+                    actionShellCommand: event.url.map { "open '\($0.absoluteString)'" }
+                )
+            )
+        }
     }
 
     var hasSettings: Bool {
@@ -163,7 +244,7 @@ final class DateWidget: StatusBarWidget, EventEmitting {
     }
 
     var preferredSettingsSize: CGSize? {
-        CGSize(width: 360, height: 320)
+        CGSize(width: 360, height: 480)
     }
 
     func settingsBody() -> some View {
@@ -179,6 +260,8 @@ final class DateWidget: StatusBarWidget, EventEmitting {
             _ = DateSettings.shared.format
             _ = DateSettings.shared.showNextEventOnBar
             _ = DateSettings.shared.showNextEventInPopup
+            _ = DateSettings.shared.notifyNextEvent
+            _ = DateSettings.shared.notifyMinutesBefore
         } onChange: { [weak self] in
             Task { @MainActor in
                 self?.applyFormat()
