@@ -44,6 +44,60 @@ struct CalendarEventURLExtractionTests {
         let url = CalendarEvent.extractURL(from: "", "")
         #expect(url == nil)
     }
+
+    @Test
+    func ignoresNonMeetingURLs() {
+        let url = CalendarEvent.extractURL(
+            from: "https://mycompany.atlassian.net/wiki/spaces/ENG/pages/123",
+            "See https://jira.example.com/browse/PROJ-42"
+        )
+        #expect(url == nil)
+    }
+
+    @Test
+    func picksMeetingURLOverNonMeetingInSameField() {
+        let url = CalendarEvent.extractURL(
+            from: "Agenda: https://confluence.example.com/page/1 Join: https://zoom.us/j/999"
+        )
+        #expect(url == URL(string: "https://zoom.us/j/999"))
+    }
+
+    @Test
+    func fallsBackToNotesWhenLocationHasNoMeetingURL() {
+        let url = CalendarEvent.extractURL(
+            from: "Conference Room B",
+            "https://teams.microsoft.com/l/meetup-join/abc"
+        )
+        #expect(url?.host?.contains("teams.microsoft.com") == true)
+    }
+
+    @Test
+    func matchesSubdomainZoom() {
+        let url = CalendarEvent.extractURL(from: "https://us02web.zoom.us/j/456")
+        #expect(url?.host == "us02web.zoom.us")
+    }
+
+    @Test
+    func matchesSubdomainWebex() {
+        let url = CalendarEvent.extractURL(from: "https://company.webex.com/meet/user")
+        #expect(url?.host == "company.webex.com")
+    }
+
+    @Test
+    func allowsSlackHuddleURL() {
+        let url = CalendarEvent.extractURL(
+            from: "https://app.slack.com/huddle/T123/C456"
+        )
+        #expect(url != nil)
+    }
+
+    @Test
+    func rejectsSlackNonHuddleURL() {
+        let url = CalendarEvent.extractURL(
+            from: "https://app.slack.com/client/T123/C456"
+        )
+        #expect(url == nil)
+    }
 }
 
 // MARK: - NextEventSelectionTests

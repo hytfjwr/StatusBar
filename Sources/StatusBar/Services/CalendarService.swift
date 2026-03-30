@@ -150,7 +150,38 @@ struct CalendarEvent: Identifiable {
         types: NSTextCheckingResult.CheckingType.link.rawValue
     )
 
-    /// Extracts the first URL found in the given text fields using NSDataDetector.
+    private static let meetingDomains: [String] = [
+        "zoom.us",
+        "zoom.com",
+        "meet.google.com",
+        "teams.microsoft.com",
+        "teams.live.com",
+        "webex.com",
+        "chime.aws",
+        "gotomeeting.com",
+        "goto.com",
+        "bluejeans.com",
+        "facetime.apple.com",
+        "join.skype.com",
+        "meet.jit.si",
+        "whereby.com",
+        "gather.town",
+        "app.slack.com",
+    ]
+
+    static func isMeetingURL(_ url: URL) -> Bool {
+        guard let host = url.host?.lowercased() else {
+            return false
+        }
+        // Slack requires /huddle/ in the path to distinguish from regular channel links.
+        if host.hasSuffix("app.slack.com") {
+            return url.path.lowercased().contains("/huddle/")
+        }
+        return meetingDomains.contains { host == $0 || host.hasSuffix(".\($0)") }
+    }
+
+    /// Extracts the first meeting URL found in the given text fields.
+    /// Fields are checked in order so `location` is preferred over `notes`.
     static func extractURL(from texts: String?...) -> URL? {
         guard let detector = linkDetector else {
             return nil
@@ -160,10 +191,9 @@ struct CalendarEvent: Identifiable {
                 continue
             }
             let range = NSRange(text.startIndex..., in: text)
-            if let match = detector.firstMatch(in: text, range: range),
-               let url = match.url
-            {
-                return url
+            let matches = detector.matches(in: text, range: range)
+            if let meetingURL = matches.lazy.compactMap(\.url).first(where: isMeetingURL) {
+                return meetingURL
             }
         }
         return nil
