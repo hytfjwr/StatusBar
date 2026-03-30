@@ -236,15 +236,11 @@ private struct EventNotifyMinutesEditor: View {
             return
         }
         drafts.removeValue(forKey: oldValue)
-        if newValue != oldValue, !minutes.contains(newValue) {
-            if let idx = minutes.firstIndex(of: oldValue) {
-                minutes[idx] = newValue
-                minutes.sort()
-            }
-        } else if newValue == oldValue {
-            // no change
-        } else {
-            drafts[oldValue] = String(oldValue)
+        if newValue != oldValue, !minutes.contains(newValue),
+           let idx = minutes.firstIndex(of: oldValue)
+        {
+            minutes[idx] = newValue
+            minutes.sort()
         }
     }
 

@@ -225,6 +225,11 @@ final class DateWidget: StatusBarWidget, EventEmitting {
             }
             notifiedThresholds.insert(minutes)
             let message = minutes == 1 ? "Starting in 1 minute" : "Starting in \(minutes) minutes"
+            let joinAction: (@MainActor () -> Void)? = if let url = event.url {
+                { NSWorkspace.shared.open(url) }
+            } else {
+                nil
+            }
             ToastManager.shared.post(
                 ToastRequest(
                     title: event.title,
@@ -232,9 +237,9 @@ final class DateWidget: StatusBarWidget, EventEmitting {
                     icon: "calendar",
                     level: minutes <= 1 ? .warning : .info,
                     duration: 8,
-                    actionLabel: event.url != nil ? "Join" : nil,
-                    actionShellCommand: event.url.map { "open '\($0.absoluteString)'" }
-                )
+                    actionLabel: joinAction != nil ? "Join" : nil
+                ),
+                action: joinAction
             )
         }
     }
