@@ -77,6 +77,32 @@ final class ToastTrayPanel: NSPanel {
         GlassEffect.applyTint(to: glassView)
     }
 
+    // MARK: - Glass Backdrop Keep-Alive
+
+    /// Without a running animation the window server treats this non-key panel
+    /// as static and freezes the glass backdrop. A near-invisible opacity pulse
+    /// (0.999↔1.0) on the render server keeps compositing active.
+    private static let keepAliveKey = "glassKeepAlive"
+
+    override func orderFront(_ sender: Any?) {
+        super.orderFront(sender)
+        guard let layer = (contentView as? NSGlassEffectView)?.layer else {
+            return
+        }
+        let pulse = CABasicAnimation(keyPath: "opacity")
+        pulse.fromValue = 0.999
+        pulse.toValue = 1.0
+        pulse.duration = 2.0
+        pulse.autoreverses = true
+        pulse.repeatCount = .infinity
+        layer.add(pulse, forKey: Self.keepAliveKey)
+    }
+
+    override func orderOut(_ sender: Any?) {
+        (contentView as? NSGlassEffectView)?.layer?.removeAnimation(forKey: Self.keepAliveKey)
+        super.orderOut(sender)
+    }
+
     override func constrainFrameRect(_ frameRect: NSRect, to screen: NSScreen?) -> NSRect {
         frameRect
     }
