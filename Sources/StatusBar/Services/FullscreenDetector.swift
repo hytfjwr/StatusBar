@@ -1,57 +1,61 @@
 import AppKit
 
-/// Checks which screens currently have a native fullscreen window.
-/// Fetches the window list once and checks all screens in a single pass.
+// MARK: - Private CGS API
+
+private typealias CGSConnectionID = UInt32
+
+@_silgen_name("CGSMainConnectionID")
+private func CGSMainConnectionID() -> CGSConnectionID
+
+@_silgen_name("CGSCopyManagedDisplaySpaces")
+private func CGSCopyManagedDisplaySpaces(_ cid: CGSConnectionID) -> CFArray?
+
+// MARK: - FullscreenDetector
+
+/// Detects which screens currently have a native fullscreen app.
+/// Uses private CGS API to avoid Screen Recording permission which disables HDCP.
 enum FullscreenDetector {
+    private static let fullscreenSpaceType = 4
+
     static func fullscreenScreenIndices(for screens: [NSScreen]) -> Set<Int> {
         guard !screens.isEmpty,
-              let windowInfoList = CGWindowListCopyWindowInfo(
-                  [.optionOnScreenOnly, .excludeDesktopElements],
-                  kCGNullWindowID
-              ) as? [[String: Any]]
+              let displaySpaces = CGSCopyManagedDisplaySpaces(CGSMainConnectionID()) as? [[String: Any]]
         else {
             return []
         }
 
-        let myPID = ProcessInfo.processInfo.processIdentifier
-        let mainScreenHeight = screens.first?.frame.height ?? 0
-
-        // Pre-compute CG-coordinate Y origins for each screen
-        let screenCGYs = screens.map { mainScreenHeight - $0.frame.maxY }
+        var uuidToIndex: [String: Int] = [:]
+        for (index, screen) in screens.enumerated() {
+            guard let screenNumber = screen.deviceDescription[
+                NSDeviceDescriptionKey("NSScreenNumber")
+            ] as? CGDirectDisplayID
+            else {
+                continue
+            }
+            if let cfUUID = CGDisplayCreateUUIDFromDisplayID(screenNumber) {
+                let uuid = cfUUID.takeRetainedValue()
+                uuidToIndex[CFUUIDCreateString(nil, uuid) as String] = index
+            }
+        }
 
         var result = Set<Int>()
 
-        for info in windowInfoList {
-            guard let layer = info[kCGWindowLayer as String] as? Int,
-                  layer == 0,
-                  let pid = info[kCGWindowOwnerPID as String] as? pid_t,
-                  pid != myPID,
-                  let boundsDict = info[kCGWindowBounds as String] as? NSDictionary
+        for display in displaySpaces {
+            guard let currentSpace = display["Current Space"] as? [String: Any],
+                  let spaceType = currentSpace["type"] as? Int,
+                  spaceType == fullscreenSpaceType,
+                  let displayID = display["Display Identifier"] as? String
             else {
                 continue
             }
 
-            var windowRect = CGRect.zero
-            guard CGRectMakeWithDictionaryRepresentation(boundsDict as CFDictionary, &windowRect)
-            else {
-                continue
-            }
-
-            for (index, screen) in screens.enumerated() where !result.contains(index) {
-                if abs(windowRect.width - screen.frame.width) < 2,
-                   abs(windowRect.height - screen.frame.height) < 2,
-                   abs(windowRect.origin.x - screen.frame.origin.x) < 2,
-                   abs(windowRect.origin.y - screenCGYs[index]) < 2
-                {
-                    result.insert(index)
-                }
-            }
-
-            // Early exit if all screens matched
-            if result.count == screens.count {
-                break
+            // Display identifier format varies across macOS versions; contains() handles both
+            // bare UUID strings and URN-wrapped forms.
+            if let (_, index) = uuidToIndex.first(where: { displayID.contains($0.key) }) {
+                result.insert(index)
             }
         }
+
         return result
     }
 }
