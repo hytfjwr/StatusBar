@@ -21,7 +21,6 @@ final class ToastTrayPanel: NSPanel {
         hidesOnDeactivate = false
         backgroundColor = .clear
         isOpaque = false
-        sharingType = .none
         titleVisibility = .hidden
         titlebarAppearsTransparent = true
     }
