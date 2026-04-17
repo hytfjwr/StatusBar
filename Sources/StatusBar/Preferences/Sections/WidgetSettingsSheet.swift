@@ -252,6 +252,33 @@ private struct EventNotifyMinutesEditor: View {
     }
 }
 
+// MARK: - BluetoothWidgetSettings
+
+struct BluetoothWidgetSettings: View {
+    @Bindable private var prefs = PreferencesModel.shared
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            ToastAlertSection(
+                enabled: $prefs.notifyBluetoothBatteryLow,
+                threshold: $prefs.bluetoothBatteryThreshold,
+                thresholdRange: 5 ... 50,
+                thresholdLabel: "Threshold"
+            )
+
+            Text(
+                """
+                Alerts fire once when any reporting device (AirPods L/R, Magic Mouse, etc.) \
+                drops below the threshold. Re-arms when the device charges back above it.
+                """
+            )
+            .font(.system(size: 11))
+            .foregroundStyle(.tertiary)
+            .fixedSize(horizontal: false, vertical: true)
+        }
+    }
+}
+
 // MARK: - BatteryWidgetSettings
 
 struct BatteryWidgetSettings: View {

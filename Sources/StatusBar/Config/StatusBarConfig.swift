@@ -301,6 +301,8 @@ struct NotificationsConfig: Codable {
     var memoryHigh: Bool
     var memoryThreshold: Double
     var memorySustainedDuration: Double
+    var bluetoothBatteryLow: Bool
+    var bluetoothBatteryThreshold: Double
 
     init() {
         let d = PreferencesModel.Defaults.self
@@ -312,6 +314,8 @@ struct NotificationsConfig: Codable {
         memoryHigh = d.notifyMemoryHigh
         memoryThreshold = d.memoryThreshold
         memorySustainedDuration = d.memorySustainedDuration
+        bluetoothBatteryLow = d.notifyBluetoothBatteryLow
+        bluetoothBatteryThreshold = d.bluetoothBatteryThreshold
     }
 
     @MainActor
@@ -324,6 +328,8 @@ struct NotificationsConfig: Codable {
         memoryHigh = p.notifyMemoryHigh
         memoryThreshold = p.memoryThreshold
         memorySustainedDuration = p.memorySustainedDuration
+        bluetoothBatteryLow = p.notifyBluetoothBatteryLow
+        bluetoothBatteryThreshold = p.bluetoothBatteryThreshold
     }
 
     @MainActor
@@ -336,6 +342,31 @@ struct NotificationsConfig: Codable {
         p.notifyMemoryHigh = memoryHigh
         p.memoryThreshold = memoryThreshold
         p.memorySustainedDuration = memorySustainedDuration
+        p.notifyBluetoothBatteryLow = bluetoothBatteryLow
+        p.bluetoothBatteryThreshold = bluetoothBatteryThreshold
+    }
+
+    init(from decoder: any Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        let d = PreferencesModel.Defaults.self
+        batteryLow = try c.decodeIfPresent(Bool.self, forKey: .batteryLow) ?? d.notifyBatteryLow
+        batteryThreshold = try c.decodeIfPresent(Double.self, forKey: .batteryThreshold) ?? d.batteryThreshold
+        cpuHigh = try c.decodeIfPresent(Bool.self, forKey: .cpuHigh) ?? d.notifyCPUHigh
+        cpuThreshold = try c.decodeIfPresent(Double.self, forKey: .cpuThreshold) ?? d.cpuThreshold
+        cpuSustainedDuration = try c.decodeIfPresent(
+            Double.self, forKey: .cpuSustainedDuration
+        ) ?? d.cpuSustainedDuration
+        memoryHigh = try c.decodeIfPresent(Bool.self, forKey: .memoryHigh) ?? d.notifyMemoryHigh
+        memoryThreshold = try c.decodeIfPresent(Double.self, forKey: .memoryThreshold) ?? d.memoryThreshold
+        memorySustainedDuration = try c.decodeIfPresent(
+            Double.self, forKey: .memorySustainedDuration
+        ) ?? d.memorySustainedDuration
+        bluetoothBatteryLow = try c.decodeIfPresent(
+            Bool.self, forKey: .bluetoothBatteryLow
+        ) ?? d.notifyBluetoothBatteryLow
+        bluetoothBatteryThreshold = try c.decodeIfPresent(
+            Double.self, forKey: .bluetoothBatteryThreshold
+        ) ?? d.bluetoothBatteryThreshold
     }
 }
 

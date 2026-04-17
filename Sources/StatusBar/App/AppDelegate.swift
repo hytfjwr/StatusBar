@@ -35,7 +35,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         registry.register(InputSourceWidget())
         registry.register(DateWidget())
         registry.register(TimeWidget())
-        registry.register(BluetoothWidget())
+        let bluetoothWidget = BluetoothWidget()
+        registry.register(bluetoothWidget)
+        BluetoothWidgetLocator.register(bluetoothWidget)
 
         // Dylib plugins (user-installed from ~/.config/statusbar/plugins/)
         DylibPluginLoader.shared.loadAll(into: registry)

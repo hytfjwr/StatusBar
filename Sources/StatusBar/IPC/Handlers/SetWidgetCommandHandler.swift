@@ -21,6 +21,11 @@ struct SetWidgetCommandHandler: CommandHandling {
             return .ok
         }
 
+        // Read-only runtime state exposed by `get widget`; never persisted.
+        if key.hasPrefix("state.") {
+            throw IPCError.invalidValue(key: key, reason: "state.* keys are read-only runtime fields")
+        }
+
         let configRegistry = WidgetConfigRegistry.shared
         var allConfig = configRegistry.exportAll()
         var widgetConfig = allConfig[id] ?? [:]
