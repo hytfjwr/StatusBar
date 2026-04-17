@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.15.0] - 2026-04-17
+
+- feat: expose Bluetooth device battery with low-battery alerts (#107)
+
 ## [0.14.4] - 2026-04-06
 
 - fix: prevent HDCP protection from being disabled while app is running (#105)
