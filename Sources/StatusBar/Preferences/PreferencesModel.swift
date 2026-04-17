@@ -219,6 +219,14 @@ final class PreferencesModel: ThemeProvider {
         didSet { scheduleFlush(); bump() }
     }
 
+    var notifyBluetoothBatteryLow: Bool {
+        didSet { scheduleFlush(); bump() }
+    }
+
+    var bluetoothBatteryThreshold: Double {
+        didSet { scheduleFlush(); bump() }
+    }
+
     // MARK: - Developer
 
     var devModeEnabled: Bool {
@@ -349,6 +357,8 @@ final class PreferencesModel: ThemeProvider {
         notifyMemoryHigh = d.notifyMemoryHigh
         memoryThreshold = d.memoryThreshold
         memorySustainedDuration = d.memorySustainedDuration
+        notifyBluetoothBatteryLow = d.notifyBluetoothBatteryLow
+        bluetoothBatteryThreshold = d.bluetoothBatteryThreshold
 
         devModeEnabled = d.devModeEnabled
     }
@@ -430,6 +440,8 @@ final class PreferencesModel: ThemeProvider {
             notifyMemoryHigh = d.notifyMemoryHigh
             memoryThreshold = d.memoryThreshold
             memorySustainedDuration = d.memorySustainedDuration
+            notifyBluetoothBatteryLow = d.notifyBluetoothBatteryLow
+            bluetoothBatteryThreshold = d.bluetoothBatteryThreshold
         }
     }
 
@@ -489,6 +501,8 @@ final class PreferencesModel: ThemeProvider {
             notifyMemoryHigh: notifyMemoryHigh,
             memoryThreshold: memoryThreshold,
             memorySustainedDuration: memorySustainedDuration,
+            notifyBluetoothBatteryLow: notifyBluetoothBatteryLow,
+            bluetoothBatteryThreshold: bluetoothBatteryThreshold,
             widgetLayout: layout,
             widgetSettings: widgetSettings
         )
@@ -533,6 +547,8 @@ final class PreferencesModel: ThemeProvider {
             notifyMemoryHigh = s.notifyMemoryHigh
             memoryThreshold = s.memoryThreshold
             memorySustainedDuration = s.memorySustainedDuration
+            notifyBluetoothBatteryLow = s.notifyBluetoothBatteryLow
+            bluetoothBatteryThreshold = s.bluetoothBatteryThreshold
         }
     }
 
@@ -606,6 +622,8 @@ extension PreferencesModel {
         static let notifyMemoryHigh: Bool = false
         static let memoryThreshold: Double = 90.0
         static let memorySustainedDuration: Double = 5.0
+        static let notifyBluetoothBatteryLow: Bool = false
+        static let bluetoothBatteryThreshold: Double = 20.0
 
         /// Developer
         static let devModeEnabled: Bool = false

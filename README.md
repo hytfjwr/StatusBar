@@ -49,7 +49,7 @@ make run-app   # Release build
 | Network | Upload / download speeds | 2s |
 | Battery | Charge level & charging state | 60s |
 | Volume | Volume level with popup control | Event |
-| Bluetooth | Connected device count | 5s |
+| Bluetooth | Connected device count, AirPods L/R/Case battery in popup | 10s |
 | Disk Usage | Disk utilization percentage | 30s |
 | Mic / Camera | Active mic/camera indicator | Event |
 | Input Source | Keyboard input source | Event |
@@ -170,6 +170,8 @@ A default config is generated at `~/.config/statusbar/config.yml` on first launc
 | `memoryHigh` | bool | false | Enable high memory alert |
 | `memoryThreshold` | number | 90.0 | Memory usage (%) to trigger |
 | `memorySustainedDuration` | number | 5.0 | Seconds above threshold before alert |
+| `bluetoothBatteryLow` | bool | false | Enable low Bluetooth device battery alert (AirPods L/R, Magic Mouse, …) |
+| `bluetoothBatteryThreshold` | number | 20.0 | Device battery level (%) to trigger |
 
 </details>
 
@@ -284,6 +286,11 @@ sbar reload
 
 Use `--json` for machine-readable output (pipe to `jq` for filtering).
 
+`sbar get bluetooth --json` includes live connected-device state alongside settings:
+
+- `settings.state.deviceCount` — number of connected devices
+- `settings.state.devices` — JSON-encoded array of `{id, name, category, battery?, batteryLeft?, batteryRight?, batteryCase?}`. Decode with `jq -r '.settings["state.devices"] | fromjson'`.
+
 <details>
 <summary>Event subscription</summary>
 
@@ -312,13 +319,14 @@ Use `--json` for machine-readable output (pipe to `jq` for filtering).
 | `volume_unmuted` | — | Audio unmuted |
 | `mic_activated` / `mic_deactivated` | — | Microphone starts/stops |
 | `camera_activated` / `camera_deactivated` | — | Camera starts/stops |
-| `bluetooth_devices_changed` | `connectedCount`, `deviceNames` | Device list changes |
+| `bluetooth_devices_changed` | `connectedCount`, `deviceNames`, `devices[]` (`name`, `category`, optional `battery`/`batteryLeft`/`batteryRight`/`batteryCase`) | Device list changes |
 | `bluetooth_device_connected` | `name`, `category` | New device connected |
 | `bluetooth_device_disconnected` | `name` | Device disconnected |
 | `focus_timer_started` | `mode`, `durationSeconds` | Timer started |
 | `focus_timer_stopped` | — | Timer cancelled |
 | `focus_timer_completed` | `mode` | Timer finished |
 | `calendar_next_event_changed` | `title`, `startDate`, `timeUntilStartSeconds` | Next event changes |
+| `bluetooth_battery_low` | `deviceName`, `component` (`"left"`/`"right"`/`null`), `percent`, `threshold` | Connected device battery drops below threshold |
 
 **Threshold events** (emitted when crossing configured boundaries):
 
@@ -422,7 +430,7 @@ The `sbar set --global` command uses dot-separated key paths matching the YAML c
 | Typography | `typography.iconFontSize`, `typography.labelFontSize`, `typography.smallFontSize`, `typography.monoFontSize` |
 | Graphs | `graphs.width`, `graphs.height`, `graphs.dataPoints`, `graphs.cpuColor`, `graphs.memoryColor` |
 | Behavior | `behavior.autoHide`, `behavior.autoHideDwellTime`, `behavior.autoHideFadeDuration`, `behavior.launchAtLogin`, `behavior.hideInFullscreen` |
-| Notifications | `notifications.batteryLow`, `notifications.batteryThreshold`, `notifications.cpuHigh`, `notifications.cpuThreshold`, `notifications.memoryHigh`, `notifications.memoryThreshold` |
+| Notifications | `notifications.batteryLow`, `notifications.batteryThreshold`, `notifications.cpuHigh`, `notifications.cpuThreshold`, `notifications.memoryHigh`, `notifications.memoryThreshold`, `notifications.bluetoothBatteryLow`, `notifications.bluetoothBatteryThreshold` |
 
 </details>
 

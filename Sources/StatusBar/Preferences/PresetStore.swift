@@ -55,6 +55,8 @@ struct PresetSnapshot: Codable {
     var notifyMemoryHigh: Bool
     var memoryThreshold: Double
     var memorySustainedDuration: Double
+    var notifyBluetoothBatteryLow: Bool
+    var bluetoothBatteryThreshold: Double
 
     /// Widget Layout
     var widgetLayout: [WidgetLayoutEntry]
@@ -78,6 +80,8 @@ struct PresetSnapshot: Codable {
         notifyBatteryLow: Bool, batteryThreshold: Double,
         notifyCPUHigh: Bool, cpuThreshold: Double, cpuSustainedDuration: Double,
         notifyMemoryHigh: Bool, memoryThreshold: Double, memorySustainedDuration: Double,
+        notifyBluetoothBatteryLow: Bool = PreferencesModel.Defaults.notifyBluetoothBatteryLow,
+        bluetoothBatteryThreshold: Double = PreferencesModel.Defaults.bluetoothBatteryThreshold,
         widgetLayout: [WidgetLayoutEntry],
         widgetSettings: [String: [String: ConfigValue]]
     ) {
@@ -118,6 +122,8 @@ struct PresetSnapshot: Codable {
         self.notifyMemoryHigh = notifyMemoryHigh
         self.memoryThreshold = memoryThreshold
         self.memorySustainedDuration = memorySustainedDuration
+        self.notifyBluetoothBatteryLow = notifyBluetoothBatteryLow
+        self.bluetoothBatteryThreshold = bluetoothBatteryThreshold
         self.widgetLayout = widgetLayout
         self.widgetSettings = widgetSettings
     }
@@ -169,6 +175,12 @@ struct PresetSnapshot: Codable {
         memorySustainedDuration = try c.decodeIfPresent(
             Double.self, forKey: .memorySustainedDuration
         ) ?? d.memorySustainedDuration
+        notifyBluetoothBatteryLow = try c.decodeIfPresent(
+            Bool.self, forKey: .notifyBluetoothBatteryLow
+        ) ?? d.notifyBluetoothBatteryLow
+        bluetoothBatteryThreshold = try c.decodeIfPresent(
+            Double.self, forKey: .bluetoothBatteryThreshold
+        ) ?? d.bluetoothBatteryThreshold
         widgetSettings = try c.decodeIfPresent([String: [String: ConfigValue]].self, forKey: .widgetSettings) ?? [:]
     }
 }
