@@ -279,8 +279,9 @@ extension Color {
         guard let components = NSColor(self).usingColorSpace(.sRGB)?.cgColor.components else {
             return 0x000000
         }
-        // sRGB 変換後でも P3 等の広色域由来の成分が [0, 1] を外れうるため、
-        // UInt32 への変換前にクランプする (負値 / 1.0 超は UInt32 初期化でクラッシュする)。
+        // Components originating from wide-gamut color spaces like P3 can fall outside
+        // [0, 1] even after sRGB conversion, so clamp before converting to UInt32
+        // (negative values / values > 1.0 crash the UInt32 initializer).
         let r = max(0, min(1, !components.isEmpty ? components[0] : 0))
         let g = max(0, min(1, components.count > 1 ? components[1] : 0))
         let b = max(0, min(1, components.count > 2 ? components[2] : 0))

@@ -147,9 +147,11 @@ final class ToastManager {
         guard let panel else {
             return
         }
-        // アニメ完了まで self.panel を保持したままだと、その 0.25s 窓内で post() された際に
-        // showPanel() の `guard panel == nil` によって新規パネルが生成されず表示されない。
-        // 退避してから直ちに nil にすることで、後続の post() が新しいパネルを生成できるようにする。
+        // If self.panel is kept until the animation finishes, a post() that arrives within
+        // that 0.25s window hits the `guard panel == nil` in showPanel() and fails to create
+        // a new panel, so nothing is shown.
+        // Stash the panel and clear self.panel immediately so subsequent post() calls can
+        // spawn a fresh panel.
         self.panel = nil
         NSAnimationContext.runAnimationGroup { context in
             context.duration = 0.25

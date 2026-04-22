@@ -50,8 +50,8 @@ final class OnboardingWindow: NSObject, NSWindowDelegate {
 
     // MARK: - NSWindowDelegate
 
-    /// X ボタンでの閉じる操作でも "Get Started" 経由と同様に完了フラグを立てる。
-    /// set(true) は冪等なので Get Started → close の順でも副作用はない。
+    /// Mark onboarding complete when closed via the X button, just as "Get Started" does.
+    /// set(true) is idempotent, so the Get Started → close sequence has no side effects.
     nonisolated func windowWillClose(_ notification: Notification) {
         UserDefaults.standard.set(true, forKey: OnboardingKeys.hasCompleted)
     }

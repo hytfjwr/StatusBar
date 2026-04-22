@@ -3,11 +3,11 @@ import AppKit
 import SwiftUI
 import Testing
 
-/// `Color.toHex()` のクランプ挙動テスト。
+/// Clamping behavior tests for `Color.toHex()`.
 ///
-/// P3 等の広色域で初期化された Color を sRGB に変換すると、成分が [0, 1] の範囲外
-/// (負値 / 1.0 超) になることがある。クランプせずに `UInt32(x * 255)` すると
-/// 負値で crash / 1.0 超でオーバーフローするため、クランプが正しく働くことを確認する。
+/// Converting a Color initialized in a wide-gamut space like P3 to sRGB can leave components
+/// outside [0, 1] (negative values / values > 1.0). Without clamping, `UInt32(x * 255)`
+/// crashes on negatives and overflows above 1.0, so verify the clamp works correctly.
 struct ColorToHexTests {
 
     @Test("Pure sRGB red maps to 0xFF0000")
@@ -40,20 +40,21 @@ struct ColorToHexTests {
         #expect(color.toHex() == 0xFFFFFF)
     }
 
-    /// displayP3 で sRGB 外の純緑を作ると、sRGB 変換で負の赤成分 / 1.0 超の緑成分になる。
-    /// クランプされないと `UInt32` 初期化でクラッシュするので、そのクラッシュが発生しない事を確認する。
+    /// Pure displayP3 green sits outside sRGB, so converting to sRGB yields a negative red
+    /// component / a green component above 1.0. Without clamping this crashes `UInt32`
+    /// initialization, so verify that no crash occurs.
     @Test("Wide-gamut P3 green does not crash and clamps to [0, 0xFF]")
     func p3GreenClamps() {
         let color = Color(.displayP3, red: 0, green: 1, blue: 0)
         let hex = color.toHex()
-        // クランプされていれば各成分は [0, 0xFF] 範囲内。
+        // When clamped, each component stays within [0, 0xFF].
         let r = (hex >> 16) & 0xFF
         let g = (hex >> 8) & 0xFF
         let b = hex & 0xFF
         #expect(r <= 0xFF)
         #expect(g <= 0xFF)
         #expect(b <= 0xFF)
-        // 緑成分は sRGB に変換しても概ね 1.0 近傍なので 0xFF にクランプされるはず。
+        // The green component stays near 1.0 after sRGB conversion, so it should clamp to 0xFF.
         #expect(g == 0xFF)
     }
 
@@ -72,7 +73,7 @@ struct ColorToHexTests {
 
     @Test("Negative component is clamped to 0 (no UInt32 crash)")
     func negativeComponentClamps() {
-        // sRGB 空間で負の赤を明示的に指定してクランプ動作を確認する。
+        // Explicitly pass a negative red in sRGB to verify clamp behavior.
         let color = Color(.sRGB, red: -0.5, green: 0.5, blue: 0.5)
         let hex = color.toHex()
         let r = (hex >> 16) & 0xFF

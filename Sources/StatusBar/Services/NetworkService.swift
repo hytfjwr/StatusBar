@@ -69,10 +69,10 @@ final class NetworkService {
         var cursor: UnsafeMutablePointer<ifaddrs>? = first
         while let addr = cursor {
             let name = String(cString: addr.pointee.ifa_name)
-            // getifaddrs は各インターフェースについて複数のエントリを返す (AF_LINK, AF_INET, AF_INET6)。
-            // ifa_data が if_data としてレイアウトされているのは AF_LINK エントリのみ。
-            // ここで family をチェックしないと AF_INET 等の ifa_data を if_data として解釈して
-            // 不正なバイトカウントを加算してしまう。
+            // getifaddrs returns multiple entries per interface (AF_LINK, AF_INET, AF_INET6).
+            // Only AF_LINK entries have ifa_data laid out as if_data.
+            // Without checking family here, ifa_data from AF_INET etc. would be reinterpreted
+            // as if_data and add bogus byte counts.
             let family = addr.pointee.ifa_addr?.pointee.sa_family
             if name.hasPrefix("en") || name.hasPrefix("utun"),
                family == UInt8(AF_LINK),

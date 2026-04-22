@@ -140,9 +140,10 @@ final class IPCServer {
             return
         }
 
-        // bind は通常プロセスの umask を適用して socket ファイルを作成するため、
-        // bind → chmod の間に他ユーザがアクセスできる TOCTOU 窓が存在する。
-        // umask を 0o177 (= 許可 0o600) にセットしておくことで bind 時点から最小権限で作成する。
+        // bind creates the socket file using the process umask, so there is a
+        // TOCTOU window between bind and chmod during which other users can access it.
+        // Setting umask to 0o177 (= 0o600 permissions) ensures the socket is created
+        // with minimal permissions from the moment bind completes.
         let previousUmask = umask(0o177)
         defer { umask(previousUmask) }
 
@@ -152,7 +153,7 @@ final class IPCServer {
             return
         }
 
-        // 二重防御: umask の外部干渉に備え冗長に chmod しておく。
+        // Belt and suspenders: redundantly chmod in case the umask is tampered with externally.
         chmod(socketPath, 0o600)
 
         guard Darwin.listen(serverFD, 5) == 0 else {
