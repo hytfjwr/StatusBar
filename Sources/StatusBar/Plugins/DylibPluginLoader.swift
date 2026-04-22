@@ -351,12 +351,11 @@ final class DylibPluginLoader {
     // MARK: - Unload
 
     /// Mark a plugin for removal. Stops widgets immediately, but full cleanup requires restart.
-    func markForRemoval(pluginID: String) {
-        if let plugin = loadedPlugins[pluginID] {
-            for widget in plugin.widgets {
-                widget.stop()
-            }
-        }
+    func markForRemoval(pluginID: String, from registry: WidgetRegistry) {
+        // Unregister widgets BEFORE dlclose so the registry does not retain
+        // AnyStatusBarWidget wrappers whose class metadata lives in the unloaded dylib.
+        let oldWidgetIDs = Set(widgetIDs(for: pluginID))
+        registry.unregisterWidgets(ids: oldWidgetIDs, preserveLayout: false)
         eventRouter.unregisterPlugin(pluginID)
         teardown(pluginID: pluginID)
     }

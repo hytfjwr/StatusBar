@@ -458,7 +458,7 @@ extension PluginsSection {
 
     private func uninstallPlugin(id: String) {
         do {
-            DylibPluginLoader.shared.markForRemoval(pluginID: id)
+            DylibPluginLoader.shared.markForRemoval(pluginID: id, from: WidgetRegistry.shared)
             try GitHubPluginInstaller.shared.uninstall(pluginID: id)
             needsRestart = true
         } catch {
