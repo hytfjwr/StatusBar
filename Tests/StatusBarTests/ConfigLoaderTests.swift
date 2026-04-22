@@ -1,6 +1,9 @@
 import Foundation
 @testable import StatusBar
 import Testing
+import Yams
+
+// MARK: - FixScientificNotationTests
 
 struct FixScientificNotationTests {
     @Test("Converts positive exponent to integer")
@@ -66,5 +69,75 @@ struct FixScientificNotationTests {
         let input = "value: 1e+3"
         let result = ConfigLoader.fixScientificNotation(input)
         #expect(result == "value: 1000")
+    }
+}
+
+// MARK: - ConfigLoaderBootstrapTests
+
+struct ConfigLoaderBootstrapTests {
+    /// Make a unique temp file path under the system temp dir.
+    private func tempFileURL() -> URL {
+        let dir = FileManager.default.temporaryDirectory
+            .appendingPathComponent("statusbar-tests-\(UUID().uuidString)", isDirectory: true)
+        try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+        return dir.appendingPathComponent("config.yml")
+    }
+
+    @Test("Parse failure does not overwrite user's config on disk")
+    func parseFailurePreservesUserFile() throws {
+        let url = tempFileURL()
+        let corrupted = "this: is:\n  not: [valid yaml because:\n"
+        try Data(corrupted.utf8).write(to: url, options: .atomic)
+
+        let outcome = ConfigLoader.performBootstrapLoad(fileURL: url)
+
+        // Must report parse failure
+        guard case let .parseFailed(error) = outcome else {
+            Issue.record("Expected .parseFailed outcome, got \(outcome)")
+            return
+        }
+        // The error must not be "file not found" (that would collapse into firstLaunch)
+        let nsError = error as NSError
+        #expect(!(nsError.domain == NSCocoaErrorDomain && nsError.code == NSFileReadNoSuchFileError))
+
+        // File contents must be byte-for-byte identical to what we wrote
+        let after = try String(contentsOf: url, encoding: .utf8)
+        #expect(after == corrupted)
+    }
+
+    @Test("First-launch (file absent) writes a default config to disk")
+    func firstLaunchWritesDefault() throws {
+        let url = tempFileURL()
+        // Ensure file does not exist
+        #expect(!FileManager.default.fileExists(atPath: url.path))
+
+        let outcome = ConfigLoader.performBootstrapLoad(fileURL: url)
+
+        guard case .firstLaunch = outcome else {
+            Issue.record("Expected .firstLaunch outcome, got \(outcome)")
+            return
+        }
+        #expect(FileManager.default.fileExists(atPath: url.path))
+
+        // And the written file must be decodable
+        let reloaded = try ConfigLoader.loadConfig(from: url)
+        #expect(reloaded.global.bar.height == Double(PreferencesModel.Defaults.barHeight))
+    }
+
+    @Test("Existing valid YAML loads without rewriting disk")
+    func validFileLoadsCleanly() throws {
+        let url = tempFileURL()
+        let config = StatusBarConfig()
+        try ConfigLoader.writeConfig(config, to: url)
+        let before = try Data(contentsOf: url)
+
+        let outcome = ConfigLoader.performBootstrapLoad(fileURL: url)
+
+        guard case .loaded = outcome else {
+            Issue.record("Expected .loaded outcome, got \(outcome)")
+            return
+        }
+        let after = try Data(contentsOf: url)
+        #expect(before == after)
     }
 }

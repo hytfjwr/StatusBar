@@ -54,14 +54,49 @@ final class ConfigLoader {
 
     // MARK: - Bootstrap
 
-    /// Call once from `AppDelegate`, before `Theme.configure`.
-    func bootstrap() {
+    /// Outcome of reading (and possibly initializing) the config file on bootstrap.
+    enum BootstrapOutcome {
+        /// Existing file was parsed successfully.
+        case loaded(StatusBarConfig)
+        /// File was absent; defaults were written to disk.
+        case firstLaunch(StatusBarConfig)
+        /// File exists but failed to parse. Disk is left untouched.
+        case parseFailed(Error)
+    }
+
+    /// Pure I/O portion of bootstrap, safe to unit-test against a temp directory.
+    /// Does not touch any shared model state.
+    nonisolated static func performBootstrapLoad(fileURL: URL) -> BootstrapOutcome {
         let fm = FileManager.default
         let dir = fileURL.deletingLastPathComponent()
         try? fm.createDirectory(at: dir, withIntermediateDirectories: true)
 
         do {
-            currentConfig = try loadConfigFromDisk()
+            let config = try loadConfig(from: fileURL)
+            return .loaded(config)
+        } catch let error as NSError where error.domain == NSCocoaErrorDomain
+            && error.code == NSFileReadNoSuchFileError
+        {
+            let defaults = StatusBarConfig()
+            do {
+                try writeConfig(defaults, to: fileURL)
+                return .firstLaunch(defaults)
+            } catch {
+                return .parseFailed(error)
+            }
+        } catch {
+            return .parseFailed(error)
+        }
+    }
+
+    /// Call once from `AppDelegate`, before `Theme.configure`.
+    func bootstrap() {
+        let fm = FileManager.default
+        let outcome = Self.performBootstrapLoad(fileURL: fileURL)
+
+        switch outcome {
+        case let .loaded(config):
+            currentConfig = config
             // Record initial modification date so the FS watcher can skip
             // events where config.yml hasn't actually changed.
             // swiftformat:disable:next redundantSelf
@@ -72,18 +107,24 @@ final class ConfigLoader {
             }
             // swiftformat:disable:next redundantSelf
             logger.info("Loaded config from \(self.fileURL.path)")
-        } catch let error as NSError where error.domain == NSCocoaErrorDomain
-            && error.code == NSFileReadNoSuchFileError
-        {
+        case let .firstLaunch(config):
             isFirstLaunch = true
-            currentConfig = StatusBarConfig()
-            writeCurrentStateToDisk()
+            currentConfig = config
+            lastWriteTime = Date()
             // swiftformat:disable:next redundantSelf
             logger.info("Generated default config at \(self.fileURL.path)")
-        } catch {
-            logger.error("Failed to load config, using defaults: \(error.localizedDescription)")
+        case let .parseFailed(error):
+            logger.error("Failed to load config, keeping user file untouched: \(error.localizedDescription)")
             currentConfig = StatusBarConfig()
-            writeCurrentStateToDisk()
+            // Defer the notification so observers registered later in bootstrap still receive it.
+            let message = error.localizedDescription
+            DispatchQueue.main.async {
+                NotificationCenter.default.post(
+                    name: .configParseError,
+                    object: nil,
+                    userInfo: ["message": message]
+                )
+            }
         }
 
         // Populate the widget config registry so Settings singletons can read initial values
@@ -101,11 +142,15 @@ final class ConfigLoader {
     // MARK: - YAML I/O
 
     /// Maximum config file size (1 MB) to prevent resource exhaustion (e.g. YAML billion laughs).
-    private static let maxConfigFileSize: UInt64 = 1_048_576
+    nonisolated static let maxConfigFileSize: UInt64 = 1_048_576
 
     /// Synchronous file I/O. Called during bootstrap (before run loop) and hot-reload
     /// (small YAML file, sub-millisecond). Kept synchronous intentionally.
     private func loadConfigFromDisk() throws -> StatusBarConfig {
+        try Self.loadConfig(from: fileURL)
+    }
+
+    nonisolated static func loadConfig(from fileURL: URL) throws -> StatusBarConfig {
         // Check file size before reading to prevent resource exhaustion
         let attrs = try FileManager.default.attributesOfItem(atPath: fileURL.path)
         let fileSize = attrs[.size] as? UInt64 ?? 0
@@ -120,6 +165,14 @@ final class ConfigLoader {
         let data = try Data(contentsOf: fileURL)
         let yaml = String(data: data, encoding: .utf8) ?? ""
         return try YAMLDecoder().decode(StatusBarConfig.self, from: yaml)
+    }
+
+    nonisolated static func writeConfig(_ config: StatusBarConfig, to fileURL: URL) throws {
+        let encoder = YAMLEncoder()
+        let rawYAML = try encoder.encode(config)
+        let yamlString = fixScientificNotation(rawYAML)
+        let data = Data(yamlString.utf8)
+        try data.write(to: fileURL, options: .atomic)
     }
 
     // MARK: - Apply config to live models
@@ -176,11 +229,7 @@ final class ConfigLoader {
         lastWriteTime = Date()
 
         do {
-            let encoder = YAMLEncoder()
-            let rawYAML = try encoder.encode(currentConfig)
-            let yamlString = Self.fixScientificNotation(rawYAML)
-            let data = Data(yamlString.utf8)
-            try data.write(to: fileURL, options: .atomic)
+            try Self.writeConfig(currentConfig, to: fileURL)
         } catch {
             logger.error("Failed to write config: \(error.localizedDescription)")
         }
@@ -303,8 +352,18 @@ final class ConfigLoader {
             }
             applyNewConfig(newConfig)
             logger.info("Config reloaded via IPC")
+        } catch let error as NSError where error.domain == NSCocoaErrorDomain
+            && error.code == NSFileReadNoSuchFileError
+        {
+            // Missing file — nothing to reload.
+            logger.error("Config reload via IPC: file not found")
         } catch {
             logger.error("Config reload via IPC failed: \(error.localizedDescription)")
+            NotificationCenter.default.post(
+                name: .configParseError,
+                object: nil,
+                userInfo: ["message": error.localizedDescription]
+            )
         }
     }
 
