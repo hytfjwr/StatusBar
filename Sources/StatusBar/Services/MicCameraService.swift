@@ -156,7 +156,10 @@ final class MicCameraService: @unchecked Sendable {
             return false
         }
 
-        let bufferListPtr = UnsafeMutableRawPointer.allocate(byteCount: Int(size), alignment: 4)
+        let bufferListPtr = UnsafeMutableRawPointer.allocate(
+            byteCount: Int(size),
+            alignment: MemoryLayout<AudioBufferList>.alignment
+        )
         defer { bufferListPtr.deallocate() }
         guard AudioObjectGetPropertyData(deviceID, &address, 0, nil, &size, bufferListPtr) == noErr
         else {
