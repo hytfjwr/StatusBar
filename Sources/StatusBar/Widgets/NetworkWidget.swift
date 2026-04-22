@@ -71,13 +71,16 @@ final class NetworkWidget: StatusBarWidget, EventEmitting {
     private let service = NetworkService()
     private var uploadSpeed = "0 kB/s"
     private var downloadSpeed = "0 kB/s"
+    private var isRunning = false
 
     func start() {
+        isRunning = true
         restartTimer()
         observeSettings()
     }
 
     func stop() {
+        isRunning = false
         timer?.cancel()
     }
 
@@ -102,8 +105,11 @@ final class NetworkWidget: StatusBarWidget, EventEmitting {
             _ = NetworkSettings.shared.updateInterval
         } onChange: { [weak self] in
             Task { @MainActor in
-                self?.restartTimer()
-                self?.observeSettings()
+                guard let self, self.isRunning else {
+                    return
+                }
+                self.restartTimer()
+                self.observeSettings()
             }
         }
     }
