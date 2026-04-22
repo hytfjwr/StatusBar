@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.15.2] - 2026-04-22
+
+- fix: tighten plugin lifecycle and battery observer cleanup (#111)
+
 ## [0.15.1] - 2026-04-17
 
 - fix: restore bar and toast visibility in screen capture (#109)
