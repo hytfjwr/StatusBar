@@ -91,9 +91,14 @@ final class BatteryWidget: StatusBarWidget, EventEmitting {
     private var isCharging = false
     private var hasBattery = true
     private var showPercentage = true
+    private var observerToken: BatteryService.ObserverToken?
+
     func start() {
+        guard observerToken == nil else {
+            return
+        }
         showPercentage = BatterySettings.shared.showPercentage
-        BatteryService.shared.addObserver { [weak self] pct, charging, battery in
+        observerToken = BatteryService.shared.addObserver { [weak self] pct, charging, battery in
             guard let self else {
                 return
             }
@@ -113,7 +118,10 @@ final class BatteryWidget: StatusBarWidget, EventEmitting {
     }
 
     func stop() {
-        // Singleton is shared; stop is managed centrally
+        if let token = observerToken {
+            BatteryService.shared.removeObserver(token)
+            observerToken = nil
+        }
     }
 
     var hasSettings: Bool {

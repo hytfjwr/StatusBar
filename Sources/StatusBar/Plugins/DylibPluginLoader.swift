@@ -249,9 +249,12 @@ final class DylibPluginLoader {
         }
 
         // Cast to C function pointer and call
-        typealias PluginFactory = @convention(c) () -> UnsafeMutableRawPointer
+        typealias PluginFactory = @convention(c) () -> UnsafeMutableRawPointer?
         let factory = unsafeBitCast(sym, to: PluginFactory.self)
-        let rawPtr = factory()
+        guard let rawPtr = factory() else {
+            dlclose(handle)
+            throw PluginLoadError.pluginFactoryFailed
+        }
 
         // Extract PluginBox
         let anyObject = Unmanaged<AnyObject>.fromOpaque(rawPtr).takeRetainedValue()
@@ -288,6 +291,11 @@ final class DylibPluginLoader {
 
         // Skip version compatibility check for dev mode
 
+        // Reject duplicate plugin IDs to avoid leaking dlopen handles across hot-reloads
+        guard loadedHandles[manifest.id] == nil else {
+            throw PluginLoadError.duplicatePluginID(manifest.id)
+        }
+
         // Find the dylib
         let dylibURL = findDylib(in: bundleURL, manifest: manifest)
         guard let dylibURL, FileManager.default.fileExists(atPath: dylibURL.path) else {
@@ -308,9 +316,12 @@ final class DylibPluginLoader {
         }
 
         // Cast to C function pointer and call
-        typealias PluginFactory = @convention(c) () -> UnsafeMutableRawPointer
+        typealias PluginFactory = @convention(c) () -> UnsafeMutableRawPointer?
         let factory = unsafeBitCast(sym, to: PluginFactory.self)
-        let rawPtr = factory()
+        guard let rawPtr = factory() else {
+            dlclose(handle)
+            throw PluginLoadError.pluginFactoryFailed
+        }
 
         // Extract PluginBox
         let anyObject = Unmanaged<AnyObject>.fromOpaque(rawPtr).takeRetainedValue()
@@ -351,12 +362,11 @@ final class DylibPluginLoader {
     // MARK: - Unload
 
     /// Mark a plugin for removal. Stops widgets immediately, but full cleanup requires restart.
-    func markForRemoval(pluginID: String) {
-        if let plugin = loadedPlugins[pluginID] {
-            for widget in plugin.widgets {
-                widget.stop()
-            }
-        }
+    func markForRemoval(pluginID: String, from registry: WidgetRegistry) {
+        // Unregister widgets BEFORE dlclose so the registry does not retain
+        // AnyStatusBarWidget wrappers whose class metadata lives in the unloaded dylib.
+        let oldWidgetIDs = Set(widgetIDs(for: pluginID))
+        registry.unregisterWidgets(ids: oldWidgetIDs, preserveLayout: false)
         eventRouter.unregisterPlugin(pluginID)
         teardown(pluginID: pluginID)
     }
