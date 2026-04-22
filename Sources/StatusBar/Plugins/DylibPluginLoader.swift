@@ -249,9 +249,12 @@ final class DylibPluginLoader {
         }
 
         // Cast to C function pointer and call
-        typealias PluginFactory = @convention(c) () -> UnsafeMutableRawPointer
+        typealias PluginFactory = @convention(c) () -> UnsafeMutableRawPointer?
         let factory = unsafeBitCast(sym, to: PluginFactory.self)
-        let rawPtr = factory()
+        guard let rawPtr = factory() else {
+            dlclose(handle)
+            throw PluginLoadError.pluginFactoryFailed
+        }
 
         // Extract PluginBox
         let anyObject = Unmanaged<AnyObject>.fromOpaque(rawPtr).takeRetainedValue()
@@ -288,6 +291,11 @@ final class DylibPluginLoader {
 
         // Skip version compatibility check for dev mode
 
+        // Reject duplicate plugin IDs to avoid leaking dlopen handles across hot-reloads
+        guard loadedHandles[manifest.id] == nil else {
+            throw PluginLoadError.duplicatePluginID(manifest.id)
+        }
+
         // Find the dylib
         let dylibURL = findDylib(in: bundleURL, manifest: manifest)
         guard let dylibURL, FileManager.default.fileExists(atPath: dylibURL.path) else {
@@ -308,9 +316,12 @@ final class DylibPluginLoader {
         }
 
         // Cast to C function pointer and call
-        typealias PluginFactory = @convention(c) () -> UnsafeMutableRawPointer
+        typealias PluginFactory = @convention(c) () -> UnsafeMutableRawPointer?
         let factory = unsafeBitCast(sym, to: PluginFactory.self)
-        let rawPtr = factory()
+        guard let rawPtr = factory() else {
+            dlclose(handle)
+            throw PluginLoadError.pluginFactoryFailed
+        }
 
         // Extract PluginBox
         let anyObject = Unmanaged<AnyObject>.fromOpaque(rawPtr).takeRetainedValue()
