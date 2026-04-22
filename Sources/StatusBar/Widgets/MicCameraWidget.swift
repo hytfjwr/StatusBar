@@ -56,6 +56,9 @@ final class MicCameraWidget: StatusBarWidget, EventEmitting {
     private var service: MicCameraService?
 
     func start() {
+        guard service == nil else {
+            return
+        }
         service = MicCameraService { [weak self] state in
             Task { @MainActor in
                 guard let self else {

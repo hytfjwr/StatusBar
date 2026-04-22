@@ -33,6 +33,9 @@ final class InputSourceWidget: StatusBarWidget, EventEmitting {
     private var service: InputSourceService?
 
     func start() {
+        guard service == nil else {
+            return
+        }
         service = InputSourceService { [weak self] in
             self?.refresh()
         }

@@ -105,6 +105,10 @@ final class NextEventTracker {
     }
 
     private func observeStoreChanges() {
+        if let existing = storeObserver {
+            NotificationCenter.default.removeObserver(existing)
+            storeObserver = nil
+        }
         storeObserver = NotificationCenter.default.addObserver(
             forName: .EKEventStoreChanged,
             object: nil,

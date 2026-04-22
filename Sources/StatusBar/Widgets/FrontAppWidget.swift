@@ -36,6 +36,9 @@ final class FrontAppWidget: StatusBarWidget, EventEmitting {
     private var observer: NSObjectProtocol?
 
     func start() {
+        guard observer == nil else {
+            return
+        }
         appName = NSWorkspace.shared.frontmostApplication?.localizedName ?? ""
         observer = NSWorkspace.shared.notificationCenter.addObserver(
             forName: NSWorkspace.didActivateApplicationNotification,
