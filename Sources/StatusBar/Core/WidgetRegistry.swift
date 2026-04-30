@@ -238,6 +238,11 @@ final class WidgetRegistry: WidgetRegistryProtocol {
 
     func applyLayout(_ entries: [WidgetLayoutEntry]) {
         let knownIDs = Set(allWidgets.keys)
+        // Capture prior visibility (treat widgets missing from the old layout as hidden,
+        // matching setVisible's invariant that start() is only called on becoming visible).
+        let oldVisibility: [String: Bool] = Dictionary(
+            uniqueKeysWithValues: layout.map { ($0.id, $0.isVisible) }
+        )
         // Keep only entries for widgets that actually exist
         var newLayout = entries.filter { knownIDs.contains($0.id) }
         // Append any registered widgets not in the preset (preserving defaultLayout order)
@@ -250,6 +255,20 @@ final class WidgetRegistry: WidgetRegistryProtocol {
             newLayout.append(entry)
         }
         layout = newLayout
+
+        // Propagate visibility changes so timers / observers track the new layout.
+        for entry in newLayout {
+            let wasVisible = oldVisibility[entry.id] ?? false
+            guard wasVisible != entry.isVisible else {
+                continue
+            }
+            if entry.isVisible {
+                allWidgets[entry.id]?.start()
+            } else {
+                allWidgets[entry.id]?.stop()
+            }
+        }
+
         persist()
     }
 

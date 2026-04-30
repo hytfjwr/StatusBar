@@ -143,8 +143,13 @@ final class DateWidget: StatusBarWidget, EventEmitting {
     private var timeUntilStart: TimeInterval?
     private var isLoadingEvents = true
     private var notifiedThresholds: [String: Set<Int>] = [:]
+    private var isRunning = false
 
     func start() {
+        guard !isRunning else {
+            return
+        }
+        isRunning = true
         applyFormat()
         updateDate()
         timer = Timer.publish(every: 60, tolerance: 6, on: .main, in: .common)
@@ -155,8 +160,11 @@ final class DateWidget: StatusBarWidget, EventEmitting {
     }
 
     func stop() {
+        isRunning = false
         timer?.cancel()
+        timer = nil
         tracker?.stop()
+        tracker = nil
         popupPanel?.hidePopup()
     }
 
@@ -281,10 +289,13 @@ final class DateWidget: StatusBarWidget, EventEmitting {
             _ = DateSettings.shared.notifyMinutesBefore
         } onChange: { [weak self] in
             Task { @MainActor in
-                self?.applyFormat()
-                self?.updateDate()
-                self?.startTrackerIfNeeded()
-                self?.observeSettings()
+                guard let self, self.isRunning else {
+                    return
+                }
+                self.applyFormat()
+                self.updateDate()
+                self.startTrackerIfNeeded()
+                self.observeSettings()
             }
         }
     }

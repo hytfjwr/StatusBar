@@ -113,14 +113,17 @@ final class CPUGraphWidget: StatusBarWidget, EventEmitting {
     private let buffer = GraphDataBuffer(capacity: 50)
     private let service = SystemMonitorService.shared
     private var graphValues: [Double] = []
+    private var isRunning = false
 
     func start() {
+        isRunning = true
         restartTimer()
         observeTimerSettings()
         observeRenderSettings()
     }
 
     func stop() {
+        isRunning = false
         timer?.cancel()
     }
 
@@ -149,8 +152,11 @@ final class CPUGraphWidget: StatusBarWidget, EventEmitting {
             _ = CPUGraphSettings.shared.updateInterval
         } onChange: { [weak self] in
             Task { @MainActor in
-                self?.restartTimer()
-                self?.observeTimerSettings()
+                guard let self, self.isRunning else {
+                    return
+                }
+                self.restartTimer()
+                self.observeTimerSettings()
             }
         }
     }
@@ -161,7 +167,10 @@ final class CPUGraphWidget: StatusBarWidget, EventEmitting {
             _ = CPUGraphSettings.shared.thresholds
         } onChange: { [weak self] in
             Task { @MainActor in
-                self?.observeRenderSettings()
+                guard let self, self.isRunning else {
+                    return
+                }
+                self.observeRenderSettings()
             }
         }
     }

@@ -49,6 +49,9 @@ final class VolumeWidget: StatusBarWidget, EventEmitting {
     private var popupPanel: PopupPanel?
 
     func start() {
+        guard service == nil else {
+            return
+        }
         service = AudioService { [weak self] vol in
             Task { @MainActor in
                 guard let self else {
@@ -77,6 +80,7 @@ final class VolumeWidget: StatusBarWidget, EventEmitting {
 
     func stop() {
         service?.stop()
+        service = nil
         popupPanel?.hidePopup()
     }
 
