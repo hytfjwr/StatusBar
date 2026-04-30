@@ -108,6 +108,17 @@ struct BarConfig: Codable {
         p.widgetSpacing = CGFloat(widgetSpacing)
         p.widgetPaddingH = CGFloat(widgetPaddingH)
     }
+
+    init(from decoder: any Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        let d = PreferencesModel.Defaults.self
+        height = try c.decodeIfPresent(Double.self, forKey: .height) ?? Double(d.barHeight)
+        cornerRadius = try c.decodeIfPresent(Double.self, forKey: .cornerRadius) ?? Double(d.barCornerRadius)
+        margin = try c.decodeIfPresent(Double.self, forKey: .margin) ?? Double(d.barMargin)
+        yOffset = try c.decodeIfPresent(Double.self, forKey: .yOffset) ?? Double(d.barYOffset)
+        widgetSpacing = try c.decodeIfPresent(Double.self, forKey: .widgetSpacing) ?? Double(d.widgetSpacing)
+        widgetPaddingH = try c.decodeIfPresent(Double.self, forKey: .widgetPaddingH) ?? Double(d.widgetPaddingH)
+    }
 }
 
 // MARK: - AppearanceConfig
@@ -181,6 +192,33 @@ struct AppearanceConfig: Codable {
         p.popupCornerRadius = CGFloat(popupCornerRadius)
         p.popupPadding = CGFloat(popupPadding)
     }
+
+    init(from decoder: any Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        let d = PreferencesModel.Defaults.self
+        accent = try c.decodeIfPresent(HexColor.self, forKey: .accent) ?? HexColor(d.accentHex)
+        textPrimaryOpacity = try c.decodeIfPresent(
+            Double.self, forKey: .textPrimaryOpacity
+        ) ?? d.textPrimaryOpacity
+        textSecondaryOpacity = try c.decodeIfPresent(
+            Double.self, forKey: .textSecondaryOpacity
+        ) ?? d.textSecondaryOpacity
+        textTertiaryOpacity = try c.decodeIfPresent(
+            Double.self, forKey: .textTertiaryOpacity
+        ) ?? d.textTertiaryOpacity
+        green = try c.decodeIfPresent(HexColor.self, forKey: .green) ?? HexColor(d.greenHex)
+        yellow = try c.decodeIfPresent(HexColor.self, forKey: .yellow) ?? HexColor(d.yellowHex)
+        red = try c.decodeIfPresent(HexColor.self, forKey: .red) ?? HexColor(d.redHex)
+        cyan = try c.decodeIfPresent(HexColor.self, forKey: .cyan) ?? HexColor(d.cyanHex)
+        purple = try c.decodeIfPresent(HexColor.self, forKey: .purple) ?? HexColor(d.purpleHex)
+        barTint = try c.decodeIfPresent(HexColor.self, forKey: .barTint) ?? HexColor(d.barTintHex)
+        barTintOpacity = try c.decodeIfPresent(Double.self, forKey: .barTintOpacity) ?? d.barTintOpacity
+        shadowEnabled = try c.decodeIfPresent(Bool.self, forKey: .shadowEnabled) ?? d.shadowEnabled
+        popupCornerRadius = try c.decodeIfPresent(
+            Double.self, forKey: .popupCornerRadius
+        ) ?? Double(d.popupCornerRadius)
+        popupPadding = try c.decodeIfPresent(Double.self, forKey: .popupPadding) ?? Double(d.popupPadding)
+    }
 }
 
 // MARK: - TypographyConfig
@@ -213,6 +251,15 @@ struct TypographyConfig: Codable {
         p.labelFontSize = CGFloat(labelFontSize)
         p.smallFontSize = CGFloat(smallFontSize)
         p.monoFontSize = CGFloat(monoFontSize)
+    }
+
+    init(from decoder: any Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        let d = PreferencesModel.Defaults.self
+        iconFontSize = try c.decodeIfPresent(Double.self, forKey: .iconFontSize) ?? Double(d.iconFontSize)
+        labelFontSize = try c.decodeIfPresent(Double.self, forKey: .labelFontSize) ?? Double(d.labelFontSize)
+        smallFontSize = try c.decodeIfPresent(Double.self, forKey: .smallFontSize) ?? Double(d.smallFontSize)
+        monoFontSize = try c.decodeIfPresent(Double.self, forKey: .monoFontSize) ?? Double(d.monoFontSize)
     }
 }
 
@@ -251,6 +298,16 @@ struct GraphsConfig: Codable {
         p.cpuGraphHex = cpuColor.rawValue
         p.memoryGraphHex = memoryColor.rawValue
     }
+
+    init(from decoder: any Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        let d = PreferencesModel.Defaults.self
+        width = try c.decodeIfPresent(Double.self, forKey: .width) ?? Double(d.graphWidth)
+        height = try c.decodeIfPresent(Double.self, forKey: .height) ?? Double(d.graphHeight)
+        dataPoints = try c.decodeIfPresent(Int.self, forKey: .dataPoints) ?? d.graphDataPoints
+        cpuColor = try c.decodeIfPresent(HexColor.self, forKey: .cpuColor) ?? HexColor(d.cpuGraphHex)
+        memoryColor = try c.decodeIfPresent(HexColor.self, forKey: .memoryColor) ?? HexColor(d.memoryGraphHex)
+    }
 }
 
 // MARK: - BehaviorConfig
@@ -287,6 +344,18 @@ struct BehaviorConfig: Codable {
         p.autoHideFadeDuration = autoHideFadeDuration
         p.launchAtLogin = launchAtLogin
         p.hideInFullscreen = hideInFullscreen
+    }
+
+    init(from decoder: any Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        let d = PreferencesModel.Defaults.self
+        autoHide = try c.decodeIfPresent(Bool.self, forKey: .autoHide) ?? d.autoHideEnabled
+        autoHideDwellTime = try c.decodeIfPresent(Double.self, forKey: .autoHideDwellTime) ?? d.autoHideDwellTime
+        autoHideFadeDuration = try c.decodeIfPresent(
+            Double.self, forKey: .autoHideFadeDuration
+        ) ?? d.autoHideFadeDuration
+        launchAtLogin = try c.decodeIfPresent(Bool.self, forKey: .launchAtLogin) ?? d.launchAtLogin
+        hideInFullscreen = try c.decodeIfPresent(Bool.self, forKey: .hideInFullscreen) ?? d.hideInFullscreen
     }
 }
 
