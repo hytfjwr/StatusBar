@@ -147,13 +147,18 @@ final class ToastManager {
         guard let panel else {
             return
         }
+        // If self.panel is kept until the animation finishes, a post() that arrives within
+        // that 0.25s window hits the `guard panel == nil` in showPanel() and fails to create
+        // a new panel, so nothing is shown.
+        // Stash the panel and clear self.panel immediately so subsequent post() calls can
+        // spawn a fresh panel.
+        self.panel = nil
         NSAnimationContext.runAnimationGroup { context in
             context.duration = 0.25
             context.timingFunction = CAMediaTimingFunction(name: .easeIn)
             panel.animator().alphaValue = 0
-        } completionHandler: { [weak self] in
-            self?.panel?.orderOut(nil)
-            self?.panel = nil
+        } completionHandler: {
+            panel.orderOut(nil)
         }
     }
 

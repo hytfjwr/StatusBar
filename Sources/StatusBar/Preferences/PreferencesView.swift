@@ -279,9 +279,14 @@ extension Color {
         guard let components = NSColor(self).usingColorSpace(.sRGB)?.cgColor.components else {
             return 0x000000
         }
-        let r = !components.isEmpty ? components[0] : 0
-        let g = components.count > 1 ? components[1] : 0
-        let b = components.count > 2 ? components[2] : 0
-        return (UInt32(r * 255) << 16) | (UInt32(g * 255) << 8) | UInt32(b * 255)
+        // Components originating from wide-gamut color spaces like P3 can fall outside
+        // [0, 1] even after sRGB conversion, so clamp before converting to UInt32
+        // (negative values / values > 1.0 crash the UInt32 initializer).
+        let r = max(0, min(1, !components.isEmpty ? components[0] : 0))
+        let g = max(0, min(1, components.count > 1 ? components[1] : 0))
+        let b = max(0, min(1, components.count > 2 ? components[2] : 0))
+        return (UInt32((r * 255).rounded()) << 16)
+            | (UInt32((g * 255).rounded()) << 8)
+            | UInt32((b * 255).rounded())
     }
 }

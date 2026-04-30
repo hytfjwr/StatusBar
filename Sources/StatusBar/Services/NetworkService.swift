@@ -69,12 +69,18 @@ final class NetworkService {
         var cursor: UnsafeMutablePointer<ifaddrs>? = first
         while let addr = cursor {
             let name = String(cString: addr.pointee.ifa_name)
-            if name.hasPrefix("en") || name.hasPrefix("utun") {
-                if let data = addr.pointee.ifa_data {
-                    let networkData = data.assumingMemoryBound(to: if_data.self).pointee
-                    totalRx += UInt64(networkData.ifi_ibytes)
-                    totalTx += UInt64(networkData.ifi_obytes)
-                }
+            // getifaddrs returns multiple entries per interface (AF_LINK, AF_INET, AF_INET6).
+            // Only AF_LINK entries have ifa_data laid out as if_data.
+            // Without checking family here, ifa_data from AF_INET etc. would be reinterpreted
+            // as if_data and add bogus byte counts.
+            let family = addr.pointee.ifa_addr?.pointee.sa_family
+            if name.hasPrefix("en") || name.hasPrefix("utun"),
+               family == UInt8(AF_LINK),
+               let data = addr.pointee.ifa_data
+            {
+                let networkData = data.assumingMemoryBound(to: if_data.self).pointee
+                totalRx += UInt64(networkData.ifi_ibytes)
+                totalTx += UInt64(networkData.ifi_obytes)
             }
             cursor = addr.pointee.ifa_next
         }

@@ -39,6 +39,7 @@ private func handleClient(fd: Int32, dispatcher: CommandDispatcher) {
     Task.detached {
         var timeout = timeval(tv_sec: 5, tv_usec: 0)
         setsockopt(fd, SOL_SOCKET, SO_RCVTIMEO, &timeout, socklen_t(MemoryLayout<timeval>.size))
+        setsockopt(fd, SOL_SOCKET, SO_SNDTIMEO, &timeout, socklen_t(MemoryLayout<timeval>.size))
 
         let request: IPCRequest
         do {
@@ -139,12 +140,20 @@ final class IPCServer {
             return
         }
 
+        // bind creates the socket file using the process umask, so there is a
+        // TOCTOU window between bind and chmod during which other users can access it.
+        // Setting umask to 0o177 (= 0o600 permissions) ensures the socket is created
+        // with minimal permissions from the moment bind completes.
+        let previousUmask = umask(0o177)
+        defer { umask(previousUmask) }
+
         guard bindSocket() else {
             close(serverFD)
             serverFD = -1
             return
         }
 
+        // Belt and suspenders: redundantly chmod in case the umask is tampered with externally.
         chmod(socketPath, 0o600)
 
         guard Darwin.listen(serverFD, 5) == 0 else {

@@ -10,12 +10,14 @@ enum OnboardingKeys {
 // MARK: - OnboardingWindow
 
 @MainActor
-final class OnboardingWindow {
+final class OnboardingWindow: NSObject, NSWindowDelegate {
     static let shared = OnboardingWindow()
 
     private var window: NSWindow?
 
-    private init() {}
+    override private init() {
+        super.init()
+    }
 
     func show() {
         if let existing = window, existing.isVisible {
@@ -39,9 +41,18 @@ final class OnboardingWindow {
         window.contentView = hostingView
         window.center()
         window.isReleasedWhenClosed = false
+        window.delegate = self
         window.makeKeyAndOrderFront(nil)
         NSApp.activate(ignoringOtherApps: true)
 
         self.window = window
+    }
+
+    // MARK: - NSWindowDelegate
+
+    /// Mark onboarding complete when closed via the X button, just as "Get Started" does.
+    /// set(true) is idempotent, so the Get Started → close sequence has no side effects.
+    nonisolated func windowWillClose(_ notification: Notification) {
+        UserDefaults.standard.set(true, forKey: OnboardingKeys.hasCompleted)
     }
 }
