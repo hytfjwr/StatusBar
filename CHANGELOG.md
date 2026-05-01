@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.15.3] - 2026-05-01
+
+- fix: keep widget lifecycle consistent across layout changes and stops (#114)
+- fix: assorted robustness and crash fixes across UI, IPC, and services (#115)
+- fix: harden config loader and add migration-safe decoding (#113)
+
 ## [0.15.2] - 2026-04-22
 
 - fix: tighten plugin lifecycle and battery observer cleanup (#111)
