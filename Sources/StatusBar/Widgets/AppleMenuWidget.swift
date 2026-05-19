@@ -177,6 +177,9 @@ struct AppleMenuPopupContent: View {
                     PopupRow(icon: "arrow.clockwise", label: "Reload") {
                         AppUpdateService.relaunchApp()
                     }
+                    PopupRow(icon: "power.circle", label: "Quit") {
+                        NSApp.terminate(nil)
+                    }
                 }
                 .padding(.horizontal, 6)
                 .padding(.bottom, 8)
