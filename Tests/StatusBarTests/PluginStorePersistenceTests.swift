@@ -5,11 +5,9 @@ import Testing
 @MainActor
 struct PluginStorePersistenceTests {
     private func makeTempStore() -> (store: PluginStore, dir: URL, cleanup: @Sendable () -> Void) {
-        let dir = FileManager.default.temporaryDirectory
-            .appendingPathComponent(UUID().uuidString)
-        let url = dir.appendingPathComponent("registry.json")
-        let cleanup: @Sendable () -> Void = { try? FileManager.default.removeItem(at: dir) }
-        return (PluginStore(registryURL: url), dir, cleanup)
+        let temp = PluginTestSupport.makeTempDir()
+        let store = PluginStore(registryURL: temp.url.appendingPathComponent("registry.json"))
+        return (store, temp.url, temp.cleanup)
     }
 
     private func makeRecord(
@@ -19,10 +17,10 @@ struct PluginStorePersistenceTests {
         enabled: Bool = true,
         isLocal: Bool = false
     ) -> InstalledPluginRecord {
-        InstalledPluginRecord(
+        PluginTestSupport.makeRecord(
             id: id, name: name, version: version,
-            githubURL: "https://github.com/test/\(id)",
-            bundleName: id, enabled: enabled, isLocal: isLocal
+            bundleName: id,
+            enabled: enabled, isLocal: isLocal
         )
     }
 
