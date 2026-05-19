@@ -20,24 +20,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             ConfigLoader.shared.scheduleWrite()
         }
 
-        // Built-in widgets
-        registry.register(AppleMenuWidget())
-        registry.register(ChevronWidget())
-        registry.register(FrontAppWidget())
-        registry.register(FocusTimerWidget())
-        registry.register(MicCameraWidget())
-        registry.register(NetworkWidget())
-        registry.register(MemoryGraphWidget())
-        registry.register(CPUGraphWidget())
-        registry.register(DiskUsageWidget())
-        registry.register(BatteryWidget())
-        registry.register(VolumeWidget())
-        registry.register(InputSourceWidget())
-        registry.register(DateWidget())
-        registry.register(TimeWidget())
-        let bluetoothWidget = BluetoothWidget()
-        registry.register(bluetoothWidget)
-        BluetoothWidgetLocator.register(bluetoothWidget)
+        registerBuiltInWidgets(into: registry)
 
         // Plugin manifest manager — must run before DylibPluginLoader so that
         // first-run migration sees the existing registry before any auto-registration.
@@ -92,6 +75,26 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                 alert.runModal()
             }
         }
+    }
+
+    private func registerBuiltInWidgets(into registry: WidgetRegistry) {
+        registry.register(AppleMenuWidget())
+        registry.register(ChevronWidget())
+        registry.register(FrontAppWidget())
+        registry.register(FocusTimerWidget())
+        registry.register(MicCameraWidget())
+        registry.register(NetworkWidget())
+        registry.register(MemoryGraphWidget())
+        registry.register(CPUGraphWidget())
+        registry.register(DiskUsageWidget())
+        registry.register(BatteryWidget())
+        registry.register(VolumeWidget())
+        registry.register(InputSourceWidget())
+        registry.register(DateWidget())
+        registry.register(TimeWidget())
+        let bluetoothWidget = BluetoothWidget()
+        registry.register(bluetoothWidget)
+        BluetoothWidgetLocator.register(bluetoothWidget)
     }
 
     /// Set up a minimal main menu so standard text editing shortcuts (Cmd+C/V/X/A) work.
