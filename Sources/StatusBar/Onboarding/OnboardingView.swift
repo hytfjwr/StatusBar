@@ -29,24 +29,14 @@ struct OnboardingView: View {
 
             // Navigation
             HStack {
-                if page != .welcome {
-                    Button("Back") {
-                        withAnimation(.easeInOut(duration: 0.2)) {
-                            page = page.previous
-                        }
+                Button("Back") {
+                    withAnimation(.easeInOut(duration: 0.2)) {
+                        page = page.previous
                     }
                 }
-
-                Spacer()
-
-                // Page indicator
-                HStack(spacing: 6) {
-                    ForEach(OnboardingPage.allCases) { p in
-                        Circle()
-                            .fill(p == page ? Color.accentColor : Color.secondary.opacity(0.3))
-                            .frame(width: 6, height: 6)
-                    }
-                }
+                .opacity(page == .welcome ? 0 : 1)
+                .disabled(page == .welcome)
+                .accessibilityHidden(page == .welcome)
 
                 Spacer()
 
@@ -63,6 +53,17 @@ struct OnboardingView: View {
                         }
                     }
                     .keyboardShortcut(.defaultAction)
+                }
+            }
+            // Page indicator — overlaid so it stays window-centered regardless
+            // of Back/Next button width changes between pages.
+            .overlay {
+                HStack(spacing: 6) {
+                    ForEach(OnboardingPage.allCases) { p in
+                        Circle()
+                            .fill(p == page ? Color.accentColor : Color.secondary.opacity(0.3))
+                            .frame(width: 6, height: 6)
+                    }
                 }
             }
             .padding(16)
