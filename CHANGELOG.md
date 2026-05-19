@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.16.1] - 2026-05-19
+
+- feat: add Quit option to Apple menu (#120)
+- fix: keep onboarding page indicator centered across pages (#119)
+
 ## [0.16.0] - 2026-05-19
 
 - feat: plugins.yml and plugins-lock.yml manifest workflow (#117)
