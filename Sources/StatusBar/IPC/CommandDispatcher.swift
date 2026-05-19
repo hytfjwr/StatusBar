@@ -20,6 +20,8 @@ final class CommandDispatcher {
             ReloadCommandHandler(),
             TriggerCommandHandler(),
             ToastCommandHandler(),
+            PluginsSyncCommandHandler(),
+            PluginsListCommandHandler(),
         ]
         handlers = Dictionary(uniqueKeysWithValues: all.map { ($0.commandKey, $0) })
     }
@@ -70,6 +72,8 @@ extension IPCCommand {
         case .subscribe: "subscribe"
         case .trigger: "trigger"
         case .showToast: "showToast"
+        case .pluginsSync: "pluginsSync"
+        case .pluginsList: "pluginsList"
         @unknown default: "unknown"
         }
     }

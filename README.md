@@ -60,9 +60,20 @@ make run-app   # Release build
 
 ## Plugins
 
-StatusBar supports third-party plugins distributed as `.statusplugin.zip` archives via GitHub Releases. Install and manage plugins entirely through the Preferences UI — no CLI required.
+StatusBar supports third-party plugins distributed as `.statusplugin.zip` archives via GitHub Releases. Install and manage plugins through the Preferences UI, the `sbar plugins` CLI, or by hand-editing `plugins.yml`.
 
 <img width="722" height="673" alt="Plugin Management UI" src="https://github.com/user-attachments/assets/9eed1e64-fda5-48d9-88a6-03f885442770" />
+
+### Manifest & lockfile
+
+Plugin state lives in two YAML files alongside `config.yml`:
+
+- **`~/.config/statusbar/plugins.yml`** — declarative manifest. Each entry is `source: github:owner/repo` plus `version: "1.2.0"` (exact) or `version: latest`. Safe to commit alongside your dotfiles.
+- **`~/.config/statusbar/plugins-lock.yml`** — resolved snapshot. Auto-generated and updated by sync; records the exact tag, asset URL, and zip SHA-256 needed to reinstall the same versions on another machine.
+
+GUI install/uninstall, manual edits, and `sbar plugins sync` all update the same files. A "Sync Plugins" button in Preferences (and `sbar plugins sync`) reconciles the manifest with what's installed: missing plugins are downloaded, declared updates applied, and plugins removed from `plugins.yml` are auto-uninstalled.
+
+Run `sbar plugins sync --frozen` to install strictly from the lockfile without contacting GitHub — useful for CI or restoring a known-good environment.
 
 ### Official Plugins
 
@@ -83,6 +94,8 @@ Use the [plugin template](https://github.com/hytfjwr/statusbar-plugin-template) 
 ## Configuration
 
 A default config is generated at `~/.config/statusbar/config.yml` on first launch. The file is hot-reloaded — edits are applied instantly without restarting. All settings are also available through the Preferences window (Apple Menu > Preferences).
+
+Plugin state is split across `plugins.yml` (declarative manifest) and `plugins-lock.yml` (resolved versions and checksums) in the same directory — see [Plugins](#plugins) for details.
 
 <details>
 <summary>Bar</summary>
@@ -279,6 +292,12 @@ sbar subscribe front_app_switched | jq '.payload'
 sbar toast --title "Deploy done" --message "v1.2.3 shipped" --level success
 sbar toast --title "CPU Warning" --level warning --duration 10
 sbar toast --title "Error" --level error --action-label "Open Logs" --action "open /var/log"
+
+# Plugin manifest sync (reads ~/.config/statusbar/plugins.yml)
+sbar plugins list
+sbar plugins list --json
+sbar plugins sync
+sbar plugins sync --frozen   # install strictly from plugins-lock.yml, no network resolution
 
 # Relaunch the app
 sbar reload

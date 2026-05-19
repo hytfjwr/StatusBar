@@ -1,3 +1,4 @@
+import CryptoKit
 import Foundation
 import OSLog
 import StatusBarKit
@@ -17,6 +18,7 @@ enum GitHubPluginError: Error, LocalizedError {
     case incompatibleVersion(required: String, current: String)
     case untrustedDownloadURL(String)
     case rateLimited
+    case zipSHA256Mismatch(expected: String, actual: String)
 
     var errorDescription: String? {
         switch self {
@@ -40,8 +42,22 @@ enum GitHubPluginError: Error, LocalizedError {
             "Download URL is not from a trusted GitHub domain: \(url)"
         case .rateLimited:
             "GitHub API rate limit exceeded. Try again later or configure a personal access token."
+        case let .zipSHA256Mismatch(expected, actual):
+            "Lockfile SHA-256 mismatch — expected \(expected), got \(actual)"
         }
     }
+}
+
+// MARK: - InstallResult
+
+/// Detailed outcome of an install. Carries the resolved zip hash and download URL so the
+/// caller (`PluginsManager`) can update plugins-lock.yml.
+struct InstallResult {
+    let record: InstalledPluginRecord
+    /// SHA-256 of the downloaded .statusplugin.zip (hex, lowercase).
+    let zipSHA256: String
+    /// URL the zip was downloaded from (typically objects.githubusercontent.com).
+    let assetURL: String
 }
 
 // MARK: - GitHubPluginInstaller
@@ -67,42 +83,94 @@ final class GitHubPluginInstaller {
     // MARK: - Install
 
     /// Install a plugin from a GitHub repository URL.
-    /// The URL should be like: https://github.com/owner/repo
-    func install(from urlString: String) async throws -> InstalledPluginRecord {
-        // Parse owner/repo from URL
+    /// - Parameters:
+    ///   - urlString: A repository URL like `https://github.com/owner/repo`.
+    ///   - version: A specific release tag (e.g. `"1.2.0"`) or `nil` / `"latest"` for the latest release.
+    func install(from urlString: String, version: String? = nil) async throws -> InstallResult {
         let (owner, repo) = try parseGitHubURL(urlString)
-        logger.info("Installing plugin from \(owner)/\(repo)")
+        logger.info("Installing plugin from \(owner)/\(repo) (version: \(version ?? "latest"))")
 
-        // Fetch latest release
-        let release = try await fetchLatestRelease(owner: owner, repo: repo)
+        let release: GitHubRelease = if let version, version != "latest" {
+            try await fetchRelease(owner: owner, repo: repo, tag: version)
+        } else {
+            try await fetchLatestRelease(owner: owner, repo: repo)
+        }
         logger.info("Found release \(release.tagName) for \(owner)/\(repo)")
 
-        // Find .statusplugin.zip asset
         guard let asset = release.assets.first(where: { $0.name.hasSuffix(".statusplugin.zip") }) else {
             logger.error("No .statusplugin.zip asset in release \(release.tagName) for \(owner)/\(repo)")
             throw GitHubPluginError.noPluginAsset
         }
 
-        // Download and extract
         let zipData = try await downloadAsset(url: asset.browserDownloadURL)
         logger.info("Downloaded \(asset.name) (\(zipData.count) bytes)")
-        let (pluginBundle, tempDir) = try await extractAndValidate(zipData: zipData, assetName: asset.name)
+        let zipSHA256 = Self.hexHash(of: zipData)
+
+        let releaseVersion = Self.normalizeVersion(release.tagName)
+        let record = try await installFromZipData(
+            zipData: zipData,
+            assetName: asset.name,
+            owner: owner,
+            repo: repo,
+            resolvedVersion: releaseVersion
+        )
+
+        return InstallResult(record: record, zipSHA256: zipSHA256, assetURL: asset.browserDownloadURL)
+    }
+
+    /// Install (or re-install) a plugin using a lockfile entry. Downloads from the recorded
+    /// asset URL and verifies the SHA-256 before placing the bundle on disk.
+    func installFromLock(
+        sourceURL: String,
+        assetURL: String,
+        expectedSHA256: String,
+        resolvedVersion: String
+    ) async throws -> InstalledPluginRecord {
+        let (owner, repo) = try parseGitHubURL(sourceURL)
+        logger.info("Restoring \(owner)/\(repo) @ \(resolvedVersion) from lockfile")
+
+        let zipData = try await downloadAsset(url: assetURL)
+        let actualSHA = Self.hexHash(of: zipData)
+        guard actualSHA == expectedSHA256.lowercased() else {
+            logger.error("SHA-256 mismatch for \(owner)/\(repo) — expected \(expectedSHA256), got \(actualSHA)")
+            throw GitHubPluginError.zipSHA256Mismatch(expected: expectedSHA256, actual: actualSHA)
+        }
+
+        // Asset name is unused beyond logging; derive a reasonable label from the URL.
+        let assetName = URL(string: assetURL)?.lastPathComponent ?? "plugin.statusplugin.zip"
+        return try await installFromZipData(
+            zipData: zipData,
+            assetName: assetName,
+            owner: owner,
+            repo: repo,
+            resolvedVersion: resolvedVersion
+        )
+    }
+
+    /// Shared install pipeline: extract, validate, place on disk, register in the store.
+    private func installFromZipData(
+        zipData: Data,
+        assetName: String,
+        owner: String,
+        repo: String,
+        resolvedVersion: String
+    ) async throws -> InstalledPluginRecord {
+        let (pluginBundle, tempDir) = try await extractAndValidate(zipData: zipData, assetName: assetName)
         defer { try? FileManager.default.removeItem(at: tempDir) }
 
-        // Read and validate manifest
         let manifest = try readAndValidateManifest(in: pluginBundle)
-
-        // Place bundle on disk
         let destURL = try placeBundle(pluginBundle, in: pluginsDirectory)
-
-        // Register in plugin store
-        let releaseVersion = Self.normalizeVersion(release.tagName)
         let record = try registerRecord(
             manifest: manifest, destURL: destURL,
-            owner: owner, repo: repo, releaseVersion: releaseVersion
+            owner: owner, repo: repo, releaseVersion: resolvedVersion
         )
-        logger.info("Installed plugin \(manifest.name) v\(releaseVersion)")
+        logger.info("Installed plugin \(manifest.name) v\(resolvedVersion)")
         return record
+    }
+
+    /// SHA-256 of a blob as a lowercase hex string.
+    static func hexHash(of data: Data) -> String {
+        SHA256.hash(data: data).map { String(format: "%02x", $0) }.joined()
     }
 
     /// Extract zip data to a temp directory and validate the extracted contents.
@@ -179,10 +247,7 @@ final class GitHubPluginInstaller {
     /// Move the plugin bundle to the plugins directory, replacing any existing version.
     private func placeBundle(_ pluginBundle: URL, in pluginsDirectory: URL) throws -> URL {
         let fm = FileManager.default
-        if !fm.fileExists(atPath: pluginsDirectory.path) {
-            try fm.createDirectory(at: pluginsDirectory, withIntermediateDirectories: true)
-        }
-
+        try fm.createDirectory(at: pluginsDirectory, withIntermediateDirectories: true)
         let destURL = pluginsDirectory.appendingPathComponent(pluginBundle.lastPathComponent)
         do { try fm.removeItem(at: destURL) } catch CocoaError.fileNoSuchFile { /* first install */ }
         try fm.moveItem(at: pluginBundle, to: destURL)
@@ -353,6 +418,67 @@ final class GitHubPluginInstaller {
         }
 
         return (owner: owner, repo: repo)
+    }
+
+    /// Resolve the latest release tag (normalized — no `v` prefix) without downloading the asset.
+    /// Used by `PluginsManager` to short-circuit sync when `plugins.yml` declares `version: latest`
+    /// but the lockfile already references the same tag.
+    func latestTagName(owner: String, repo: String) async throws -> String {
+        let release = try await fetchLatestRelease(owner: owner, repo: repo)
+        return Self.normalizeVersion(release.tagName)
+    }
+
+    /// Fetch a specific release by its tag name. Tries the tag verbatim and, if not found,
+    /// falls back to the `v`-prefixed form (handles `1.2.0` vs `v1.2.0` interchangeably).
+    private func fetchRelease(owner: String, repo: String, tag: String) async throws -> GitHubRelease {
+        let candidates: [String] = if tag.hasPrefix("v") || tag.hasPrefix("V") {
+            [tag, String(tag.dropFirst())]
+        } else {
+            [tag, "v\(tag)"]
+        }
+        var lastError: (any Error)?
+        for candidate in candidates {
+            do {
+                return try await fetchReleaseExact(owner: owner, repo: repo, tag: candidate)
+            } catch GitHubPluginError.noReleaseFound {
+                lastError = GitHubPluginError.noReleaseFound
+                continue
+            } catch {
+                throw error
+            }
+        }
+        throw lastError ?? GitHubPluginError.noReleaseFound
+    }
+
+    private func fetchReleaseExact(owner: String, repo: String, tag: String) async throws -> GitHubRelease {
+        let encoded = tag.addingPercentEncoding(withAllowedCharacters: .urlPathAllowed) ?? tag
+        let urlString = "https://api.github.com/repos/\(owner)/\(repo)/releases/tags/\(encoded)"
+        guard let url = URL(string: urlString) else {
+            throw GitHubPluginError.invalidURL(urlString)
+        }
+
+        var request = URLRequest(url: url)
+        request.setValue("application/vnd.github+json", forHTTPHeaderField: "Accept")
+
+        let data: Data
+        let response: URLResponse
+        do {
+            (data, response) = try await URLSession.shared.data(for: request)
+        } catch {
+            logger.error("Network request failed for \(owner)/\(repo)@\(tag): \(error.localizedDescription)")
+            throw GitHubPluginError.networkError(error)
+        }
+
+        guard let httpResponse = response as? HTTPURLResponse else {
+            throw GitHubPluginError.noReleaseFound
+        }
+        if httpResponse.statusCode == 403 || httpResponse.statusCode == 429 {
+            throw GitHubPluginError.rateLimited
+        }
+        guard httpResponse.statusCode == 200 else {
+            throw GitHubPluginError.noReleaseFound
+        }
+        return try JSONDecoder().decode(GitHubRelease.self, from: data)
     }
 
     private func fetchLatestRelease(owner: String, repo: String) async throws -> GitHubRelease {
