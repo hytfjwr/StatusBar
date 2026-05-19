@@ -39,6 +39,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         registry.register(bluetoothWidget)
         BluetoothWidgetLocator.register(bluetoothWidget)
 
+        // Plugin manifest manager — must run before DylibPluginLoader so that
+        // first-run migration sees the existing registry before any auto-registration.
+        PluginsManager.shared.bootstrap()
+
         // Dylib plugins (user-installed from ~/.config/statusbar/plugins/)
         DylibPluginLoader.shared.loadAll(into: registry)
 
@@ -117,6 +121,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         IPCServer.shared.stop()
         NotificationService.shared.stop()
         controller?.teardown()
+        PluginsManager.shared.teardown()
         ConfigLoader.shared.teardown()
     }
 }

@@ -19,12 +19,14 @@ struct PluginsSection: View {
     @State private var needsRestart = false
     @State private var isCheckingUpdates = false
     @State private var availableUpdates: [GitHubPluginInstaller.UpdateInfo] = []
-    @State private var updateCheckDone = false
+    @State private var isSyncing = false
+    @State private var syncSummary: String?
     @State private var devPath: String = ""
     @State private var devPlugins: [DevPluginInfo] = []
     @State private var devError: String?
 
     var store: PluginStore = .shared
+    var manager: PluginsManager = .shared
 
     var body: some View {
         VStack(alignment: .leading, spacing: 20) {
@@ -65,7 +67,29 @@ struct PluginsSection: View {
                     .buttonStyle(.borderless)
                     .controlSize(.small)
                     .disabled(isCheckingUpdates || store.plugins.isEmpty)
+
+                    Button(action: syncManifest) {
+                        HStack(spacing: 4) {
+                            if isSyncing {
+                                ProgressView()
+                                    .controlSize(.small)
+                            } else {
+                                Image(systemName: "arrow.triangle.2.circlepath")
+                            }
+                            Text(manager.isDirty ? "Sync (unsynced)" : "Sync Plugins")
+                        }
+                    }
+                    .buttonStyle(.borderless)
+                    .controlSize(.small)
+                    .tint(manager.isDirty ? .orange : nil)
+                    .disabled(isSyncing || isInstalling)
                 }
+            }
+
+            if let syncSummary {
+                Label(syncSummary, systemImage: "checkmark.circle.fill")
+                    .foregroundStyle(.green)
+                    .font(.caption)
             }
 
             // Add plugin
@@ -303,12 +327,10 @@ extension PluginsSection {
     private func checkForUpdates() {
         isCheckingUpdates = true
         availableUpdates = []
-        updateCheckDone = false
 
         Task {
             availableUpdates = await GitHubPluginInstaller.shared.checkForUpdates()
             isCheckingUpdates = false
-            updateCheckDone = true
         }
     }
 
@@ -319,7 +341,10 @@ extension PluginsSection {
 
         Task {
             do {
-                let record = try await GitHubPluginInstaller.shared.install(from: update.githubURL)
+                guard let source = PluginsManifestEntry.source(fromGitHubURL: update.githubURL) else {
+                    throw PluginsManagerError.unknownPlugin(update.pluginID)
+                }
+                let record = try await manager.add(source: source, version: "latest")
                 availableUpdates.removeAll { $0.pluginID == update.pluginID }
 
                 // Attempt hot-reload if the old plugin is loaded, otherwise cold-load
@@ -327,17 +352,14 @@ extension PluginsSection {
                 let registry = WidgetRegistry.shared
                 var reloaded = false
                 if loader.isLoaded(update.pluginID) {
-                    let bundleURL = FileManager.default.homeDirectoryForCurrentUser
-                        .appendingPathComponent(".config/statusbar/plugins")
-                        .appendingPathComponent("\(record.bundleName).statusplugin")
                     do {
-                        try loader.reload(pluginID: update.pluginID, bundleURL: bundleURL, into: registry)
+                        try loader.reload(
+                            pluginID: update.pluginID,
+                            bundleURL: pluginBundleURL(for: record),
+                            into: registry
+                        )
                         registry.finalizeRegistration()
-                        let newWidgetIDs = Set(loader.widgetIDs(for: record.id))
-                        let allWidgets = registry.leftWidgets + registry.centerWidgets + registry.rightWidgets
-                        for widget in allWidgets where newWidgetIDs.contains(widget.id) {
-                            widget.start()
-                        }
+                        startNewWidgets(for: record.id)
                         reloaded = true
                     } catch {
                         print("[PluginsSection] Hot-reload failed: \(error.localizedDescription)")
@@ -366,7 +388,9 @@ extension PluginsSection {
 
         Task {
             do {
-                let record = try await GitHubPluginInstaller.shared.install(from: githubURL)
+                let (owner, repo) = try GitHubPluginInstaller.shared.parseGitHubURL(githubURL)
+                let source = "github:\(owner)/\(repo)"
+                let record = try await manager.add(source: source, version: "latest")
                 githubURL = ""
 
                 // Try hot-loading the plugin immediately
@@ -383,17 +407,76 @@ extension PluginsSection {
         }
     }
 
-    /// Attempt to load the plugin without restart. Returns true on success.
-    private func hotLoadPlugin(_ record: InstalledPluginRecord) -> Bool {
-        let bundleURL = FileManager.default.homeDirectoryForCurrentUser
+    private func syncManifest() {
+        isSyncing = true
+        installError = nil
+        installSuccess = nil
+        syncSummary = nil
+
+        Task {
+            do {
+                let result = try await manager.sync(frozen: false)
+
+                // Hot-load any newly installed plugins so the bar updates without restart.
+                var anyHotLoadFailed = false
+                for pluginID in result.installed + result.updated {
+                    guard let record = store.record(forID: pluginID) else {
+                        anyHotLoadFailed = true
+                        continue
+                    }
+                    if DylibPluginLoader.shared.isLoaded(pluginID) {
+                        let bundleURL = pluginBundleURL(for: record)
+                        do {
+                            try DylibPluginLoader.shared.reload(
+                                pluginID: pluginID, bundleURL: bundleURL, into: WidgetRegistry.shared
+                            )
+                            WidgetRegistry.shared.finalizeRegistration()
+                            startNewWidgets(for: pluginID)
+                        } catch {
+                            anyHotLoadFailed = true
+                        }
+                    } else if !hotLoadPlugin(record) {
+                        anyHotLoadFailed = true
+                    }
+                }
+
+                if !result.uninstalled.isEmpty || anyHotLoadFailed {
+                    needsRestart = true
+                }
+
+                syncSummary = "\(result.summary)."
+                if result.hasErrors {
+                    installError = result.errors.map { "\($0.source): \($0.message)" }.joined(separator: "\n")
+                }
+            } catch {
+                installError = "Sync failed: \(error.localizedDescription)"
+            }
+            isSyncing = false
+        }
+    }
+
+    private func pluginBundleURL(for record: InstalledPluginRecord) -> URL {
+        FileManager.default.homeDirectoryForCurrentUser
             .appendingPathComponent(".config/statusbar/plugins")
             .appendingPathComponent("\(record.bundleName).statusplugin")
+    }
 
+    private func startNewWidgets(for pluginID: String) {
+        let registry = WidgetRegistry.shared
+        let allWidgets = registry.leftWidgets + registry.centerWidgets + registry.rightWidgets
+        let pluginWidgetIDs = Set(DylibPluginLoader.shared.widgetIDs(for: pluginID))
+        for widget in allWidgets where pluginWidgetIDs.contains(widget.id) {
+            widget.start()
+        }
+    }
+
+    /// Attempt to load the plugin without restart. Returns true on success.
+    private func hotLoadPlugin(_ record: InstalledPluginRecord) -> Bool {
         let registry = WidgetRegistry.shared
         let existingIDs = Set(registry.layout.map(\.id))
 
         do {
-            try DylibPluginLoader.shared.load(bundleURL: bundleURL, into: registry)
+            try DylibPluginLoader.shared.load(bundleURL: pluginBundleURL(for: record), into: registry)
             registry.finalizeRegistration()
 
             // Start only the newly added widgets
@@ -428,11 +511,8 @@ extension PluginsSection {
         if enabled {
             // If not loaded yet, load from disk
             if !loader.isLoaded(plugin.id) {
-                let bundleURL = FileManager.default.homeDirectoryForCurrentUser
-                    .appendingPathComponent(".config/statusbar/plugins")
-                    .appendingPathComponent("\(plugin.bundleName).statusplugin")
                 do {
-                    try loader.load(bundleURL: bundleURL, into: registry)
+                    try loader.load(bundleURL: pluginBundleURL(for: plugin), into: registry)
                     registry.finalizeRegistration()
                 } catch {
                     print("[PluginsSection] Failed to load plugin: \(error.localizedDescription)")
@@ -458,8 +538,7 @@ extension PluginsSection {
 
     private func uninstallPlugin(id: String) {
         do {
-            DylibPluginLoader.shared.markForRemoval(pluginID: id, from: WidgetRegistry.shared)
-            try GitHubPluginInstaller.shared.uninstall(pluginID: id)
+            try manager.remove(pluginID: id)
             needsRestart = true
         } catch {
             installError = "Failed to uninstall: \(error.localizedDescription)"
