@@ -28,12 +28,21 @@ extension IPCEventEnvelope {
 /// Sub-1% changes don't move the displayed integer percentage.
 private let brightnessEpsilon: Float = 0.005
 
+/// Throttle window for DDC writes during slider drag. DDC writes take 30-80ms
+/// per packet; without coalescing, a fast drag overruns the I2C bus and the
+/// monitor visibly lags. 40ms still feels live to the user.
+private let ddcWriteDebounce: Duration = .milliseconds(40)
+
 private func brightnessIconName(for value: Float) -> String {
     switch value {
     case ..<0.34: "sun.min"
     case ..<0.67: "sun.max"
     default: "sun.max.fill"
     }
+}
+
+private func brightnessPercent(_ value: Float) -> Int {
+    Int((value * 100).rounded())
 }
 
 // MARK: - BrightnessWidget
@@ -54,13 +63,22 @@ final class BrightnessWidget: StatusBarWidget, EventEmitting {
     private var popupPanel: PopupPanel?
     private var lastEmitted: [CGDirectDisplayID: Float] = [:]
 
+    // DDC slider coalescing: the slider's onChange fires per pixel, but we only
+    // want to push one write per ddcWriteDebounce. While a flush task is in
+    // flight, additional drags overwrite `pendingDDCWrites[id]` instead of
+    // queueing more I/O.
+    private var pendingDDCWrites: [CGDirectDisplayID: Float] = [:]
+    private var ddcFlushTask: Task<Void, Never>?
+
     private let service = BrightnessService.shared
 
     func start() {
         guard timer == nil, service.isAvailable, let interval = updateInterval else {
             return
         }
-        refreshDisplays()
+        Task { @MainActor in
+            await refreshDisplays()
+        }
         timer = Timer.publish(every: interval, tolerance: interval * 0.1, on: .main, in: .common)
             .autoconnect()
             .sink { [weak self] _ in
@@ -72,7 +90,7 @@ final class BrightnessWidget: StatusBarWidget, EventEmitting {
             queue: .main
         ) { [weak self] _ in
             Task { @MainActor in
-                self?.refreshDisplays()
+                await self?.refreshDisplays()
             }
         }
     }
@@ -84,49 +102,32 @@ final class BrightnessWidget: StatusBarWidget, EventEmitting {
             NotificationCenter.default.removeObserver(observer)
             screenObserver = nil
         }
+        ddcFlushTask?.cancel()
+        ddcFlushTask = nil
+        pendingDDCWrites.removeAll()
         popupPanel?.hidePopup()
     }
 
     func body() -> some View {
-        Group {
-            if displays.isEmpty {
-                EmptyView()
-            } else {
-                HStack(spacing: 2) {
-                    Image(systemName: brightnessIconName(for: barBrightness))
-                        .font(Theme.sfIconFont)
-                        .foregroundStyle(.primary)
-                        .frame(width: 18, alignment: .center)
-                    Text("\(percent(barBrightness))%")
-                        .font(Theme.labelFont)
-                        .monospacedDigit()
-                        .foregroundStyle(.primary)
-                        .fixedSize()
-                        .frame(width: 38, alignment: .trailing)
-                        .contentTransition(.numericText())
-                }
-                .padding(.horizontal, 4)
-                .contentShape(Rectangle())
-                .onTapGesture { [weak self] in
-                    self?.togglePopup()
-                }
-                .accessibilityElement(children: .combine)
-                .accessibilityLabel("Brightness")
-                .accessibilityValue("\(percent(barBrightness))%")
-            }
+        BrightnessBarBody(displays: displays) { [weak self] in
+            self?.togglePopup()
         }
     }
 
     // MARK: - Polling
 
-    private func refreshDisplays() {
-        let fresh = service.enumerateDisplays()
+    private func refreshDisplays() async {
+        // Topology changed (or first scan) — drop any cached IOAVService handles
+        // before re-enumerating so we don't read from a stale I2C transport.
+        await service.invalidateExternalCache()
+        let fresh = await service.enumerateDisplays()
         let topologyChanged = Set(displays.map(\.id)) != Set(fresh.map(\.id))
         withAnimation(.numericTransition) {
             displays = fresh
         }
         if topologyChanged {
             lastEmitted = lastEmitted.filter { key, _ in fresh.contains { $0.id == key } }
+            pendingDDCWrites = pendingDDCWrites.filter { key, _ in fresh.contains { $0.id == key } }
             if popupPanel?.isVisible == true {
                 refreshPopup()
             }
@@ -134,26 +135,38 @@ final class BrightnessWidget: StatusBarWidget, EventEmitting {
     }
 
     private func poll() {
-        var changed = false
-        var updated = displays
-        for index in updated.indices {
-            guard let value = service.getBrightness(updated[index].id) else {
-                continue
+        let snapshot = displays.map { (id: $0.id, kind: $0.kind) }
+        Task { @MainActor in
+            var newValues: [CGDirectDisplayID: Float] = [:]
+            for entry in snapshot {
+                if let value = await service.getBrightness(entry.id, kind: entry.kind) {
+                    newValues[entry.id] = value
+                }
             }
-            if abs(updated[index].brightness - value) >= brightnessEpsilon {
-                updated[index].brightness = value
-                changed = true
+            guard !newValues.isEmpty else {
+                return
             }
-        }
-        guard changed else {
-            return
-        }
-        withAnimation(.numericTransition) {
-            displays = updated
-        }
-        emitChanges()
-        if popupPanel?.isVisible == true {
-            refreshPopup()
+            var updated = displays
+            var changed = false
+            for index in updated.indices {
+                guard let value = newValues[updated[index].id] else {
+                    continue
+                }
+                if abs(updated[index].brightness - value) >= brightnessEpsilon {
+                    updated[index].brightness = value
+                    changed = true
+                }
+            }
+            guard changed else {
+                return
+            }
+            withAnimation(.numericTransition) {
+                displays = updated
+            }
+            emitChanges()
+            if popupPanel?.isVisible == true {
+                refreshPopup()
+            }
         }
     }
 
@@ -174,27 +187,38 @@ final class BrightnessWidget: StatusBarWidget, EventEmitting {
     // MARK: - Slider write-through
 
     private func applyBrightness(_ value: Float, to displayID: CGDirectDisplayID) {
-        guard service.setBrightness(value, for: displayID) else {
+        guard let index = displays.firstIndex(where: { $0.id == displayID }) else {
             return
         }
-        if let index = displays.firstIndex(where: { $0.id == displayID }) {
-            displays[index].brightness = value
-        }
+        let kind = displays[index].kind
+        displays[index].brightness = value
         emitIfChanged(displayID: displayID, value: value)
-    }
 
-    // MARK: - Bar display
-
-    private var barBrightness: Float {
-        let mainID = CGMainDisplayID()
-        if let main = displays.first(where: { $0.id == mainID }) {
-            return main.brightness
+        switch kind {
+        case .builtin,
+             .displayServicesExternal:
+            Task { @MainActor in
+                _ = await service.setBrightness(value, for: displayID, kind: kind)
+            }
+        case .ddc:
+            pendingDDCWrites[displayID] = value
+            scheduleDDCFlush()
         }
-        return displays.first?.brightness ?? 0
     }
 
-    private func percent(_ value: Float) -> Int {
-        Int((value * 100).rounded())
+    private func scheduleDDCFlush() {
+        guard ddcFlushTask == nil else {
+            return
+        }
+        ddcFlushTask = Task { @MainActor in
+            try? await Task.sleep(for: ddcWriteDebounce)
+            let snapshot = pendingDDCWrites
+            pendingDDCWrites.removeAll()
+            ddcFlushTask = nil
+            for (id, value) in snapshot {
+                _ = await service.setBrightness(value, for: id, kind: .ddc)
+            }
+        }
     }
 
     // MARK: - Popup
@@ -232,6 +256,63 @@ final class BrightnessWidget: StatusBarWidget, EventEmitting {
                 self?.applyBrightness(value, to: displayID)
             }
         )
+    }
+}
+
+// MARK: - BrightnessBarBody
+
+/// Renders the bar entry for whichever display this bar instance lives on.
+/// `screenIndex` is injected by `BarContentView` for each per-screen bar window,
+/// so a multi-display setup ends up showing each display's own brightness in
+/// its own bar.
+private struct BrightnessBarBody: View {
+    let displays: [ManagedDisplay]
+    let onTap: () -> Void
+    @Environment(\.screenIndex) private var screenIndex
+
+    var body: some View {
+        if let display = currentDisplay {
+            HStack(spacing: 2) {
+                Image(systemName: brightnessIconName(for: display.brightness))
+                    .font(Theme.sfIconFont)
+                    .foregroundStyle(.primary)
+                    .frame(width: 18, alignment: .center)
+                Text("\(brightnessPercent(display.brightness))%")
+                    .font(Theme.labelFont)
+                    .monospacedDigit()
+                    .foregroundStyle(.primary)
+                    .fixedSize()
+                    .frame(width: 38, alignment: .trailing)
+                    .contentTransition(.numericText())
+            }
+            .padding(.horizontal, 4)
+            .contentShape(Rectangle())
+            .onTapGesture(perform: onTap)
+            .accessibilityElement(children: .combine)
+            .accessibilityLabel(display.name)
+            .accessibilityValue("\(brightnessPercent(display.brightness))%")
+        }
+    }
+
+    private var currentDisplay: ManagedDisplay? {
+        let screens = NSScreen.screens
+        guard screenIndex < screens.count else {
+            return nil
+        }
+        let key = NSDeviceDescriptionKey("NSScreenNumber")
+        guard let id = screens[screenIndex].deviceDescription[key] as? CGDirectDisplayID else {
+            return nil
+        }
+        // Mirror secondary IDs aren't enumerated into `displays`; resolve to the
+        // primary so the bar still shows a value when the user mirrors.
+        var lookupID = id
+        if CGDisplayIsInMirrorSet(id) != 0 {
+            let primary = CGDisplayMirrorsDisplay(id)
+            if primary != 0 {
+                lookupID = primary
+            }
+        }
+        return displays.first(where: { $0.id == lookupID })
     }
 }
 
