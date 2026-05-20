@@ -1,6 +1,22 @@
 import AppKit
 import CoreGraphics
 import Foundation
+import os
+
+private let logger = Logger(subsystem: "com.statusbar", category: "BrightnessService")
+
+// MARK: - DisplayKind
+
+enum DisplayKind: Hashable {
+    /// Built-in laptop / iMac panel — driven via DisplayServices SPI.
+    case builtin
+    /// External display whose brightness responds to DisplayServices
+    /// (Apple-branded externals, plus some HDR monitors that macOS controls
+    /// through the same SPI as the System Settings slider).
+    case displayServicesExternal
+    /// External display driven via DDC/CI over the CoreDisplay IOAVService SPI.
+    case ddc
+}
 
 // MARK: - ManagedDisplay
 
@@ -8,7 +24,7 @@ struct ManagedDisplay: Identifiable, Hashable {
     let id: CGDirectDisplayID
     let name: String
     var brightness: Float
-    let isBuiltin: Bool
+    let kind: DisplayKind
 }
 
 // MARK: - DisplayServicesBindings
@@ -45,52 +61,100 @@ final class BrightnessService {
 
     private init() {}
 
-    /// Whether the underlying private framework loaded successfully.
+    private let ddc = DDCService.shared
+
+    /// Whether at least one control path (DisplayServices or DDC) is available.
     var isAvailable: Bool {
-        DisplayServicesBindings.getBrightness != nil && DisplayServicesBindings.setBrightness != nil
+        DisplayServicesBindings.getBrightness != nil
     }
 
-    /// Enumerate online displays whose brightness is controllable via `DisplayServices`.
+    /// Enumerate online displays, classifying each by control path and seeding
+    /// the initial brightness value.
     ///
-    /// Phase 1 scope: Apple displays only. Third-party HDR monitors are excluded because
-    /// macOS 15+ exposes their SDR-peak slider through `DisplayServicesGetBrightness`,
-    /// which silently no-ops on the actual backlight. They would need DDC/CI support
-    /// to be controlled, which is a follow-up.
-    func enumerateDisplays() -> [ManagedDisplay] {
+    /// Strategy: try `DisplayServices` first for every display. If the SPI returns
+    /// a value, use it — this covers the built-in panel, Apple-branded externals,
+    /// and any third-party display whose brightness the System Settings slider
+    /// already drives. Only when DisplayServices declines do we fall back to DDC/CI.
+    func enumerateDisplays() async -> [ManagedDisplay] {
         let maxDisplays: UInt32 = 16
         var ids = [CGDirectDisplayID](repeating: 0, count: Int(maxDisplays))
         var count: UInt32 = 0
         guard CGGetOnlineDisplayList(maxDisplays, &ids, &count) == .success else {
+            logger.warning("CGGetOnlineDisplayList failed")
             return []
         }
 
-        return ids.prefix(Int(count)).compactMap { id -> ManagedDisplay? in
+        var results: [ManagedDisplay] = []
+        var ddcCandidates: [CGDirectDisplayID] = []
+
+        for id in ids.prefix(Int(count)) {
             // Skip the secondary side of a mirror pair — both IDs share the same
             // physical panel, so we only need the primary.
             if CGDisplayIsInMirrorSet(id) != 0, CGDisplayMirrorsDisplay(id) != 0 {
-                return nil
+                continue
             }
 
             let isBuiltin = CGDisplayIsBuiltin(id) != 0
-            let isAppleVendor = CGDisplayVendorNumber(id) == appleVendorID
-            guard isBuiltin || isAppleVendor else {
-                return nil
-            }
 
-            guard let value = getBrightness(id) else {
-                return nil
+            if let value = getBrightnessViaDisplayServices(id) {
+                let kind: DisplayKind = isBuiltin ? .builtin : .displayServicesExternal
+                results.append(ManagedDisplay(
+                    id: id,
+                    name: localizedName(for: id),
+                    brightness: value,
+                    kind: kind
+                ))
+            } else {
+                ddcCandidates.append(id)
             }
+        }
 
-            return ManagedDisplay(
-                id: id,
-                name: localizedName(for: id),
-                brightness: value,
-                isBuiltin: isBuiltin
-            )
+        if !ddcCandidates.isEmpty {
+            let discovered = await ddc.discover(candidates: ddcCandidates)
+            for entry in discovered {
+                let name = localizedName(for: entry.id, fallback: entry.productName)
+                results.append(ManagedDisplay(
+                    id: entry.id,
+                    name: name,
+                    brightness: entry.brightness,
+                    kind: .ddc
+                ))
+            }
+        }
+        return results
+    }
+
+    func getBrightness(_ id: CGDirectDisplayID, kind: DisplayKind) async -> Float? {
+        switch kind {
+        case .builtin,
+             .displayServicesExternal:
+            getBrightnessViaDisplayServices(id)
+        case .ddc:
+            await ddc.getBrightness(id)
         }
     }
 
-    func getBrightness(_ id: CGDirectDisplayID) -> Float? {
+    @discardableResult
+    func setBrightness(_ value: Float, for id: CGDirectDisplayID, kind: DisplayKind) async -> Bool {
+        switch kind {
+        case .builtin,
+             .displayServicesExternal:
+            setBrightnessViaDisplayServices(value, for: id)
+        case .ddc:
+            await ddc.setBrightness(value, for: id)
+        }
+    }
+
+    /// Drop cached IOAVService handles. Call when the screen topology changes —
+    /// IOAVService is bound to a specific I2C transport and survives unplug only
+    /// in undefined ways.
+    func invalidateExternalCache() async {
+        await ddc.invalidateCache()
+    }
+
+    // MARK: - DisplayServices implementation
+
+    private func getBrightnessViaDisplayServices(_ id: CGDirectDisplayID) -> Float? {
         guard let fn = DisplayServicesBindings.getBrightness else {
             return nil
         }
@@ -101,8 +165,7 @@ final class BrightnessService {
         return value
     }
 
-    @discardableResult
-    func setBrightness(_ value: Float, for id: CGDirectDisplayID) -> Bool {
+    private func setBrightnessViaDisplayServices(_ value: Float, for id: CGDirectDisplayID) -> Bool {
         guard let fn = DisplayServicesBindings.setBrightness else {
             return false
         }
@@ -112,15 +175,17 @@ final class BrightnessService {
 
     // MARK: - Private
 
-    /// Apple's PNP vendor ID (`AAPL`). All Apple-built displays report this value.
-    private let appleVendorID: UInt32 = 1_552
-
-    private func localizedName(for id: CGDirectDisplayID) -> String {
+    private func localizedName(
+        for id: CGDirectDisplayID, fallback: String = ""
+    ) -> String {
         let key = NSDeviceDescriptionKey("NSScreenNumber")
         if let screen = NSScreen.screens.first(where: {
             ($0.deviceDescription[key] as? CGDirectDisplayID) == id
         }) {
             return screen.localizedName
+        }
+        if !fallback.isEmpty {
+            return fallback
         }
         return "Display \(id)"
     }
