@@ -88,6 +88,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         registry.register(CPUGraphWidget())
         registry.register(DiskUsageWidget())
         registry.register(BatteryWidget())
+        registry.register(BrightnessWidget())
         registry.register(VolumeWidget())
         registry.register(InputSourceWidget())
         registry.register(DateWidget())
