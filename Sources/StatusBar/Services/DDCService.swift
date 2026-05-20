@@ -11,6 +11,8 @@ private let logger = Logger(subsystem: "com.statusbar", category: "DDCService")
 /// Opaque AVService reference. Treated as a CF type so ARC handles retain/release.
 typealias IOAVService = CFTypeRef
 
+// MARK: - CoreDisplayBindings
+
 private enum CoreDisplayBindings {
     typealias CreateWithServiceFn = @convention(c) (
         CFAllocator?, io_service_t
@@ -28,8 +30,8 @@ private enum CoreDisplayBindings {
     static let readI2C: ReadI2CFn? = load("IOAVServiceReadI2C")
     static let createInfoDict: CreateInfoDictFn? = load("CoreDisplay_DisplayCreateInfoDictionary")
 
-    // dlopen handle is opened once at process start and never reassigned, so the
-    // pointer is safe to share across actors despite the raw type being non-Sendable.
+    /// dlopen handle is opened once at process start and never reassigned, so the
+    /// pointer is safe to share across actors despite the raw type being non-Sendable.
     nonisolated(unsafe) private static let handle: UnsafeMutableRawPointer? = {
         // CoreDisplay is technically a public framework but the IOAVService SPI
         // is unexported. dlopen + dlsym is covered by disable-library-validation.
@@ -76,7 +78,7 @@ actor DDCService {
         var lastWriteAt: ContinuousClock.Instant?
     }
 
-    struct Discovered: Sendable {
+    struct Discovered {
         let id: CGDirectDisplayID
         let brightness: Float
         let vcpMax: UInt16
@@ -205,9 +207,10 @@ actor DDCService {
             return false
         }
         var packet: [UInt8] = [UInt8(0x80 | (send.count + 1)), UInt8(send.count)] + send + [0]
-        let seed = send.count == 1
-            ? ddcDisplayAddress << 1
-            : (ddcDisplayAddress << 1) ^ ddcDataAddress
+        let displayWriteAddress = ddcDisplayAddress << 1
+        let seed: UInt8 = send.count == 1
+            ? displayWriteAddress
+            : displayWriteAddress ^ ddcDataAddress
         packet[packet.count - 1] = checksum(seed: seed, bytes: packet, end: packet.count - 2)
 
         let maxAttempts = 5
@@ -439,7 +442,7 @@ actor DDCService {
             let probes: [(offset: Int, expected: String)] = [
                 (0, hex16(vendor)),
                 (4, hex16le(product)),
-                (19, hex8(week) + hex8(year - 1990)),
+                (19, hex8(week) + hex8(year - 1_990)),
                 (30, hex8(hSize / 10) + hex8(vSize / 10)),
             ]
             for probe in probes where probe.expected != "0000" {
