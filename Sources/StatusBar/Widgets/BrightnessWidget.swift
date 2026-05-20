@@ -271,30 +271,26 @@ private struct BrightnessBarBody: View {
     @Environment(\.screenIndex) private var screenIndex
 
     var body: some View {
-        Group {
-            if let display = currentDisplay {
-                HStack(spacing: 2) {
-                    Image(systemName: brightnessIconName(for: display.brightness))
-                        .font(Theme.sfIconFont)
-                        .foregroundStyle(.primary)
-                        .frame(width: 18, alignment: .center)
-                    Text("\(brightnessPercent(display.brightness))%")
-                        .font(Theme.labelFont)
-                        .monospacedDigit()
-                        .foregroundStyle(.primary)
-                        .fixedSize()
-                        .frame(width: 38, alignment: .trailing)
-                        .contentTransition(.numericText())
-                }
-                .padding(.horizontal, 4)
-                .contentShape(Rectangle())
-                .onTapGesture(perform: onTap)
-                .accessibilityElement(children: .combine)
-                .accessibilityLabel(display.name)
-                .accessibilityValue("\(brightnessPercent(display.brightness))%")
-            } else {
-                EmptyView()
+        if let display = currentDisplay {
+            HStack(spacing: 2) {
+                Image(systemName: brightnessIconName(for: display.brightness))
+                    .font(Theme.sfIconFont)
+                    .foregroundStyle(.primary)
+                    .frame(width: 18, alignment: .center)
+                Text("\(brightnessPercent(display.brightness))%")
+                    .font(Theme.labelFont)
+                    .monospacedDigit()
+                    .foregroundStyle(.primary)
+                    .fixedSize()
+                    .frame(width: 38, alignment: .trailing)
+                    .contentTransition(.numericText())
             }
+            .padding(.horizontal, 4)
+            .contentShape(Rectangle())
+            .onTapGesture(perform: onTap)
+            .accessibilityElement(children: .combine)
+            .accessibilityLabel(display.name)
+            .accessibilityValue("\(brightnessPercent(display.brightness))%")
         }
     }
 
