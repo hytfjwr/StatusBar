@@ -4,6 +4,7 @@ import SwiftUI
 
 struct AboutSection: View {
     @State private var showingResetConfirm = false
+    @State private var showingUpdateSheet = false
     private let updateService = AppUpdateService.shared
 
     private var appVersion: String {
@@ -167,6 +168,13 @@ struct AboutSection: View {
                     + " This action cannot be undone."
             )
         }
+        .sheet(isPresented: $showingUpdateSheet) {
+            if case let .available(version) = updateService.state {
+                UpdateSheet(version: version) {
+                    showingUpdateSheet = false
+                }
+            }
+        }
     }
 
     private func openSettingsFolder() {
@@ -198,16 +206,17 @@ struct AboutSection: View {
             Label("Up to date", systemImage: "checkmark.circle.fill")
                 .font(.system(size: 12))
                 .foregroundStyle(.green)
+        case let .available(version) where version == updateService.skippedVersion:
+            // User skipped this version — surface as Up to date until a newer release ships.
+            Label("Up to date", systemImage: "checkmark.circle.fill")
+                .font(.system(size: 12))
+                .foregroundStyle(.green)
         case let .available(version):
-            HStack(spacing: 6) {
-                Label("v\(version) available", systemImage: "arrow.down.circle.fill")
-                    .font(.system(size: 12, weight: .medium))
-                    .foregroundStyle(.orange)
-                Button("Update") {
-                    UpdateWindow.shared.show(version: version)
-                }
-                .controlSize(.small)
+            Button("Update Available: v\(version)") {
+                showingUpdateSheet = true
             }
+            .buttonStyle(.borderedProminent)
+            .controlSize(.small)
         case let .error(message):
             Label(message, systemImage: "exclamationmark.triangle.fill")
                 .font(.system(size: 12))
