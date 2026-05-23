@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.17.3] - 2026-05-23
+
+- feat: add button to open config.yml in General preferences (#129)
+
 ## [0.17.2] - 2026-05-23
 
 - feat: redesign update prompt as a single sheet with skip/later (#127)
