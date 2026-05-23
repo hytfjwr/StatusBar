@@ -78,6 +78,17 @@ struct AboutSection: View {
                         }
                         .controlSize(.small)
                     }
+                    HStack {
+                        Text("GitHub Repository")
+                            .frame(width: 120, alignment: .leading)
+                        Spacer()
+                        Button("Open on GitHub") {
+                            if let url = URL(string: "https://github.com/hytfjwr/StatusBar") {
+                                NSWorkspace.shared.open(url)
+                            }
+                        }
+                        .controlSize(.small)
+                    }
                 }
                 .padding(8)
             }
