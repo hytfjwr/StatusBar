@@ -1,3 +1,4 @@
+import AppKit
 import StatusBarKit
 import SwiftUI
 
@@ -22,6 +23,21 @@ struct GeneralSection: View {
                 VStack(spacing: 10) {
                     SliderRow(label: "Widget Spacing", value: $model.widgetSpacing, range: 0 ... 16)
                     SliderRow(label: "Padding H", value: $model.widgetPaddingH, range: 0 ... 16)
+                }
+                .padding(8)
+            }
+
+            GroupBox("Config File") {
+                HStack {
+                    Text(ConfigLoader.shared.configFileURL.path)
+                        .font(.system(size: 12, design: .monospaced))
+                        .foregroundColor(.secondary)
+                        .lineLimit(1)
+                        .truncationMode(.middle)
+                    Spacer()
+                    Button("Open config.yml") {
+                        NSWorkspace.shared.open(ConfigLoader.shared.configFileURL)
+                    }
                 }
                 .padding(8)
             }
