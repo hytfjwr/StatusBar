@@ -38,6 +38,14 @@ final class AppUpdateService {
 
     private(set) var state: UpdateState = .idle
 
+    /// Release metadata fetched from GitHub for the latest available version.
+    /// `nil` when no update is available or the GitHub fetch failed.
+    private(set) var releaseInfo: ReleaseInfo?
+
+    /// Version the user explicitly dismissed via Skip. Suppresses update UI
+    /// until a strictly newer version is detected.
+    private(set) var skippedVersion: String?
+
     /// Last time we checked (persisted across launches for auto-check throttling).
     private(set) var lastCheckDate: Date?
 
@@ -48,22 +56,30 @@ final class AppUpdateService {
     private var updateProcess: Process?
 
     nonisolated private static let brewCask = "statusbar"
+    nonisolated private static let githubOwner = "hytfjwr"
+    nonisolated private static let githubRepo = "StatusBar"
+
+    private static let lastCheckKey = "appUpdate.lastCheckTimestamp"
+    private static let skippedVersionKey = "appUpdate.skippedVersion"
 
     /// Minimum interval between automatic checks (1 hour).
     private static let autoCheckInterval: TimeInterval = 3_600
 
     private init() {
-        let ts = UserDefaults.standard.double(forKey: "appUpdate.lastCheckTimestamp")
+        let ts = UserDefaults.standard.double(forKey: Self.lastCheckKey)
         if ts > 0 {
             lastCheckDate = Date(timeIntervalSince1970: ts)
         }
+        skippedVersion = UserDefaults.standard.string(forKey: Self.skippedVersionKey)
     }
 
+    /// True when an update is available *and* the user has not skipped that exact version.
+    /// Drives all UI surfaces: About button, sidebar dot, AppleMenu badge.
     var isUpdateAvailable: Bool {
-        if case .available = state {
-            return true
+        guard case let .available(version) = state else {
+            return false
         }
-        return false
+        return version != skippedVersion
     }
 
     // MARK: - Public API
@@ -71,6 +87,7 @@ final class AppUpdateService {
     /// Check for updates. Called manually from UI or automatically on launch.
     func checkForUpdates() async {
         state = .checking
+        releaseInfo = nil
 
         do {
             let latestVersion = try await fetchBrewLatestVersion()
@@ -78,19 +95,17 @@ final class AppUpdateService {
 
             recordCheck()
 
-            guard let latest = SemanticVersion(latestVersion),
-                  let current = SemanticVersion(currentVersion)
-            else {
-                if latestVersion != currentVersion {
-                    state = .available(version: latestVersion)
-                } else {
-                    state = .upToDate
-                }
-                return
+            let isNewer: Bool = if let latest = SemanticVersion(latestVersion),
+                                   let current = SemanticVersion(currentVersion)
+            {
+                latest > current
+            } else {
+                latestVersion != currentVersion
             }
 
-            if latest > current {
+            if isNewer {
                 state = .available(version: latestVersion)
+                releaseInfo = await fetchReleaseInfo(version: latestVersion)
             } else {
                 state = .upToDate
             }
@@ -98,6 +113,18 @@ final class AppUpdateService {
             logger.warning("Update check failed: \(error.localizedDescription)")
             state = .error(error.localizedDescription)
         }
+    }
+
+    /// Suppress update prompts for this exact version until a newer one ships.
+    func skip(version: String) {
+        skippedVersion = version
+        UserDefaults.standard.set(version, forKey: Self.skippedVersionKey)
+    }
+
+    /// Clear any previously skipped version (used for testing / manual reset).
+    func clearSkipped() {
+        skippedVersion = nil
+        UserDefaults.standard.removeObject(forKey: Self.skippedVersionKey)
     }
 
     /// Auto-check on launch if enough time has passed.
@@ -254,7 +281,34 @@ final class AppUpdateService {
     private func recordCheck() {
         let now = Date()
         lastCheckDate = now
-        UserDefaults.standard.set(now.timeIntervalSince1970, forKey: "appUpdate.lastCheckTimestamp")
+        UserDefaults.standard.set(now.timeIntervalSince1970, forKey: Self.lastCheckKey)
+    }
+
+    nonisolated private func fetchReleaseInfo(version: String) async -> ReleaseInfo? {
+        let tag = "v\(version)"
+        let urlString = "https://api.github.com/repos/\(Self.githubOwner)/\(Self.githubRepo)/releases/tags/\(tag)"
+        guard let url = URL(string: urlString) else {
+            return nil
+        }
+
+        var request = URLRequest(url: url)
+        request.setValue("application/vnd.github+json", forHTTPHeaderField: "Accept")
+
+        do {
+            let (data, response) = try await URLSession.shared.data(for: request)
+            guard let http = response as? HTTPURLResponse, http.statusCode == 200 else {
+                logger.warning("GitHub release fetch returned non-200 for \(tag)")
+                return nil
+            }
+            let release = try JSONDecoder().decode(GitHubReleaseResponse.self, from: data)
+            let publishedAt = release.publishedAt.flatMap { ISO8601DateFormatter().date(from: $0) }
+            // Pick the largest asset — for this repo, the .app ZIP is by far the biggest.
+            let sizeBytes = release.assets?.map(\.size).max()
+            return ReleaseInfo(version: version, sizeBytes: sizeBytes, publishedAt: publishedAt)
+        } catch {
+            logger.warning("GitHub release fetch failed for \(tag): \(error.localizedDescription)")
+            return nil
+        }
     }
 
     private static func findBrewPath() -> String? {
@@ -360,4 +414,44 @@ private struct BrewInfoResponse: Decodable {
     }
 
     let casks: [Cask]
+}
+
+// MARK: - AppUpdateService.ReleaseInfo
+
+extension AppUpdateService {
+    struct ReleaseInfo: Equatable {
+        let version: String
+        let sizeBytes: Int64?
+        let publishedAt: Date?
+
+        var formattedSize: String? {
+            guard let sizeBytes else {
+                return nil
+            }
+            return ByteCountFormatter.string(fromByteCount: sizeBytes, countStyle: .file)
+        }
+
+        var formattedDate: String? {
+            guard let publishedAt else {
+                return nil
+            }
+            return publishedAt.formatted(date: .abbreviated, time: .omitted)
+        }
+    }
+}
+
+// MARK: - GitHubReleaseResponse
+
+private struct GitHubReleaseResponse: Decodable {
+    let publishedAt: String?
+    let assets: [Asset]?
+
+    struct Asset: Decodable {
+        let size: Int64
+    }
+
+    enum CodingKeys: String, CodingKey {
+        case publishedAt = "published_at"
+        case assets
+    }
 }
