@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.17.1] - 2026-05-23
+
+- feat: add GitHub repository link to About page (#125)
+
 ## [0.17.0] - 2026-05-20
 
 - feat: support external displays in brightness widget (#123)
