@@ -26,6 +26,12 @@ final class ConfigLoader {
     private(set) var currentConfig = StatusBarConfig()
 
     private let fileURL: URL
+
+    /// Public accessor for `~/.config/statusbar/config.yml`.
+    var configFileURL: URL {
+        fileURL
+    }
+
     private var fsSource: DispatchSourceFileSystemObject?
     private var writeTask: Task<Void, Never>?
 
