@@ -71,9 +71,20 @@ Plugin state lives in two YAML files alongside `config.yml`:
 - **`~/.config/statusbar/plugins.yml`** — declarative manifest. Each entry is `source: github:owner/repo` plus `version: "1.2.0"` (exact) or `version: latest`. Safe to commit alongside your dotfiles.
 - **`~/.config/statusbar/plugins-lock.yml`** — resolved snapshot. Auto-generated and updated by sync; records the exact tag, asset URL, and zip SHA-256 needed to reinstall the same versions on another machine.
 
-GUI install/uninstall, manual edits, and `sbar plugins sync` all update the same files. A "Sync Plugins" button in Preferences (and `sbar plugins sync`) reconciles the manifest with what's installed: missing plugins are downloaded, declared updates applied, and plugins removed from `plugins.yml` are auto-uninstalled.
+GUI install/uninstall, manual edits, `sbar plugins install/uninstall`, and `sbar plugins sync` all update the same files. A "Sync Plugins" button in Preferences (and `sbar plugins sync`) reconciles the manifest with what's installed: missing plugins are downloaded, declared updates applied, and plugins removed from `plugins.yml` are auto-uninstalled.
 
 Run `sbar plugins sync --frozen` to install strictly from the lockfile without contacting GitHub — useful for CI or restoring a known-good environment.
+
+From the CLI:
+
+```bash
+sbar plugins install hytfjwr/statusbar-plugin-spotify       # latest release
+sbar plugins install hytfjwr/statusbar-plugin-spotify --version 0.3.0
+sbar plugins install https://github.com/hytfjwr/statusbar-plugin-spotify  # clone URLs work too
+sbar plugins uninstall hytfjwr/statusbar-plugin-spotify
+```
+
+Install resolves `--version` against GitHub releases (omit it to pick `latest`, or to preserve a pin already in `plugins.yml`), downloads the `.statusplugin.zip` asset, updates the manifest + lockfile, and hot-loads the dylib so the widget appears without restart. Uninstall reverses all of that.
 
 ### Official Plugins
 
@@ -293,11 +304,15 @@ sbar toast --title "Deploy done" --message "v1.2.3 shipped" --level success
 sbar toast --title "CPU Warning" --level warning --duration 10
 sbar toast --title "Error" --level error --action-label "Open Logs" --action "open /var/log"
 
-# Plugin manifest sync (reads ~/.config/statusbar/plugins.yml)
+# Plugin manifest (reads/writes ~/.config/statusbar/plugins.yml)
 sbar plugins list
 sbar plugins list --json
 sbar plugins sync
-sbar plugins sync --frozen   # install strictly from plugins-lock.yml, no network resolution
+sbar plugins sync --frozen                # install strictly from plugins-lock.yml, no network resolution
+sbar plugins install owner/repo           # accepts owner/repo, github:owner/repo, or https URL
+sbar plugins install owner/repo --version 1.2.0
+sbar plugins install owner/repo --json    # emit InstalledPluginDTO for scripts
+sbar plugins uninstall owner/repo
 
 # Relaunch the app
 sbar reload
