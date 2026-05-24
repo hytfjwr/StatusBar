@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.18.0] - 2026-05-24
+
+- feat: add sbar plugins install / uninstall (#131)
+
 ## [0.17.3] - 2026-05-23
 
 - feat: add button to open config.yml in General preferences (#129)
