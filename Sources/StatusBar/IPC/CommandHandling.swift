@@ -5,5 +5,5 @@ import StatusBarKit
 @MainActor
 protocol CommandHandling {
     var commandKey: String { get }
-    func handle(_ command: IPCCommand) throws -> IPCPayload
+    func handle(_ command: IPCCommand) async throws -> IPCPayload
 }

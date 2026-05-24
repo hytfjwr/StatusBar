@@ -5,7 +5,7 @@ import StatusBarKit
 struct TriggerCommandHandler: CommandHandling {
     let commandKey = "trigger"
 
-    func handle(_ command: IPCCommand) throws -> IPCPayload {
+    func handle(_ command: IPCCommand) async throws -> IPCPayload {
         guard case let .trigger(eventName, payload) = command else {
             throw IPCError.unknownCommand
         }

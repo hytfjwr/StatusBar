@@ -4,7 +4,7 @@ import StatusBarKit
 struct ToastCommandHandler: CommandHandling {
     let commandKey = "showToast"
 
-    func handle(_ command: IPCCommand) throws -> IPCPayload {
+    func handle(_ command: IPCCommand) async throws -> IPCPayload {
         guard case let .showToast(request) = command else {
             throw IPCError.unknownCommand
         }

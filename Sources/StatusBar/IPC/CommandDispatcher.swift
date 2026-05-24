@@ -22,12 +22,14 @@ final class CommandDispatcher {
             ToastCommandHandler(),
             PluginsSyncCommandHandler(),
             PluginsListCommandHandler(),
+            PluginsInstallCommandHandler(),
+            PluginsUninstallCommandHandler(),
         ]
         handlers = Dictionary(uniqueKeysWithValues: all.map { ($0.commandKey, $0) })
     }
 
     /// Process an IPC request and return the response.
-    func dispatch(_ request: IPCRequest) -> IPCResponse {
+    func dispatch(_ request: IPCRequest) async -> IPCResponse {
         if request.version != ipcProtocolVersion {
             return IPCResponse(
                 requestID: request.requestID,
@@ -42,7 +44,7 @@ final class CommandDispatcher {
         let handlerKey = request.command.handlerKey
         if let handler = handlers[handlerKey] {
             do {
-                let payload = try handler.handle(request.command)
+                let payload = try await handler.handle(request.command)
                 result = .success(payload)
             } catch let error as IPCError {
                 result = .failure(error)
@@ -74,6 +76,8 @@ extension IPCCommand {
         case .showToast: "showToast"
         case .pluginsSync: "pluginsSync"
         case .pluginsList: "pluginsList"
+        case .pluginsInstall: "pluginsInstall"
+        case .pluginsUninstall: "pluginsUninstall"
         @unknown default: "unknown"
         }
     }

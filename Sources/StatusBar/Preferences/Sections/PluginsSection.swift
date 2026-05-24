@@ -344,7 +344,7 @@ extension PluginsSection {
                 guard let source = PluginsManifestEntry.source(fromGitHubURL: update.githubURL) else {
                     throw PluginsManagerError.unknownPlugin(update.pluginID)
                 }
-                let record = try await manager.add(source: source, version: "latest")
+                let record = try await manager.add(source: source, version: "latest").record
                 availableUpdates.removeAll { $0.pluginID == update.pluginID }
 
                 // Attempt hot-reload if the old plugin is loaded, otherwise cold-load
@@ -390,7 +390,7 @@ extension PluginsSection {
             do {
                 let (owner, repo) = try GitHubPluginInstaller.shared.parseGitHubURL(githubURL)
                 let source = "github:\(owner)/\(repo)"
-                let record = try await manager.add(source: source, version: "latest")
+                let record = try await manager.add(source: source, version: "latest").record
                 githubURL = ""
 
                 // Try hot-loading the plugin immediately
@@ -537,11 +537,13 @@ extension PluginsSection {
     }
 
     private func uninstallPlugin(id: String) {
-        do {
-            try manager.remove(pluginID: id)
-            needsRestart = true
-        } catch {
-            installError = "Failed to uninstall: \(error.localizedDescription)"
+        Task {
+            do {
+                try await manager.remove(pluginID: id)
+                needsRestart = true
+            } catch {
+                installError = "Failed to uninstall: \(error.localizedDescription)"
+            }
         }
     }
 

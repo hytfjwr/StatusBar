@@ -7,8 +7,8 @@ struct PluginsListCommandHandlerTests {
     private let handler = PluginsListCommandHandler()
 
     @Test("List command returns pluginList payload")
-    func returnsPluginList() throws {
-        let payload = try handler.handle(.pluginsList)
+    func returnsPluginList() async throws {
+        let payload = try await handler.handle(.pluginsList)
         guard case .pluginList = payload else {
             Issue.record("Expected .pluginList payload, got \(payload)")
             return
@@ -16,9 +16,9 @@ struct PluginsListCommandHandlerTests {
     }
 
     @Test("Wrong command case throws unknownCommand")
-    func wrongCommandCase() {
-        #expect(throws: IPCError.self) {
-            try handler.handle(.list)
+    func wrongCommandCase() async {
+        await #expect(throws: IPCError.self) {
+            try await handler.handle(.list)
         }
     }
 }

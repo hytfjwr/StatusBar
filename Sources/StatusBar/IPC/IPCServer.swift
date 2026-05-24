@@ -66,9 +66,13 @@ private func handleClient(fd: Int32, dispatcher: CommandDispatcher) {
         // Standard request-response path.
         defer { close(fd) }
 
-        let response = await MainActor.run {
-            dispatcher.dispatch(request)
-        }
+        // Now that the request is fully read, clear the 5s send timeout so a long-running
+        // handler (e.g. pluginsInstall downloading a GitHub release) doesn't accidentally
+        // expire SO_SNDTIMEO on the response write if the kernel send buffer is under pressure.
+        var noTimeout = timeval(tv_sec: 0, tv_usec: 0)
+        setsockopt(fd, SOL_SOCKET, SO_SNDTIMEO, &noTimeout, socklen_t(MemoryLayout<timeval>.size))
+
+        let response = await dispatcher.dispatch(request)
 
         do {
             let frame = try IPCFraming.encode(response)
