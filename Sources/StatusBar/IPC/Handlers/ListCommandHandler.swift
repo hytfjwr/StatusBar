@@ -4,7 +4,7 @@ import StatusBarKit
 struct ListCommandHandler: CommandHandling {
     let commandKey = "list"
 
-    func handle(_ command: IPCCommand) throws -> IPCPayload {
+    func handle(_ command: IPCCommand) async throws -> IPCPayload {
         let allSettings = WidgetConfigRegistry.shared.exportAll()
         let dtos = WidgetRegistry.shared.layout.map { entry in
             WidgetInfoDTO.make(from: entry, settings: allSettings[entry.id] ?? [:])

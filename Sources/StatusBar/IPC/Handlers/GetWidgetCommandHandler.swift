@@ -7,7 +7,7 @@ import StatusBarKit
 struct GetWidgetCommandHandler: CommandHandling {
     let commandKey = "getWidget"
 
-    func handle(_ command: IPCCommand) throws -> IPCPayload {
+    func handle(_ command: IPCCommand) async throws -> IPCPayload {
         guard case let .getWidget(id) = command else {
             throw IPCError.unknownCommand
         }

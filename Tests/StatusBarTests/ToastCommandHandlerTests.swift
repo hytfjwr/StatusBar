@@ -8,9 +8,9 @@ struct ToastCommandHandlerTests {
     private let handler = ToastCommandHandler()
 
     @Test("Valid toast returns toastID")
-    func validToast() throws {
+    func validToast() async throws {
         let request = ToastRequest(title: "Test", level: .info)
-        let payload = try handler.handle(.showToast(request: request))
+        let payload = try await handler.handle(.showToast(request: request))
         guard case let .toastID(id) = payload else {
             Issue.record("Expected .toastID payload")
             return
@@ -19,7 +19,7 @@ struct ToastCommandHandlerTests {
     }
 
     @Test("Toast with all fields returns toastID")
-    func toastWithAllFields() throws {
+    func toastWithAllFields() async throws {
         let request = ToastRequest(
             title: "CPU Warning",
             message: "90% exceeded",
@@ -29,7 +29,7 @@ struct ToastCommandHandlerTests {
             actionLabel: "Open Activity Monitor",
             actionShellCommand: "open -a 'Activity Monitor'"
         )
-        let payload = try handler.handle(.showToast(request: request))
+        let payload = try await handler.handle(.showToast(request: request))
         guard case .toastID = payload else {
             Issue.record("Expected .toastID payload")
             return
@@ -37,9 +37,9 @@ struct ToastCommandHandlerTests {
     }
 
     @Test("Wrong command case throws unknownCommand")
-    func wrongCommandCase() {
-        #expect(throws: IPCError.self) {
-            try handler.handle(.list)
+    func wrongCommandCase() async {
+        await #expect(throws: IPCError.self) {
+            try await handler.handle(.list)
         }
     }
 }

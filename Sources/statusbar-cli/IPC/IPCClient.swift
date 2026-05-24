@@ -58,3 +58,30 @@ enum IPCClientError: Error, CustomStringConvertible {
         }
     }
 }
+
+// MARK: - IPCError + @retroactive CustomStringConvertible
+
+/// Default debug rendering for `IPCError` (defined in the external StatusBarKit package) is
+/// Swift's enum-with-associated-value form — `internalError("...")` — which leaks the case name
+/// to end users. Render it as the underlying message so ArgumentParser's "Error: ..." line is
+/// readable.
+extension IPCError: @retroactive CustomStringConvertible {
+    public var description: String {
+        switch self {
+        case .unknownCommand:
+            "Unknown command"
+        case let .widgetNotFound(id):
+            "Widget not found: \(id)"
+        case let .invalidKeyPath(path):
+            "Invalid key path: \(path)"
+        case let .invalidValue(key, reason):
+            "Invalid value for \(key): \(reason)"
+        case let .versionMismatch(server, client):
+            "IPC protocol mismatch (server v\(server), client v\(client)) — reinstall sbar"
+        case let .internalError(message):
+            message
+        @unknown default:
+            "Unknown IPC error"
+        }
+    }
+}

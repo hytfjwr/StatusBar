@@ -4,7 +4,7 @@ import StatusBarKit
 struct PluginsSyncCommandHandler: CommandHandling {
     let commandKey = "pluginsSync"
 
-    func handle(_ command: IPCCommand) throws -> IPCPayload {
+    func handle(_ command: IPCCommand) async throws -> IPCPayload {
         guard case let .pluginsSync(frozen) = command else {
             throw IPCError.unknownCommand
         }

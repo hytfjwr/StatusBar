@@ -52,6 +52,11 @@ final class PluginsManager {
     /// In-flight sync task — used to coalesce concurrent sync() callers.
     private var inFlightSync: Task<PluginsSyncResult, any Error>?
 
+    /// Tail of the serialized mutation chain (add / remove). New mutators await this so
+    /// concurrent CLI installs / uninstalls cannot interleave their manifest+lock writes.
+    /// `Result<Void, Never>` so a failed predecessor never propagates and blocks the queue.
+    private var mutationTail: Task<Void, Never>?
+
     private init() {
         manifestStore = .shared
         pluginStore = .shared
@@ -150,15 +155,20 @@ final class PluginsManager {
     /// Concurrent callers share a single in-flight sync to avoid duplicate downloads.
     /// - Parameter frozen: When true, resolves only from `plugins-lock.yml` and never contacts GitHub.
     func sync(frozen: Bool = false) async throws -> PluginsSyncResult {
+        // Coalesce concurrent sync callers (they want the same result, no point doing the work
+        // twice). Also queue behind any in-flight add/remove via the shared mutation chain so
+        // a sync mid-install doesn't clobber the lockfile from a stale snapshot.
         if let existing = inFlightSync {
             return try await existing.value
         }
-        let task = Task { @MainActor [weak self] () throws -> PluginsSyncResult in
+        let task = Task<PluginsSyncResult, any Error> { @MainActor [weak self] () throws -> PluginsSyncResult in
             guard let self else {
                 return PluginsSyncResult()
             }
             defer { self.inFlightSync = nil }
-            return try await self.runSync(frozen: frozen)
+            return try await self.serializeMutation { [self] in
+                try await runSync(frozen: frozen)
+            }
         }
         inFlightSync = task
         return try await task.value
@@ -219,11 +229,26 @@ final class PluginsManager {
 
     // MARK: - GUI helpers
 
+    /// Outcome of `add(source:version:)`. `action` lets callers skip a hot-reload when nothing
+    /// on disk changed — without it, repeating `sbar plugins install foo` would tear down + rebuild
+    /// the live widgets at the same version, losing per-widget runtime state.
+    struct AddResult {
+        enum Action { case installed, updated, skipped }
+        let record: InstalledPluginRecord
+        let action: Action
+    }
+
     /// Append (or update) an entry in plugins.yml and immediately install the plugin.
     /// Installs first and only persists the manifest if the install succeeds, so a failed
     /// network request never leaves a poisoned entry in plugins.yml.
     @discardableResult
-    func add(source: String, version: String) async throws -> InstalledPluginRecord {
+    func add(source: String, version: String) async throws -> AddResult {
+        try await serializeMutation { [self] in
+            try await unsafeAdd(source: source, version: version)
+        }
+    }
+
+    private func unsafeAdd(source: String, version: String) async throws -> AddResult {
         let entry = PluginsManifestEntry(source: source, version: version)
         guard entry.parseGitHubSource() != nil else {
             throw PluginsManifestError.invalidSource(source)
@@ -232,9 +257,14 @@ final class PluginsManager {
         // Install first so a failure does not pollute plugins.yml.
         let outcome = try await applyEntry(entry, lock: manifestStore.currentLock, frozen: false)
 
+        // GitHub repo names are case-insensitive — match the existing manifest/lock entry
+        // case-insensitively so re-installing with a different casing updates rather than
+        // duplicating, matching the drift-comparison convention used in runSync().
+        let target = source.lowercased()
+
         // Persist manifest (update existing entry if present, otherwise append).
         var manifest = manifestStore.currentManifest
-        if let index = manifest.plugins.firstIndex(where: { $0.source == source }) {
+        if let index = manifest.plugins.firstIndex(where: { $0.source.lowercased() == target }) {
             manifest.plugins[index] = entry
         } else {
             manifest.plugins.append(entry)
@@ -243,19 +273,67 @@ final class PluginsManager {
 
         // Persist lock.
         var updatedLock = manifestStore.currentLock
-        if let index = updatedLock.plugins.firstIndex(where: { $0.source == source }) {
+        if let index = updatedLock.plugins.firstIndex(where: { $0.source.lowercased() == target }) {
             updatedLock.plugins[index] = outcome.lockEntry
         } else {
             updatedLock.plugins.append(outcome.lockEntry)
         }
         try manifestStore.saveLock(updatedLock)
-        return outcome.record
+        let action: AddResult.Action = switch outcome.action {
+        case .installed: .installed
+        case .updated: .updated
+        case .skipped: .skipped
+        }
+        return AddResult(record: outcome.record, action: action)
+    }
+
+    /// Remove a plugin by its plugins.yml source ("github:owner/repo"). Resolves to a pluginID
+    /// via the lockfile (preferred) or the installed registry, then delegates to `remove(pluginID:)`.
+    /// Matching is case-insensitive because GitHub repository names are case-insensitive — this
+    /// mirrors the drift-detection logic in `runSync()`.
+    /// When neither pluginStore nor any other ground-truth source has a record but the lockfile
+    /// does (e.g., the plugin failed to load at boot), the manifest+lock entries are removed
+    /// directly so the user can recover via CLI without hand-editing plugins.yml.
+    /// `async` so it can wait for an in-flight `add()` to finish before mutating the manifest.
+    func remove(source: String) async throws {
+        try await serializeMutation { [self] in
+            try unsafeRemove(source: source)
+        }
+    }
+
+    private func unsafeRemove(source: String) throws {
+        let target = source.lowercased()
+        if let record = pluginStore.plugins.first(where: {
+            PluginsManifestEntry.source(fromGitHubURL: $0.githubURL)?.lowercased() == target
+        }) {
+            try unsafeRemove(pluginID: record.id)
+            return
+        }
+        if manifestStore.currentLock.plugins.contains(where: { $0.source.lowercased() == target }) {
+            // Orphan lock entry (no matching registry record). Clear manifest+lock without
+            // calling installer.uninstall — there's nothing on disk to remove.
+            var manifest = manifestStore.currentManifest
+            manifest.plugins.removeAll { $0.source.lowercased() == target }
+            try manifestStore.saveManifest(manifest)
+            var lock = manifestStore.currentLock
+            lock.plugins.removeAll { $0.source.lowercased() == target }
+            try manifestStore.saveLock(lock)
+            return
+        }
+        throw PluginsManagerError.unknownSource(source)
     }
 
     /// Remove a plugin: delete the bundle from disk, then drop the entry from manifest + lock + registry.
     /// Bundle removal runs first so a permission error leaves the runtime state recoverable.
     /// Local plugins (`isLocal == true`) cannot be removed via this path — they are not managed by plugins.yml.
-    func remove(pluginID: String) throws {
+    /// `async` so it can wait for an in-flight `add()` to finish before mutating the manifest.
+    func remove(pluginID: String) async throws {
+        try await serializeMutation { [self] in
+            try unsafeRemove(pluginID: pluginID)
+        }
+    }
+
+    private func unsafeRemove(pluginID: String) throws {
         guard let record = pluginStore.record(forID: pluginID) else {
             throw PluginsManagerError.unknownPlugin(pluginID)
         }
@@ -271,13 +349,38 @@ final class PluginsManager {
         // Only then tear down the live widgets and update the manifest/lock files.
         DylibPluginLoader.shared.markForRemoval(pluginID: pluginID, from: WidgetRegistry.shared)
 
+        // Case-insensitive match: plugins.yml may have been hand-edited with a different
+        // casing than the registry's githubURL. Without this, the bundle is gone but the
+        // manifest entry survives, and next sync re-installs the plugin.
+        let target = source.lowercased()
         var manifest = manifestStore.currentManifest
-        manifest.plugins.removeAll { $0.source == source }
+        manifest.plugins.removeAll { $0.source.lowercased() == target }
         try manifestStore.saveManifest(manifest)
 
         var lock = manifestStore.currentLock
-        lock.plugins.removeAll { $0.source == source }
+        lock.plugins.removeAll { $0.source.lowercased() == target }
         try manifestStore.saveLock(lock)
+    }
+
+    // MARK: - Mutation serialization
+
+    /// Run `work` after any prior add/remove/sync finishes. Prevents races where one mutator
+    /// yields on a GitHub download while a sibling mutator writes the manifest/lock from a stale
+    /// snapshot. The await chain is placed *inside* the new task body — not in the caller — so
+    /// two callers queued behind the same predecessor still serialize against each other when
+    /// the predecessor completes.
+    private func serializeMutation<T: Sendable>(
+        _ work: @MainActor @escaping () async throws -> T
+    ) async throws -> T {
+        let previous = mutationTail
+        let task = Task<T, any Error> { @MainActor in
+            _ = await previous?.value
+            return try await work()
+        }
+        // The tail erases the result type and ignores errors so a failed predecessor
+        // never blocks the queue.
+        mutationTail = Task<Void, Never> { _ = try? await task.value }
+        return try await task.value
     }
 
     // MARK: - Manifest DTOs (for IPC)
@@ -430,6 +533,7 @@ final class PluginsManager {
 
 enum PluginsManagerError: Error, LocalizedError {
     case unknownPlugin(String)
+    case unknownSource(String)
     case localPluginNotManaged(String)
     case frozenMissingLockEntry(String)
     case frozenIncompleteLockEntry(String)
@@ -438,6 +542,8 @@ enum PluginsManagerError: Error, LocalizedError {
         switch self {
         case let .unknownPlugin(id):
             "Unknown plugin: \(id)"
+        case let .unknownSource(source):
+            "No installed plugin matches source \(source)"
         case let .localPluginNotManaged(id):
             "Local plugin \(id) is not managed by plugins.yml"
         case let .frozenMissingLockEntry(source):

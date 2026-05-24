@@ -6,7 +6,7 @@ struct SetGlobalCommandHandler: CommandHandling {
     let commandKey = "setGlobal"
 
     // swiftlint:disable:next cyclomatic_complexity function_body_length
-    func handle(_ command: IPCCommand) throws -> IPCPayload {
+    func handle(_ command: IPCCommand) async throws -> IPCPayload {
         guard case let .setGlobal(keyPath, value) = command else {
             throw IPCError.unknownCommand
         }

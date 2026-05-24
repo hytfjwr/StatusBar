@@ -201,24 +201,90 @@ struct PluginsManagerTests {
     // MARK: - remove guards
 
     @Test("remove throws for unknown plugin ID")
-    func removeUnknown() {
+    func removeUnknown() async {
         let env = makeTempEnv()
         defer { env.cleanup() }
         let manager = env.manager
-        #expect(throws: PluginsManagerError.self) {
-            try manager.remove(pluginID: "does-not-exist")
+        await #expect(throws: PluginsManagerError.self) {
+            try await manager.remove(pluginID: "does-not-exist")
         }
     }
 
     @Test("remove rejects local plugins")
-    func removeLocalRejected() throws {
+    func removeLocalRejected() async throws {
         let env = makeTempEnv()
         defer { env.cleanup() }
         let manager = env.manager
         let store = env.store
         try store.add(makeRecord(id: "com.local", githubURL: nil, isLocal: true))
-        #expect(throws: PluginsManagerError.self) {
-            try manager.remove(pluginID: "com.local")
+        await #expect(throws: PluginsManagerError.self) {
+            try await manager.remove(pluginID: "com.local")
+        }
+    }
+
+    @Test("remove(source:) throws unknownSource when nothing matches")
+    func removeBySourceUnknown() async {
+        let env = makeTempEnv()
+        defer { env.cleanup() }
+        let manager = env.manager
+        await #expect(throws: PluginsManagerError.self) {
+            try await manager.remove(source: "github:does/not-exist")
+        }
+    }
+
+    @Test("remove(source:) clears an orphan lock entry case-insensitively")
+    func removeBySourceCaseInsensitiveOrphan() async throws {
+        // Two things in one test:
+        //   1. plugins-lock.yml has mixed-case source `github:Acme/Foo-Widget` while the CLI input
+        //      is lowercase `github:acme/foo-widget` — case-insensitive lookup must match.
+        //   2. pluginStore has no matching record (orphan lock — e.g., plugin failed to load at boot).
+        //      remove(source:) must clean manifest+lock directly without calling installer.uninstall.
+        // After the call, the lock must be empty — that observable side-effect distinguishes a
+        // working case-insensitive path from a silent miss.
+        let env = makeTempEnv()
+        defer { env.cleanup() }
+        let manifest = PluginsManifest(plugins: [
+            PluginsManifestEntry(source: "github:Acme/Foo-Widget", version: "1.0.0"),
+        ])
+        let lock = PluginsLock(plugins: [
+            PluginsLockEntry(
+                source: "github:Acme/Foo-Widget",
+                resolvedVersion: "1.0.0",
+                pluginID: "com.acme.foo",
+                bundleName: "FooWidget",
+                assetURL: nil,
+                zipSHA256: nil,
+                resolvedAt: Date()
+            ),
+        ])
+        try env.manifestStore.saveManifest(manifest)
+        try env.manifestStore.saveLock(lock)
+
+        try await env.manager.remove(source: "github:acme/foo-widget")
+
+        #expect(env.manifestStore.currentManifest.plugins.isEmpty)
+        #expect(env.manifestStore.currentLock.plugins.isEmpty)
+    }
+
+    @Test("Concurrent removes queue through the mutation chain instead of racing")
+    func concurrentRemoveSerializes() async throws {
+        // Two unknown-source removes started in parallel must both reach the unknown branch.
+        // If the serializer had the chain bug (second caller doesn't await the first's task),
+        // they'd interleave on currentManifest/currentLock. The observable check is weak — both
+        // throw — but the structural assertion is: the test completes without crash/deadlock,
+        // and a follow-up legitimate remove still works.
+        let env = makeTempEnv()
+        defer { env.cleanup() }
+        async let a: () = {
+            do { try await env.manager.remove(source: "github:a/one") } catch {}
+        }()
+        async let b: () = {
+            do { try await env.manager.remove(source: "github:b/two") } catch {}
+        }()
+        _ = await (a, b)
+        // Mutation chain is still healthy after two queued failures.
+        await #expect(throws: PluginsManagerError.self) {
+            try await env.manager.remove(source: "github:c/three")
         }
     }
 }
