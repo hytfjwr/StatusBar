@@ -8,7 +8,7 @@ https://github.com/user-attachments/assets/ff474554-a8e3-4ccc-91ff-edb0f0bb1ed2
 
 [![CI](https://github.com/hytfjwr/StatusBar/actions/workflows/ci.yml/badge.svg)](https://github.com/hytfjwr/StatusBar/actions/workflows/ci.yml)
 [![Release](https://img.shields.io/github/v/release/hytfjwr/StatusBar?logo=github)](https://github.com/hytfjwr/StatusBar/releases/latest)
-[![Homebrew](https://img.shields.io/badge/Homebrew-hytfjwr/statusbar-FBB040?logo=homebrew&logoColor=white)](https://github.com/hytfjwr/homebrew-statusbar)
+[![Homebrew](https://img.shields.io/badge/Homebrew-hytfjwr/tap-FBB040?logo=homebrew&logoColor=white)](https://github.com/hytfjwr/homebrew-tap)
 [![Swift 6.2](https://img.shields.io/badge/Swift-6.2-F05138?logo=swift&logoColor=white)](https://www.swift.org)
 [![macOS 26+](https://img.shields.io/badge/macOS-26+-000000?logo=apple&logoColor=white)](https://developer.apple.com/macos/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
@@ -25,7 +25,7 @@ https://github.com/user-attachments/assets/ff474554-a8e3-4ccc-91ff-edb0f0bb1ed2
 ### Homebrew (recommended)
 
 ```bash
-brew tap hytfjwr/statusbar
+brew tap hytfjwr/tap
 brew install --cask statusbar
 ```
 
