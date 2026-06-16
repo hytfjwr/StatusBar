@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.18.1] - 2026-06-16
+
+- chore(deps): bump github.com/jpsim/yams from 6.2.1 to 6.2.2 (#133)
+- chore(deps): bump github.com/apple/swift-argument-parser from 1.7.1 to 1.8.2 (#136)
+- docs: point Homebrew instructions at the renamed hytfjwr/tap
+
 ## [0.18.0] - 2026-05-24
 
 - feat: add sbar plugins install / uninstall (#131)
