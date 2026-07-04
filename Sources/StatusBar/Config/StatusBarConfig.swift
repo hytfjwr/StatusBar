@@ -7,11 +7,23 @@ struct StatusBarConfig: Codable {
     var global: GlobalConfig
     var widgets: [WidgetLayoutConfig]
     var widgetSettings: [String: [String: ConfigValue]]
+    var customWidgets: [CustomWidgetConfig]
 
     init() {
         global = GlobalConfig()
         widgets = []
         widgetSettings = [:]
+        customWidgets = []
+    }
+
+    init(from decoder: any Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        global = try c.decodeIfPresent(GlobalConfig.self, forKey: .global) ?? GlobalConfig()
+        widgets = try c.decodeIfPresent([WidgetLayoutConfig].self, forKey: .widgets) ?? []
+        widgetSettings = try c.decodeIfPresent(
+            [String: [String: ConfigValue]].self, forKey: .widgetSettings
+        ) ?? [:]
+        customWidgets = try c.decodeIfPresent([CustomWidgetConfig].self, forKey: .customWidgets) ?? []
     }
 
     @MainActor
@@ -21,6 +33,7 @@ struct StatusBarConfig: Codable {
         config.global = GlobalConfig(from: prefs)
         config.widgets = WidgetRegistry.shared.layout.map { WidgetLayoutConfig(from: $0) }
         config.widgetSettings = WidgetConfigRegistry.shared.exportAll()
+        config.customWidgets = ConfigLoader.shared.currentConfig.customWidgets
         return config
     }
 }
@@ -456,5 +469,75 @@ struct WidgetLayoutConfig: Codable {
 
     var asEntry: WidgetLayoutEntry {
         WidgetLayoutEntry(id: id, section: section, sortIndex: sortIndex, isVisible: visible)
+    }
+}
+
+// MARK: - CustomWidgetConfig
+
+/// A user-defined script widget declared in the `customWidgets:` section of config.yml.
+/// Decoding is lenient: missing/invalid fields fall back to defaults so a single bad
+/// entry never fails the whole config parse. Validation happens in CustomWidgetCoordinator.
+struct CustomWidgetConfig: Codable, Equatable {
+    var id: String
+    var script: String
+    var position: WidgetPosition
+    var icon: String?
+    var sfSymbol: String?
+    var interval: Double
+    var clickScript: String?
+    var timeout: Double
+
+    /// Registry-facing widget ID, prefixed to avoid collisions with built-ins.
+    var widgetID: String {
+        "custom-" + id
+    }
+
+    /// Timer interval; `interval <= 0` means "run once at start, no timer".
+    var timerInterval: TimeInterval? {
+        interval > 0 ? max(interval, 1) : nil
+    }
+
+    /// Script timeout clamped to a sane range.
+    var clampedTimeout: TimeInterval {
+        min(max(timeout, 1), 30)
+    }
+
+    init(
+        id: String,
+        script: String,
+        position: WidgetPosition = .right,
+        icon: String? = nil,
+        sfSymbol: String? = nil,
+        interval: Double = 30,
+        clickScript: String? = nil,
+        timeout: Double = 5
+    ) {
+        self.id = id
+        self.script = script
+        self.position = position
+        self.icon = icon
+        self.sfSymbol = sfSymbol
+        self.interval = interval
+        self.clickScript = clickScript
+        self.timeout = timeout
+    }
+
+    init(from decoder: any Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        id = try c.decodeIfPresent(String.self, forKey: .id) ?? ""
+        script = try c.decodeIfPresent(String.self, forKey: .script) ?? ""
+        // Lenient enum decoding: an unknown position string falls back to .right
+        let rawPosition = (try? c.decodeIfPresent(String.self, forKey: .position))
+        position = rawPosition.flatMap(WidgetPosition.init(rawValue:)) ?? .right
+        icon = try c.decodeIfPresent(String.self, forKey: .icon)
+        sfSymbol = try c.decodeIfPresent(String.self, forKey: .sfSymbol)
+        // Yams typically decodes YAML integers as Double, but fall back to Int just in case.
+        interval = try c.decodeIfPresent(Double.self, forKey: .interval)
+            ?? (c.decodeIfPresent(Int.self, forKey: .interval)).map(Double.init)
+            ?? 30
+        clickScript = try c.decodeIfPresent(String.self, forKey: .clickScript)
+        timeout = try c.decodeIfPresent(Double.self, forKey: .timeout)
+            ?? (c.decodeIfPresent(Int.self, forKey: .timeout)).map(Double.init)
+            ?? 5
     }
 }

@@ -29,6 +29,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         // Dylib plugins (user-installed from ~/.config/statusbar/plugins/)
         DylibPluginLoader.shared.loadAll(into: registry)
 
+        // Custom script widgets declared in config.yml
+        CustomWidgetCoordinator.shared.registerAll(
+            from: ConfigLoader.shared.currentConfig.customWidgets,
+            into: registry
+        )
+
         registry.finalizeRegistration()
 
         // Apply layout from config after all widgets are registered

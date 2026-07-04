@@ -376,6 +376,7 @@ final class ConfigLoader {
     /// Shared logic for applying a newly loaded config.
     private func applyNewConfig(_ newConfig: StatusBarConfig) {
         currentConfig = newConfig
+        CustomWidgetCoordinator.shared.sync(with: newConfig.customWidgets, registry: WidgetRegistry.shared)
         applyToLiveModels()
 
         if !newConfig.widgets.isEmpty {

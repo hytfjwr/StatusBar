@@ -255,6 +255,42 @@ widgets:
 
 </details>
 
+### Custom Script Widgets
+
+Define your own status bar items with a shell command — no plugin required. Add entries under `customWidgets:` at the top level of `config.yml`:
+
+```yaml
+customWidgets:
+  - id: k8s-context
+    position: right
+    icon: "⎈"
+    script: "kubectl config current-context"
+    interval: 30
+    clickScript: "open -a Lens"
+    timeout: 5
+```
+
+| Key | Type | Default | Description |
+|-----|------|---------|-------------|
+| `id` | string | *(required)* | Unique identifier. Letters, digits, `-`, and `_` only |
+| `script` | string | *(required)* | Shell command run via `bash -c` |
+| `position` | string | `right` | `left`, `center`, or `right` |
+| `icon` | string | — | Emoji or short text shown before the label |
+| `sfSymbol` | string | — | SF Symbol name shown before the label (used if `icon` is not set) |
+| `interval` | number | 30 | Seconds between script runs. `0` disables the timer (runs once at start, and again on click) |
+| `clickScript` | string | — | Shell command run when the widget is clicked. If omitted, clicking re-runs `script` |
+| `timeout` | number | 5 | Script timeout in seconds (clamped to 1–30) |
+
+By default the widget displays the first line of the script's stdout as its label. For richer output, print a JSON object instead:
+
+```json
+{"text": "3 pods", "icon": "⎈", "sfSymbol": "circle.fill", "color": "#FF3B30"}
+```
+
+Any stdout starting with `{` is parsed this way; all fields are optional and override the corresponding `customWidgets` entry values for that update. This lets a script change its icon, label, or color dynamically (e.g. turn red when a check fails).
+
+Custom widgets are hot-reloaded along with the rest of `config.yml` — add, edit, or remove an entry and save the file to see the change immediately.
+
 ## CLI (`sbar`)
 
 StatusBar includes a command-line tool `sbar` for controlling the app from the terminal or scripts. It communicates with the running app via Unix domain socket.
