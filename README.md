@@ -44,9 +44,9 @@ make run-app   # Release build
 |--------|-------------|--------|
 | Apple Menu | System actions & preferences | Event |
 | Front App | Currently focused application | Event |
-| CPU Graph | Real-time CPU usage mini-graph | 2s |
-| Memory Graph | RAM usage mini-graph | 2s |
-| Network | Upload / download speeds | 2s |
+| CPU Graph | Real-time CPU usage mini-graph, per-core & top-process popup | 2s |
+| Memory Graph | RAM usage mini-graph, memory breakdown & top-process popup | 2s |
+| Network | Upload / download speeds, SSID / IP / per-interface popup | 2s |
 | Battery | Charge level & charging state | 60s |
 | Volume | Volume level with popup control | Event |
 | Bluetooth | Connected device count, AirPods L/R/Case battery in popup | 10s |
