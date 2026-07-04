@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.19.0] - 2026-07-04
+
+- feat: add rich popups to CPU, Memory, and Network widgets (#142)
+- chore(deps): bump actions/checkout from 6 to 7 (#138)
+- feat: add YAML-defined custom script widgets (#141)
+
 ## [0.18.1] - 2026-06-16
 
 - chore(deps): bump github.com/jpsim/yams from 6.2.1 to 6.2.2 (#133)
