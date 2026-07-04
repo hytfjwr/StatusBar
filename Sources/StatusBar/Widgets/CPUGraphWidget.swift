@@ -115,6 +115,12 @@ final class CPUGraphWidget: StatusBarWidget, EventEmitting {
     private var graphValues: [Double] = []
     private var isRunning = false
 
+    private var popupPanel: PopupPanel?
+    private var popupCores: [Double] = []
+    private var popupProcesses: [ProcessInfoService.ProcessSample] = []
+    private var processFetchInFlight = false
+    private var processFetchCompleted = false
+
     func start() {
         isRunning = true
         restartTimer()
@@ -125,6 +131,7 @@ final class CPUGraphWidget: StatusBarWidget, EventEmitting {
     func stop() {
         isRunning = false
         timer?.cancel()
+        popupPanel?.hidePopup()
     }
 
     var hasSettings: Bool {
@@ -182,6 +189,9 @@ final class CPUGraphWidget: StatusBarWidget, EventEmitting {
             graphValues = buffer.values()
         }
         emitRaw(.cpuUpdated(percent: Int(usage * 100)))
+        if popupPanel?.isVisible == true {
+            refreshPopupData()
+        }
     }
 
     private var latestUsagePercent: Int {
@@ -211,14 +221,156 @@ final class CPUGraphWidget: StatusBarWidget, EventEmitting {
                     .contentTransition(.numericText())
             }
         }
-        .onTapGesture {
-            NSWorkspace.shared.open(
-                URL(fileURLWithPath: "/System/Applications/Utilities/Activity Monitor.app")
-            )
+        .onTapGesture { [weak self] in
+            self?.togglePopup()
         }
         .accessibilityElement(children: .combine)
         .accessibilityLabel("CPU Usage")
         .accessibilityValue("\(latestUsagePercent)%")
+    }
+
+    // MARK: - Popup
+
+    private func togglePopup() {
+        if popupPanel?.isVisible == true {
+            popupPanel?.hidePopup()
+        } else {
+            showPopup()
+        }
+    }
+
+    private func showPopup() {
+        if popupPanel == nil {
+            popupPanel = PopupPanel(contentRect: NSRect(x: 0, y: 0, width: 300, height: 300))
+        }
+
+        guard let (barFrame, screen) = PopupPanel.barTriggerFrame() else {
+            return
+        }
+
+        refreshPopupData()
+        popupPanel?.showPopup(relativeTo: barFrame, on: screen, content: makePopupContent())
+    }
+
+    private func refreshPopupData() {
+        popupCores = service.perCoreUsage()
+        refreshPopup()
+
+        guard !processFetchInFlight else {
+            return
+        }
+        processFetchInFlight = true
+        Task { [weak self] in
+            let samples = await ProcessInfoService.sample(sortedBy: .cpu)
+            guard let self else {
+                return
+            }
+            processFetchInFlight = false
+            processFetchCompleted = true
+            popupProcesses = ProcessInfoService.topByCPU(samples)
+            refreshPopup()
+        }
+    }
+
+    private func refreshPopup() {
+        guard let panel = popupPanel, panel.isVisible else {
+            return
+        }
+        panel.updateContent(makePopupContent())
+        panel.resizeToFitContent()
+    }
+
+    private func makePopupContent() -> CPUPopupContent {
+        CPUPopupContent(
+            totalUsage: graphValues.last ?? 0,
+            cores: popupCores,
+            processes: popupProcesses,
+            processesLoaded: processFetchCompleted,
+            onOpenActivityMonitor: { [weak self] in
+                NSWorkspace.shared.open(
+                    URL(fileURLWithPath: "/System/Applications/Utilities/Activity Monitor.app")
+                )
+                self?.popupPanel?.hidePopup()
+            }
+        )
+    }
+}
+
+// MARK: - CPUPopupContent
+
+private struct CPUPopupContent: View {
+    let totalUsage: Double
+    let cores: [Double]
+    let processes: [ProcessInfoService.ProcessSample]
+    let processesLoaded: Bool
+    let onOpenActivityMonitor: () -> Void
+
+    private func usageColor(_ fraction: Double) -> Color {
+        if fraction >= 0.85 {
+            return Theme.red
+        }
+        if fraction >= 0.60 {
+            return Theme.yellow
+        }
+        return Theme.green
+    }
+
+    private var coreColumns: [GridItem] {
+        [GridItem(.flexible()), GridItem(.flexible())]
+    }
+
+    var body: some View {
+        VStack(spacing: 0) {
+            PopupSectionHeader("CPU")
+
+            VStack(spacing: 6) {
+                UsageBarRow(
+                    label: "Total",
+                    fraction: totalUsage,
+                    color: usageColor(totalUsage),
+                    valueText: "\(Int(totalUsage * 100))%"
+                )
+
+                LazyVGrid(columns: coreColumns, spacing: 6) {
+                    ForEach(Array(cores.enumerated()), id: \.offset) { index, usage in
+                        UsageBarRow(
+                            label: "\(index)",
+                            fraction: usage,
+                            color: usageColor(usage),
+                            valueText: "\(Int(usage * 100))%"
+                        )
+                    }
+                }
+            }
+            .padding(.horizontal, 14)
+            .padding(.bottom, 8)
+
+            PopupDivider()
+            PopupSectionHeader("Top Processes")
+
+            if processes.isEmpty {
+                PopupEmptyState(icon: "cpu", message: processesLoaded ? "Unavailable" : "Loading…")
+            } else {
+                VStack(spacing: 2) {
+                    ForEach(processes) { process in
+                        ProcessRow(
+                            name: process.name,
+                            valueText: String(format: "%.1f%%", process.cpuPercent),
+                            valueColor: usageColor(process.cpuPercent / 100)
+                        )
+                    }
+                }
+                .padding(.horizontal, 6)
+            }
+
+            PopupDivider()
+            PopupRow(icon: "chart.bar.xaxis", label: "Open Activity Monitor") {
+                onOpenActivityMonitor()
+            }
+            .padding(.horizontal, 6)
+            .padding(.bottom, 8)
+        }
+        .frame(width: 300)
     }
 }
 

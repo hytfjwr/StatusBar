@@ -115,6 +115,12 @@ final class MemoryGraphWidget: StatusBarWidget, EventEmitting {
     private var graphValues: [Double] = []
     private var isRunning = false
 
+    private var popupPanel: PopupPanel?
+    private var popupSnapshot: SystemMonitorService.MemorySnapshot?
+    private var popupProcesses: [ProcessInfoService.ProcessSample] = []
+    private var processFetchInFlight = false
+    private var processFetchCompleted = false
+
     func start() {
         isRunning = true
         restartTimer()
@@ -125,6 +131,7 @@ final class MemoryGraphWidget: StatusBarWidget, EventEmitting {
     func stop() {
         isRunning = false
         timer?.cancel()
+        popupPanel?.hidePopup()
     }
 
     var hasSettings: Bool {
@@ -182,6 +189,9 @@ final class MemoryGraphWidget: StatusBarWidget, EventEmitting {
             graphValues = buffer.values()
         }
         emitRaw(.memoryUpdated(percent: Int(usage * 100)))
+        if popupPanel?.isVisible == true {
+            refreshPopupData()
+        }
     }
 
     private var latestUsagePercent: Int {
@@ -211,13 +221,163 @@ final class MemoryGraphWidget: StatusBarWidget, EventEmitting {
                     .contentTransition(.numericText())
             }
         }
-        .onTapGesture {
-            NSWorkspace.shared.open(
-                URL(fileURLWithPath: "/System/Applications/Utilities/Activity Monitor.app")
-            )
+        .onTapGesture { [weak self] in
+            self?.togglePopup()
         }
         .accessibilityElement(children: .combine)
         .accessibilityLabel("Memory Usage")
         .accessibilityValue("\(latestUsagePercent)%")
+    }
+
+    // MARK: - Popup
+
+    private func togglePopup() {
+        if popupPanel?.isVisible == true {
+            popupPanel?.hidePopup()
+        } else {
+            showPopup()
+        }
+    }
+
+    private func showPopup() {
+        if popupPanel == nil {
+            popupPanel = PopupPanel(contentRect: NSRect(x: 0, y: 0, width: 300, height: 300))
+        }
+
+        guard let (barFrame, screen) = PopupPanel.barTriggerFrame() else {
+            return
+        }
+
+        refreshPopupData()
+        popupPanel?.showPopup(relativeTo: barFrame, on: screen, content: makePopupContent())
+    }
+
+    private func refreshPopupData() {
+        popupSnapshot = service.memorySnapshot()
+        refreshPopup()
+
+        guard !processFetchInFlight else {
+            return
+        }
+        processFetchInFlight = true
+        Task { [weak self] in
+            let samples = await ProcessInfoService.sample(sortedBy: .memory)
+            guard let self else {
+                return
+            }
+            processFetchInFlight = false
+            processFetchCompleted = true
+            popupProcesses = ProcessInfoService.topByMemory(samples)
+            refreshPopup()
+        }
+    }
+
+    private func refreshPopup() {
+        guard let panel = popupPanel, panel.isVisible else {
+            return
+        }
+        panel.updateContent(makePopupContent())
+        panel.resizeToFitContent()
+    }
+
+    private func makePopupContent() -> MemoryPopupContent {
+        MemoryPopupContent(
+            snapshot: popupSnapshot,
+            processes: popupProcesses,
+            processesLoaded: processFetchCompleted,
+            onOpenActivityMonitor: { [weak self] in
+                NSWorkspace.shared.open(
+                    URL(fileURLWithPath: "/System/Applications/Utilities/Activity Monitor.app")
+                )
+                self?.popupPanel?.hidePopup()
+            }
+        )
+    }
+}
+
+// MARK: - MemoryPopupContent
+
+private struct MemoryPopupContent: View {
+    let snapshot: SystemMonitorService.MemorySnapshot?
+    let processes: [ProcessInfoService.ProcessSample]
+    let processesLoaded: Bool
+    let onOpenActivityMonitor: () -> Void
+
+    private func usageColor(_ fraction: Double) -> Color {
+        if fraction >= 0.85 {
+            return Theme.red
+        }
+        if fraction >= 0.60 {
+            return Theme.yellow
+        }
+        return Theme.green
+    }
+
+    private func formatBytes(_ bytes: UInt64) -> String {
+        ByteCountFormatter.string(fromByteCount: Int64(bytes), countStyle: .memory)
+    }
+
+    var body: some View {
+        VStack(spacing: 0) {
+            PopupSectionHeader("Memory")
+
+            if let snapshot {
+                VStack(spacing: 6) {
+                    UsageBarRow(
+                        label: "Used",
+                        fraction: snapshot.usedFraction,
+                        color: usageColor(snapshot.usedFraction),
+                        valueText: "\(formatBytes(snapshot.usedBytes)) / \(formatBytes(snapshot.totalBytes))"
+                    )
+                }
+                .padding(.horizontal, 14)
+                .padding(.bottom, 4)
+
+                VStack(spacing: 2) {
+                    PopupInfoRow(icon: "app.badge", label: "App Memory", value: formatBytes(snapshot.appBytes))
+                    PopupInfoRow(icon: "pin.fill", label: "Wired", value: formatBytes(snapshot.wiredBytes))
+                    PopupInfoRow(
+                        icon: "arrow.down.right.and.arrow.up.left",
+                        label: "Compressed",
+                        value: formatBytes(snapshot.compressedBytes)
+                    )
+                    if snapshot.swapTotalBytes > 0 {
+                        PopupInfoRow(
+                            icon: "arrow.left.arrow.right",
+                            label: "Swap",
+                            value: "\(formatBytes(snapshot.swapUsedBytes)) / \(formatBytes(snapshot.swapTotalBytes))"
+                        )
+                    }
+                }
+                .padding(.horizontal, 6)
+                .padding(.bottom, 4)
+            }
+
+            PopupDivider()
+            PopupSectionHeader("Top Processes")
+
+            if processes.isEmpty {
+                PopupEmptyState(icon: "memorychip", message: processesLoaded ? "Unavailable" : "Loading…")
+            } else {
+                VStack(spacing: 2) {
+                    ForEach(processes) { process in
+                        ProcessRow(
+                            name: process.name,
+                            valueText: formatBytes(process.residentBytes),
+                            valueColor: Theme.accentBlue
+                        )
+                    }
+                }
+                .padding(.horizontal, 6)
+            }
+
+            PopupDivider()
+            PopupRow(icon: "chart.bar.xaxis", label: "Open Activity Monitor") {
+                onOpenActivityMonitor()
+            }
+            .padding(.horizontal, 6)
+            .padding(.bottom, 8)
+        }
+        .frame(width: 300)
     }
 }

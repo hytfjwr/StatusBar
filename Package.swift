@@ -33,6 +33,7 @@ let package = Package(
                 .linkedFramework("Carbon"),
                 .linkedFramework("UserNotifications"),
                 .linkedFramework("ServiceManagement"),
+                .linkedFramework("CoreWLAN"),
                 .unsafeFlags([
                     "-Xlinker", "-rpath", "-Xlinker", "@executable_path",
                     "-Xlinker", "-rpath", "-Xlinker", "@executable_path/../Frameworks",
