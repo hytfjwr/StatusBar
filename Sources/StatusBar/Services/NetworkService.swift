@@ -111,9 +111,14 @@ final class NetworkService {
                 continue
             }
 
-            seen.insert(name)
             let length = buffer.firstIndex(of: 0) ?? buffer.count
-            let address = String(decoding: buffer[0 ..< length].map { UInt8(bitPattern: $0) }, as: UTF8.self)
+            guard let address = String(
+                bytes: buffer[0 ..< length].map { UInt8(bitPattern: $0) }, encoding: .utf8
+            ) else {
+                continue
+            }
+
+            seen.insert(name)
             results.append((name: name, address: address))
         }
 
