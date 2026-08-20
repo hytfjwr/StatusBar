@@ -54,9 +54,18 @@ final class FocusTimerWidget: StatusBarWidget, EventEmitting {
         case completed(at: Date)
     }
 
+    /// Semantic tint of the bar label. Resolved to a `Theme` color at render time so it
+    /// follows the system appearance and color preferences instead of freezing a value.
+    enum DisplayTint {
+        case idle
+        case active
+        case warning
+        case done
+    }
+
     private var state: TimerState = .idle
     private var displayText = "--:--"
-    private var displayColor: Color = Theme.secondary
+    private var displayTint: DisplayTint = .idle
     private var bounceCounter = 0
     private var showCustomSlider = false
     private var customMinutes: Double = 25
@@ -104,7 +113,7 @@ final class FocusTimerWidget: StatusBarWidget, EventEmitting {
         timer = nil
         state = .idle
         displayText = "--:--"
-        displayColor = Theme.secondary
+        displayTint = .idle
         NSSound(named: "Purr")?.play()
         refreshPopup()
         clearSavedState()
@@ -165,7 +174,7 @@ final class FocusTimerWidget: StatusBarWidget, EventEmitting {
             // Timer already expired — show completion briefly
             state = .completed(at: Date())
             displayText = "Done"
-            displayColor = Theme.green
+            displayTint = .done
             startTickTimer()
             clearSavedState()
         }
@@ -188,14 +197,14 @@ final class FocusTimerWidget: StatusBarWidget, EventEmitting {
         switch state {
         case .idle:
             displayText = "--:--"
-            displayColor = Theme.secondary
+            displayTint = .idle
 
         case let .running(mode, endTime):
             let remaining = endTime.timeIntervalSinceNow
             if remaining <= 0 {
                 state = .completed(at: Date())
                 displayText = "Done"
-                displayColor = Theme.green
+                displayTint = .done
                 NSSound(named: "Glass")?.play()
                 clearSavedState()
                 emit(.focusTimerCompleted(mode: mode))
@@ -207,9 +216,9 @@ final class FocusTimerWidget: StatusBarWidget, EventEmitting {
             displayText = String(format: "%02d:%02d", minutes, seconds)
 
             if remaining <= 300 {
-                displayColor = Theme.yellow
+                displayTint = .warning
             } else {
-                displayColor = Theme.primary
+                displayTint = .active
             }
 
         case let .completed(at):
@@ -218,8 +227,17 @@ final class FocusTimerWidget: StatusBarWidget, EventEmitting {
                 timer = nil
                 state = .idle
                 displayText = "--:--"
-                displayColor = Theme.secondary
+                displayTint = .idle
             }
+        }
+    }
+
+    private var displayColor: Color {
+        switch displayTint {
+        case .active: Theme.primary
+        case .done: Theme.green
+        case .idle: Theme.secondary
+        case .warning: Theme.yellow
         }
     }
 
