@@ -14,6 +14,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
         Theme.configure(provider: PreferencesModel.shared)
 
+        // Track system Dark / Light so Theme colors resolve before any view is built
+        AppearanceService.shared.start()
+
         let registry = WidgetRegistry.shared
         registry.onLayoutDidChange = {
             PreferencesModel.shared.bump()
@@ -124,6 +127,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
         IPCServer.shared.stop()
         NotificationService.shared.stop()
+        AppearanceService.shared.stop()
         controller?.teardown()
         PluginsManager.shared.teardown()
         ConfigLoader.shared.teardown()
