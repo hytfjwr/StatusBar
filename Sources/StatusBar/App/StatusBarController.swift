@@ -34,6 +34,26 @@ final class StatusBarController {
         observeTintPreferences()
         observeBehaviorPreferences()
         observeFullscreenPreference()
+        observeSystemAppearance()
+    }
+
+    /// Cross-fade every bar window when the system switches between Dark and Light.
+    private func observeSystemAppearance() {
+        withObservationTracking {
+            _ = AppearanceService.shared.isDark
+        } onChange: { [weak self] in
+            Task { @MainActor in
+                self?.applySystemAppearance()
+                self?.observeSystemAppearance()
+            }
+        }
+    }
+
+    private func applySystemAppearance() {
+        let isDark = AppearanceService.shared.isDark
+        for window in barWindows {
+            window.fadeAppearance(isDark: isDark, duration: AppearanceService.fadeDuration)
+        }
     }
 
     private func createBarWindows() {

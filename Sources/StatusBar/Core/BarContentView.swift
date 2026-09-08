@@ -7,6 +7,12 @@ struct BarContentView: View {
     let registry: WidgetRegistry
     let screenIndex: Int
 
+    /// Read from the service rather than the inherited `NSAppearance` so the switch
+    /// arrives as one observable change that `.animation(_:value:)` can fade.
+    private var isDark: Bool {
+        AppearanceService.shared.isDark
+    }
+
     var body: some View {
         ZStack {
             // CENTER — absolutely centered on screen
@@ -39,6 +45,8 @@ struct BarContentView: View {
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .environment(\.colorScheme, isDark ? .dark : .light)
+        .animation(.easeInOut(duration: AppearanceService.fadeDuration), value: isDark)
         .environment(\.screenIndex, screenIndex)
     }
 }

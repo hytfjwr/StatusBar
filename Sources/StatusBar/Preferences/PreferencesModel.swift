@@ -239,16 +239,22 @@ final class PreferencesModel: ThemeProvider {
         Color(hex: accentHex)
     }
 
+    /// Base color of the text hierarchy for a given appearance.
+    /// White reads on the dark glass, black on the light one.
+    static func textColor(isDark: Bool, opacity: Double) -> Color {
+        (isDark ? Color.white : Color.black).opacity(opacity)
+    }
+
     var primaryColor: Color {
-        Color.white.opacity(textPrimaryOpacity)
+        Self.textColor(isDark: AppearanceService.shared.isDark, opacity: textPrimaryOpacity)
     }
 
     var secondaryColor: Color {
-        Color.white.opacity(textSecondaryOpacity)
+        Self.textColor(isDark: AppearanceService.shared.isDark, opacity: textSecondaryOpacity)
     }
 
     var tertiaryColor: Color {
-        Color.white.opacity(textTertiaryOpacity)
+        Self.textColor(isDark: AppearanceService.shared.isDark, opacity: textTertiaryOpacity)
     }
 
     var greenColor: Color {

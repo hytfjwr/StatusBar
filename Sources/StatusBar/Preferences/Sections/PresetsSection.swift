@@ -210,9 +210,11 @@ struct PresetsSection: View {
             return
         }
         let accessing = url.startAccessingSecurityScopedResource()
-        defer { if accessing {
-            url.stopAccessingSecurityScopedResource()
-        } }
+        defer {
+            if accessing {
+                url.stopAccessingSecurityScopedResource()
+            }
+        }
         guard let data = try? Data(contentsOf: url) else {
             return
         }

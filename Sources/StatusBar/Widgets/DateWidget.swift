@@ -38,33 +38,43 @@ final class DateSettings: WidgetConfigProvider {
     private var suppressWrite = false
 
     var format: String {
-        didSet { if !suppressWrite {
-            WidgetConfigRegistry.shared.notifySettingsChanged()
-        } }
+        didSet {
+            if !suppressWrite {
+                WidgetConfigRegistry.shared.notifySettingsChanged()
+            }
+        }
     }
 
     var showNextEventOnBar: Bool {
-        didSet { if !suppressWrite {
-            WidgetConfigRegistry.shared.notifySettingsChanged()
-        } }
+        didSet {
+            if !suppressWrite {
+                WidgetConfigRegistry.shared.notifySettingsChanged()
+            }
+        }
     }
 
     var showNextEventInPopup: Bool {
-        didSet { if !suppressWrite {
-            WidgetConfigRegistry.shared.notifySettingsChanged()
-        } }
+        didSet {
+            if !suppressWrite {
+                WidgetConfigRegistry.shared.notifySettingsChanged()
+            }
+        }
     }
 
     var notifyNextEvent: Bool {
-        didSet { if !suppressWrite {
-            WidgetConfigRegistry.shared.notifySettingsChanged()
-        } }
+        didSet {
+            if !suppressWrite {
+                WidgetConfigRegistry.shared.notifySettingsChanged()
+            }
+        }
     }
 
     var notifyMinutesBefore: [Int] {
-        didSet { if !suppressWrite {
-            WidgetConfigRegistry.shared.notifySettingsChanged()
-        } }
+        didSet {
+            if !suppressWrite {
+                WidgetConfigRegistry.shared.notifySettingsChanged()
+            }
+        }
     }
 
     private init() {

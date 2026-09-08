@@ -31,9 +31,11 @@ final class NetworkSettings: WidgetConfigProvider {
     private var suppressWrite = false
 
     var updateInterval: Double {
-        didSet { if !suppressWrite {
-            WidgetConfigRegistry.shared.notifySettingsChanged()
-        } }
+        didSet {
+            if !suppressWrite {
+                WidgetConfigRegistry.shared.notifySettingsChanged()
+            }
+        }
     }
 
     private init() {
