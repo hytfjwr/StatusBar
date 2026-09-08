@@ -51,9 +51,11 @@ final class BatterySettings: WidgetConfigProvider {
     private var suppressWrite = false
 
     var showPercentage: Bool {
-        didSet { if !suppressWrite {
-            WidgetConfigRegistry.shared.notifySettingsChanged()
-        } }
+        didSet {
+            if !suppressWrite {
+                WidgetConfigRegistry.shared.notifySettingsChanged()
+            }
+        }
     }
 
     private init() {
