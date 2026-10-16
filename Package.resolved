@@ -1,5 +1,5 @@
 {
-  "originHash" : "ec54e59d5babb07f5f13ec36e991f9196247b3985a69664fcf623f0e3b7ccc77",
+  "originHash" : "9dbf691ee2767347f99db149ffd52c7514aea7da3bd30ef88015e33e3efcdbff",
   "pins" : [
     {
       "identity" : "statusbarkit",
@@ -24,8 +24,8 @@
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/SimplyDanny/SwiftLintPlugins",
       "state" : {
-        "revision" : "8a4640d14777685ba8f14e832373160498fbab92",
-        "version" : "0.63.2"
+        "revision" : "ef7d692fc6706e8f5628e26bcafaefa445c58a97",
+        "version" : "0.65.1"
       }
     },
     {
